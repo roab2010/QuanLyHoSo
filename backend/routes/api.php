@@ -9,5 +9,7 @@ Route::get('/user', function (Request $request) {
 
 
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProjectController;
 
 Route::apiResource('categories', CategoryController::class);
+Route::apiResource('projects', ProjectController::class);

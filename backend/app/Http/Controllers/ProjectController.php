@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Project;
 
 class ProjectController extends Controller
 {
@@ -35,9 +36,19 @@ class ProjectController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, $id)
     {
-        //
+        $project = Project::find($id);
+        if (!$project) return response()->json(['message' => 'Không tìm thấy hồ sơ'], 404);
+
+        // Frontend sẽ gửi lên { "status": "PROCESSING" } khi kéo thả
+        $project->update($request->only(['status', 'priority', 'name', 'address']));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cập nhật hồ sơ thành công',
+            'data' => $project
+        ]);
     }
 
     /**
