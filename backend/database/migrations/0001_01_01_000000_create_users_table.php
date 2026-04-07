@@ -13,12 +13,14 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
+            $table->string('username', 50)->unique(); // Dùng username thay vì email
+            $table->string('password_hash', 255);     // Tên cột mật khẩu theo CSDL của Nguyên
+            $table->unsignedBigInteger('role_id');    // Khóa ngoại phân quyền
+            $table->boolean('status')->default(true); // Trạng thái tài khoản
+            $table->timestamp('created_at')->useCurrent();
+
+            // Ràng buộc khóa ngoại: user thuộc về role nào
+            $table->foreign('role_id')->references('id')->on('roles')->onDelete('restrict');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
