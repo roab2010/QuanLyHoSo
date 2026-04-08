@@ -25,32 +25,30 @@ class ProjectController extends Controller
     /**
      * Thêm hồ sơ mới
      */
-    public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'project_code' => 'required|string|unique:projects,project_code',
-            'status' => 'required|string',
+   public function store(Request $request)
+{
+    try {
+        // Dùng Query Builder để chèn trực tiếp, tránh mọi lỗi Model
+        $id = DB::table('projects')->insertGetId([
+            'project_code' => $request->project_code,
+            'name'         => $request->name,
+            'address'      => $request->address,
+            'status'       => $request->status ?? 'DRAFT',
+            'priority'     => $request->priority ?? 'MEDIUM',
+            'start_date'   => $request->start_date,
+            'category_id'  => $request->category_id ?? 1,
+            'customer_id'  => $request->customer_id ?? 1,
+            'supervisor_id'=> $request->supervisor_id ?? 1,
+            // Không chèn created_at/updated_at nếu DB không có
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['message' => 'Dữ liệu không hợp lệ', 'errors' => $validator->errors()], 422);
-        }
+        $newProject = DB::table('projects')->where('id', $id)->first();
+        return response()->json($newProject, 201);
 
-        // Tạo dự án mới
-        $project = Project::create([
-            'project_code'  => $request->project_code,
-            'name'          => $request->name,
-            'address'       => $request->address,
-            'status'        => $request->status ?? 'DRAFT',
-            'priority'      => $request->priority ?? 'MEDIUM',
-            'start_date'    => $request->start_date ?? now()->format('Y-m-d'),
-            'category_id'   => $request->category_id ?? 1, // Mặc định nếu chưa chọn
-            'customer_id'   => $request->customer_id ?? 1,
-        ]);
-
-        return response()->json($project, 201);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
     }
+}
 
     /**
      * Cập nhật hồ sơ (Dùng cho cả sửa thông tin và kéo thả)

@@ -87,23 +87,29 @@ export default function useHoSo() {
 
     /* ── Thêm mới ── */
     const themHoSo = async (payload) => {
-        try {
-            // Chuyển đổi từ form sang field Database
-            const dbPayload = {
-                name: payload.ten,
-                project_code: payload.ma_ho_so,
-                address: payload.mo_ta,
-                status: 'DRAFT',
-                priority: 'MEDIUM',
-                start_date: payload.ngay_tao
-            };
-            const created = await createHoSo(dbPayload);
-            setCards((prev) => [...prev, normalize(created)]);
-            return { ok: true };
-        } catch (err) {
-            return { ok: false, message: 'Lỗi tạo hồ sơ' };
-        }
-    };
+    try {
+        const dbPayload = {
+            name: payload.ten,
+            project_code: payload.ma_ho_so || `HS-${Date.now()}`, // Tạo mã tự động nếu trống
+            address: payload.mo_ta,
+            status: 'DRAFT',    // Khớp với ENUM của bạn
+            priority: 'MEDIUM', // Khớp với ENUM của bạn
+            start_date: payload.ngay_tao,
+            
+            // THÊM 2 DÒNG NÀY (Thay số 1 bằng ID thực tế bạn có trong DB)
+            category_id: 1, 
+            customer_id: 1,
+            supervisor_id: 1
+        };
+        const created = await createHoSo(dbPayload);
+        setCards((prev) => [...prev, normalize(created)]);
+        return { ok: true };
+    } catch (err) {
+        // Log lỗi chi tiết ra console để dễ debug
+        console.error("Lỗi tạo hồ sơ:", err.response?.data);
+        return { ok: false, message: 'Lỗi tạo hồ sơ' };
+    }
+};
 
     /* ── Kéo thả (Cập nhật trạng thái) ── */
     const moveCard = async (cardId, newColId) => {

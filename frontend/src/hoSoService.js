@@ -11,7 +11,10 @@ export const getAllHoSo = async () => {
     // Hỗ trợ cả 2 dạng response của Laravel
     return res.data?.data ?? res.data;
 };
-
+export const getAllCategories = async () => {
+    const res = await api.get('/categories'); // Đường dẫn API Laravel của bạn
+    return res.data?.data ?? res.data;
+};
 /**
  * Tạo hồ sơ mới
  * POST /ho-so
@@ -49,3 +52,26 @@ export const updateHoSo = async (id, payload) => {
 export const deleteHoSo = async (id) => {
     await api.delete(`/projects/${id}`);
 };
+
+// Bổ sung vào cuối file hoSoService.js của bạn
+
+// Tạo danh mục mới
+export const createCategory = async (payload) => {
+    const res = await api.post('/categories', payload); //
+    return res.data?.data ?? res.data;
+};
+
+// Cập nhật danh mục
+export const updateCategory = async (id, payload) => {
+    const res = await api.put(`/categories/${id}`, payload); //
+    return res.data?.data ?? res.data;
+};
+
+// Xóa danh mục
+export const deleteCategory = async (id) => {
+    await api.delete(`/categories/${id}`); //
+};
+
+// export const createCategory = (payload) => api.post('/categories', payload);
+// export const updateCategory = (id, payload) => api.put(`/categories/${id}`, payload);
+// export const deleteCategory = (id) => api.delete(`/categories/${id}`);
