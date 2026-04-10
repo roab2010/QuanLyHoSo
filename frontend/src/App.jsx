@@ -4,6 +4,7 @@ import useHoSo from "./HoSo.js";
 import Sidebar from "./Sidebar";
 import KanbanBoard from "./KanbanBoard";
 import ProjectCategoryList from "./ProjectCategoryList";
+import News from "./News";
 
 const COLUMNS = [
     { id: "new",        title: "Mới tạo",    color: "#6b7280" },
@@ -63,6 +64,8 @@ export default function App() {
                         />
                     ) : activeNav === "Hồ sơ" ? (
                         <ProjectCategoryList />
+                    ) :activeNav === "Tin tức" ? ( // CHÈN THÊM DÒNG NÀY
+                        <News />
                     ) : (
                         <div style={{ padding: "40px", textAlign: "center" }}>
                             <h3>Trang {activeNav}</h3>
