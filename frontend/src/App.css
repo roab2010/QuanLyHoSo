@@ -206,3 +206,123 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     opacity: 0.6;
     cursor: grabbing;
 }
+/* --------------- */
+/* chi tiết hồ sơ */
+
+/* ChiTietHoSo.css */
+
+/* --- TỔNG THỂ --- */
+.detail-container {
+    padding: 30px 50px;
+    background-color: #f4f7fe;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+    color: #1b2559;
+}
+
+/* --- HEADER --- */
+.breadcrumb { font-size: 13px; color: #a3aed0; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+.header-main { display: flex; justify-content: space-between; align-items: center; }
+.header-main h2 { font-size: 32px; font-weight: 800; margin: 0; color: #1b2559; }
+.sub-text { color: #a3aed0; margin-top: 5px; margin-bottom: 30px; font-size: 16px; }
+
+.header-btns { display: flex; gap: 15px; }
+.btn-share, .btn-export {
+    padding: 12px 24px; border-radius: 14px; border: 1px solid #e0e5f2;
+    background: white; cursor: pointer; font-weight: 700; transition: 0.3s;
+}
+.btn-export { background: #0052cc !important; color: white !important; border: none; }
+.btn-export:hover { background: #0041a3 !important; box-shadow: 0px 10px 20px rgba(0, 82, 204, 0.2); }
+
+/* --- BỐ CỤC 3 CỘT --- */
+.detail-content {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+/* Sidebar bên trái */
+.detail-sidebar {
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.detail-sidebar button {
+    padding: 18px 25px; text-align: left; border: none; background: transparent;
+    cursor: pointer; font-size: 16px; color: #a3aed0; font-weight: 700;
+    border-radius: 20px; transition: 0.3s;
+}
+.detail-sidebar button.active {
+    background: white !important;
+    color: #0052cc !important;
+    box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.12);
+}
+.detail-sidebar button span { float: right; font-size: 20px; }
+
+/* --- NỘI DUNG CHÍNH (BIẾN ĐỔI THEO TAB) --- */
+.detail-main {
+    flex: 1; /* Để phần này nở to ra hết cỡ */
+    min-height: 500px;
+}
+
+/* Các Section chung */
+.info-section, .document-section, .progress-details {
+    background: white;
+    padding: 40px;
+    border-radius: 30px;
+    box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.08);
+}
+
+.section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 35px; border-bottom: 1px solid #f4f7fe; padding-bottom: 20px;
+}
+.section-header h3 { font-size: 24px; font-weight: 800; margin: 0; }
+.btn-edit, .btn-upload { background: none; border: none; color: #0052cc; font-weight: 700; cursor: pointer; font-size: 15px; }
+
+/* --- TAB 1: THÔNG TIN CHI TIẾT --- */
+.big-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px 60px; /* Giãn rộng các ô ra */
+}
+.info-item.full { grid-column: span 2; }
+.info-item label { display: block; font-size: 12px; color: #a3aed0; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px; }
+.info-item p { margin: 0; font-size: 18px; font-weight: 700; color: #1b2559; line-height: 1.5; }
+
+/* --- TAB 2: BẢNG TÀI LIỆU --- */
+.doc-table { width: 100%; border-collapse: collapse; }
+.doc-table th { text-align: left; font-size: 12px; color: #a3aed0; padding: 15px; border-bottom: 1px solid #f4f7fe; }
+.doc-table td { padding: 25px 15px; border-bottom: 1px solid #f4f7fe; font-weight: 700; font-size: 15px; }
+
+.st-done { background: #e6f9f0 !important; color: #05cd99 !important; padding: 8px 16px; border-radius: 12px; }
+.st-wait { background: #fff7ed !important; color: #ffa000 !important; padding: 8px 16px; border-radius: 12px; }
+
+/* --- TAB 3: TIẾN ĐỘ TO --- */
+.progress-big-card {
+    background: #f8faff; padding: 50px; border-radius: 25px; text-align: center;
+}
+.big-progress-bar {
+    height: 16px; background: #e0e5f2; border-radius: 20px; margin: 30px 0; overflow: hidden;
+}
+.big-progress-bar .fill { height: 100%; background: #0052cc; border-radius: 20px; transition: 1.5s ease; }
+.big-percent { font-size: 64px; font-weight: 800; color: #0052cc; }
+
+/* --- WIDGET BÊN PHẢI (LUÔN HIỆN) --- */
+.detail-right { width: 320px; }
+.progress-widget {
+    background: linear-gradient(135deg, #0052cc, #003399);
+    border-radius: 30px; padding: 35px; color: white; text-align: center;
+    box-shadow: 0px 20px 40px rgba(0, 82, 204, 0.3);
+}
+.percent { font-size: 56px; font-weight: 800; display: block; margin-bottom: 10px; }
+
+/* HIỆU ỨNG CHUYỂN TAB */
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}

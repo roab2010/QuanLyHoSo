@@ -80,3 +80,13 @@ export const getAllCustomers = async () => {
         return [];
     }
 };
+
+export const getChiTietHoSo = async (id) => {
+    try {
+        const res = await api.get(`/projects/${id}`);
+        return res.data?.data ?? res.data;
+    } catch (error) {
+        console.error("Lỗi lấy chi tiết hồ sơ:", error);
+        return null;
+    }
+};
