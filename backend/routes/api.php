@@ -8,6 +8,7 @@ use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
 use Symfony\Component\DomCrawler\Crawler;
+use App\Http\Controllers\TemplateTaskController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -16,8 +17,20 @@ Route::get('/user', function (Request $request) {
 // Các route cho Category
 Route::apiResource('categories', CategoryController::class);
 
+// Lấy danh sách: GET http://localhost:8000/api/template-tasks/category/1
+Route::get('/template-tasks/category/{categoryId}', [TemplateTaskController::class, 'index']);
+
+// Thêm mới: POST http://localhost:8000/api/template-tasks
+Route::post('/template-tasks', [TemplateTaskController::class, 'store']);
+
+// Cập nhật: PUT http://localhost:8000/api/template-tasks/1
+Route::put('/template-tasks/{id}', [TemplateTaskController::class, 'update']);
+
+// Xóa: DELETE http://localhost:8000/api/template-tasks/1
+Route::delete('/template-tasks/{id}', [TemplateTaskController::class, 'destroy']);
+
 // Xử lý riêng cho Project (Viết Route PUT đè lên trước Resource)
-Route::put('projects/{id}', [ProjectController::class, 'update']); 
+Route::put('projects/{id}', [ProjectController::class, 'update']);
 Route::apiResource('projects', ProjectController::class);
 
 //route xử lí customer
@@ -83,7 +96,6 @@ Route::get('/news', function () {
                             'category' => $name
                         ];
                     });
-
             } catch (\Exception $e) {
                 continue;
             }
@@ -92,4 +104,3 @@ Route::get('/news', function () {
         return $allNews;
     });
 });
-

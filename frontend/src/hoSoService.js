@@ -1,92 +1,135 @@
-import api from './api';
+import api from "./api";
+import axios from "axios"; // THÊM DÒNG NÀY VÀO ĐẦU FILE
+const API_URL = "http://127.0.0.1:8000/api";
 
 /**
  * --- PHẦN HỒ SƠ (PROJECTS) ---
  */
 export const getAllHoSo = async () => {
-    try {
-        const res = await api.get('/projects');
-        const data = res.data?.data ?? res.data;
-        return Array.isArray(data) ? data : [];
-    } catch (error) {
-        console.error("Lỗi lấy danh sách hồ sơ:", error);
-        return [];
-    }
+  try {
+    const res = await api.get("/projects");
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Lỗi lấy danh sách hồ sơ:", error);
+    return [];
+  }
 };
 
 export const createHoSo = async (payload) => {
-    const res = await api.post('/projects', payload);
-    return res.data?.data ?? res.data;
+  const res = await api.post("/projects", payload);
+  return res.data?.data ?? res.data;
 };
 
 export const updateTrangThai = async (id, statusValue) => {
-    // Đảm bảo truyền đúng key 'status' và giá trị CHỮ HOA cho Backend Laravel
-    return api.put(`/projects/${id}`, { 
-        status: statusValue 
-    });
+  // Đảm bảo truyền đúng key 'status' và giá trị CHỮ HOA cho Backend Laravel
+  return api.put(`/projects/${id}`, {
+    status: statusValue,
+  });
 };
 
 export const updateHoSo = async (id, payload) => {
-    const res = await api.put(`/projects/${id}`, payload);
-    return res.data?.data ?? res.data;
+  const res = await api.put(`/projects/${id}`, payload);
+  return res.data?.data ?? res.data;
 };
 
 export const deleteHoSo = async (id) => {
-    await api.delete(`/projects/${id}`);
+  await api.delete(`/projects/${id}`);
 };
-
 
 /**
  * --- PHẦN LOẠI DỰ ÁN (CATEGORIES) ---
  */
 export const getAllCategories = async () => {
-    try {
-        const res = await api.get('/categories');
-        // Xử lý để luôn lấy được mảng dữ liệu dù Laravel có bọc trong 'data' hay không
-        const data = res.data?.data ?? res.data;
-        return Array.isArray(data) ? data : [];
-    } catch (error) {
-        console.error("Lỗi lấy danh mục:", error);
-        return [];
-    }
+  try {
+    const res = await api.get("/categories");
+    // Xử lý để luôn lấy được mảng dữ liệu dù Laravel có bọc trong 'data' hay không
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Lỗi lấy danh mục:", error);
+    return [];
+  }
 };
 
 export const createCategory = async (payload) => {
-    const res = await api.post('/categories', payload);
-    return res.data?.data ?? res.data;
+  const res = await api.post("/categories", payload);
+  return res.data?.data ?? res.data;
 };
 
 export const updateCategory = async (id, payload) => {
-    const res = await api.put(`/categories/${id}`, payload);
-    return res.data?.data ?? res.data;
+  const res = await api.put(`/categories/${id}`, payload);
+  return res.data?.data ?? res.data;
 };
 
 export const deleteCategory = async (id) => {
-    await api.delete(`/categories/${id}`);
+  await api.delete(`/categories/${id}`);
 };
-
 
 /**
  * --- PHẦN KHÁCH HÀNG (CUSTOMERS) ---
  */
 export const getAllCustomers = async () => {
-    try {
-        const res = await api.get('/customers');
-        // Luôn ép về mảng để không lỗi map
-        const data = res.data?.data ?? res.data;
-        return Array.isArray(data) ? data : [];
-    } catch (e) {
-        console.error("Lỗi API Customer:", e);
-        return [];
-    }
+  try {
+    const res = await api.get("/customers");
+    // Luôn ép về mảng để không lỗi map
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Lỗi API Customer:", e);
+    return [];
+  }
 };
 
 export const getChiTietHoSo = async (id) => {
-    try {
-        const res = await api.get(`/projects/${id}`);
-        return res.data?.data ?? res.data;
-    } catch (error) {
-        console.error("Lỗi lấy chi tiết hồ sơ:", error);
-        return null;
-    }
+  try {
+    const res = await api.get(`/projects/${id}`);
+    return res.data?.data ?? res.data;
+  } catch (error) {
+    console.error("Lỗi lấy chi tiết hồ sơ:", error);
+    return null;
+  }
+};
+export const getTemplatesByCategoryId = async (categoryId) => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/template-tasks/category/${categoryId}`,
+    );
+    // Vì Controller trả về { status: 'success', data: [...] }
+    // nên ta lấy response.data (là cục JSON) để Modal tự xử lý tiếp
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi API getTemplates:", error);
+    throw error;
+  }
+};
+
+export const createTemplateTask = async (payload) => {
+  try {
+    const response = await axios.post(`${API_URL}/template-tasks`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateTemplateTask = async (id, payload) => {
+  try {
+    const response = await axios.put(
+      `${API_URL}/template-tasks/${id}`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteTemplateTask = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/template-tasks/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
