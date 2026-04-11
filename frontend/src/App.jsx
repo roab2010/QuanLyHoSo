@@ -8,6 +8,7 @@ import ProjectCategoryList from "./ProjectCategoryList";
 import ChiTietHoSo from "./ChiTietHoSo"; 
 import News from "./News";
 import ModalAddProject from "./ModalAddProject"; 
+import InventoryDashboard from "./InventoryDashboard";
 
 
 const COLUMNS = [
@@ -16,12 +17,13 @@ const COLUMNS = [
     { id: "done",        title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Dashboard", "Danh mục dự án", "Báo cáo", "Tin tức", "Cài đặt"];
+const NAV_ITEMS = ["Dashboard", "Danh mục dự án", "Báo cáo", "Tin tức", "Quản lý kho"];
 
 export default function App() {
     const [activeNav, setActiveNav] = useState("Dashboard");
     const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
+    const [inventoryView, setInventoryView] = useState("selection");
     
     const { 
         loading, 
@@ -61,11 +63,11 @@ export default function App() {
                         value={search} 
                         onChange={(e) => setSearch(e.target.value)} 
                     />
-                    <div className="topbar-right">
+                    {/* <div className="topbar-right">
                         <button className="icon-btn" onClick={fetchAll} title="Làm mới dữ liệu">
                             ↻ Làm mới
                         </button>
-                    </div>
+                    </div> */}
                 </div>
 
                 {loading && <div className="state-banner loading">⏳ Đang xử lý...</div>}
@@ -85,7 +87,22 @@ export default function App() {
                         <ProjectCategoryList />
                     ) : activeNav === "Tin tức" ? (
                         <News />    
-                    ) : (
+                    ) : activeNav === "Quản lý kho" ? ( /* THÊM ĐOẠN NÀY DÔ ĐÂY */
+                        inventoryView === "selection" ? (
+                            <InventoryDashboard onSelect={setInventoryView} />
+                        ) : (
+                            <div style={{ padding: "20px" }}>
+                                <button className="btn-back-selection" onClick={() => setInventoryView("selection")}>
+                                    ← Quay lại chọn danh mục
+                                </button>
+                                {inventoryView === "vat-tu" ? (
+                                    <div className="animate-fade-in"><h3>Trang Vật Tư</h3><p>Đang tải...</p></div>
+                                ) : (
+                                    <div className="animate-fade-in"><h3>Trang Nhà Cung Cấp</h3><p>Đang tải...</p></div>
+                                )}
+                            </div>
+                        )
+                    ): (
                         <div style={{ padding: "40px", textAlign: "center" }}>
                             <h3>Trang {activeNav}</h3>
                             <p>Tính năng đang được phát triển...</p>
@@ -102,6 +119,7 @@ export default function App() {
             )}
         </div>
     );
+    
 
     // CHỈ DÙNG 1 LỆNH RETURN DUY NHẤT Ở ĐÂY
     return (

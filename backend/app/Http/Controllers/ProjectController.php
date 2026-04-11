@@ -146,4 +146,20 @@ class ProjectController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    public function show($id)
+    {
+        // Lấy dự án kèm theo mọi thứ liên quan để hiển thị ở các Tab
+        $project = Project::with([
+            'category', 
+            'customer', 
+            'tasks', // Nếu bạn đã định nghĩa quan hệ tasks trong Model Project
+            'supervisor'
+        ])->find($id);
+
+        if (!$project) {
+            return response()->json(['message' => 'Hồ sơ không tồn tại'], 404);
+        }
+
+        return response()->json($project);
+    }
 }
