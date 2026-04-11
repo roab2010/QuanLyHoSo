@@ -45,8 +45,7 @@ class TemplateTaskController extends Controller
                 'task_name'   => $request->task_name,
                 'work_volume' => $request->work_volume,
                 'sort_order'  => $request->sort_order,
-                'created_at'  => now(),
-                'updated_at'  => now(),
+
             ]);
 
             return response()->json([
@@ -74,7 +73,7 @@ class TemplateTaskController extends Controller
                 'task_name'   => $request->task_name,
                 'work_volume' => $request->work_volume,
                 'sort_order'  => $request->sort_order,
-                'updated_at'  => now(),
+
             ]);
 
             return response()->json(['message' => 'Cập nhật thành công'], 200);
