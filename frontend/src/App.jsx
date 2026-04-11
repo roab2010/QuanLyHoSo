@@ -9,8 +9,8 @@ import ChiTietHoSo from "./ChiTietHoSo";
 import News from "./News";
 import ModalAddProject from "./ModalAddProject"; 
 import InventoryDashboard from "./InventoryDashboard";
-
 import QuanLyVatTu from "./QuanLyVatTu";
+import QuanLyNhaCungCap from "./QuanLyNhaCungCap";
 
 const COLUMNS = [
     { id: "new",         title: "Mới tạo",    color: "#6b7280" },
@@ -92,10 +92,11 @@ const MainLayout = () => (
                             <button className="btn-back-selection" onClick={() => setInventoryView("selection")}>
                                 ← Quay lại chọn danh mục
                             </button>
-     {inventoryView === "vat-tu" ? (
+                            
+                            {inventoryView === "vat-tu" ? (
                                 <QuanLyVatTu />
                             ) : (
-                                 <div className="animate-fade-in"><h3>Trang Nha Cung Cấp</h3><p>Đang phát triển...</p></div>
+                                <QuanLyNhaCungCap />
                             )}
                         </div>
                     )
