@@ -49,9 +49,32 @@ public $timestamps = false;
     }
 
     // Kết nối với bảng Employee (Người giám sát - Supervisor)
-    // Giả sử bạn có model Employee hoặc User
     public function supervisor()
     {
-        return $this->belongsTo(Employees::class, 'supervisor_id');
+        return $this->belongsTo(Employee::class, 'supervisor_id');
+    }
+
+    // Thành viên dự án
+    public function members()
+    {
+        return $this->hasMany(ProjectMember::class, 'project_id');
+    }
+
+    // Tài liệu pháp lý
+    public function documents()
+    {
+        return $this->hasMany(ProjectDocument::class, 'project_id');
+    }
+
+    // Vật tư & Thiết bị
+    public function equipments()
+    {
+        return $this->hasMany(ProjectEquipment::class, 'project_id');
+    }
+
+    // Công việc / Tiến độ
+    public function tasks()
+    {
+        return $this->hasMany(ProjectTask::class, 'project_id');
     }
 }

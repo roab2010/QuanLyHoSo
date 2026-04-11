@@ -1,29 +1,172 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getChiTietHoSo } from "./hoSoService";
+import {
+    getChiTietHoSo,
+    createTask,
+    updateTask,
+    deleteTask,
+    updateDocument,
+    addMember,
+    removeMember,
+    getAllEmployees,
+} from "./hoSoService";
+
+const STATUS_LABELS = {
+    PENDING: "Chờ duyệt",
+    PROCESSING: "Đang xử lý",
+    REVISION: "Cần sửa",
+    COMPLETED: "Đã xong",
+};
+const STATUS_CLASS = {
+    PENDING: "st-wait",
+    PROCESSING: "st-processing",
+    REVISION: "st-reject",
+    COMPLETED: "st-done",
+};
+
+const TASK_COLS = [
+    { id: "TODO", title: "CHƯA LÀM", color: "#6b7280" },
+    { id: "DOING", title: "ĐANG LÀM", color: "#f59e0b" },
+    { id: "DONE", title: "HOÀN THÀNH", color: "#16a34a" },
+];
+const TASK_ORDER = { TODO: 1, DOING: 2, DONE: 3 };
 
 export default function ChiTietHoSo() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [project, setProject] = useState(null);
     const [activeTab, setActiveTab] = useState("thong-tin");
+    const [loading, setLoading] = useState(true);
+
+    // Task modal
+    const [showTaskModal, setShowTaskModal] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [taskForm, setTaskForm] = useState({ task_name: "", work_volume: 0 });
+
+    // Member modal
+    const [showMemberModal, setShowMemberModal] = useState(false);
+    const [employees, setEmployees] = useState([]);
+    const [selectedEmployee, setSelectedEmployee] = useState("");
+
+    // Drag state
+    const dragItem = useRef(null);
+
+    const fetchData = async () => {
+        setLoading(true);
+        const data = await getChiTietHoSo(id);
+        if (data) setProject(data);
+        setLoading(false);
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            setProject({
-                project_code: "HS-9021",
-                name: "Tòa nhà Landmark 81",
-                supervisor: "Nguyễn Văn Nam",
-                address: "720A Điện Biên Phủ, Phường 22, Quận Bình Thạnh, TP. Hồ Chí Minh",
-                investor: "Vingroup JSC",
-                start_date: "15 tháng 06, 2024",
-                progress: 65
-            });
-        };
         fetchData();
     }, [id]);
 
-    if (!project) return <div className="loading">Đang tải...</div>;
+    /* ─── TASK HANDLERS ─── */
+    const handleAddTask = () => {
+        setEditingTask(null);
+        setTaskForm({ task_name: "", work_volume: 0 });
+        setShowTaskModal(true);
+    };
+    const handleEditTask = (task) => {
+        setEditingTask(task);
+        setTaskForm({ task_name: task.task_name, work_volume: task.work_volume });
+        setShowTaskModal(true);
+    };
+    const handleSaveTask = async () => {
+        if (!taskForm.task_name.trim()) return alert("Vui lòng nhập tên công việc");
+        try {
+            if (editingTask) {
+                await updateTask(id, editingTask.id, taskForm);
+            } else {
+                await createTask(id, taskForm);
+            }
+            setShowTaskModal(false);
+            fetchData();
+        } catch (e) {
+            alert(e.response?.data?.message || "Lỗi khi lưu công việc");
+        }
+    };
+    const handleDeleteTask = async (taskId) => {
+        if (!window.confirm("Bạn chắc chắn muốn xóa công việc này?")) return;
+        try {
+            await deleteTask(id, taskId);
+            fetchData();
+        } catch (e) {
+            alert("Lỗi khi xóa công việc");
+        }
+    };
+
+    /* ─── DRAG & DROP (forward only) ─── */
+    const handleDragStart = (e, task) => {
+        dragItem.current = task;
+        e.dataTransfer.effectAllowed = "move";
+    };
+    const handleDragOver = (e) => e.preventDefault();
+    const handleDrop = async (e, targetStatus) => {
+        e.preventDefault();
+        const task = dragItem.current;
+        if (!task || task.status === targetStatus) return;
+        const curOrd = TASK_ORDER[task.status];
+        const newOrd = TASK_ORDER[targetStatus];
+        if (newOrd < curOrd) return alert("Không được kéo ngược trạng thái!");
+        if (newOrd > curOrd + 1) return alert("Chỉ được chuyển sang trạng thái kế tiếp!");
+        try {
+            await updateTask(id, task.id, { status: targetStatus });
+            fetchData();
+        } catch (e) {
+            alert(e.response?.data?.message || "Lỗi khi cập nhật trạng thái");
+        }
+        dragItem.current = null;
+    };
+
+    /* ─── DOCUMENT HANDLERS ─── */
+    const handleDocAction = async (docId, status) => {
+        try {
+            await updateDocument(id, docId, { status });
+            fetchData();
+        } catch (e) {
+            alert("Lỗi khi cập nhật tài liệu");
+        }
+    };
+
+    /* ─── MEMBER HANDLERS ─── */
+    const handleOpenAddMember = async () => {
+        const emps = await getAllEmployees();
+        setEmployees(emps);
+        setSelectedEmployee("");
+        setShowMemberModal(true);
+    };
+    const handleAddMember = async () => {
+        if (!selectedEmployee) return alert("Vui lòng chọn nhân viên");
+        try {
+            await addMember(id, { employee_id: selectedEmployee });
+            setShowMemberModal(false);
+            fetchData();
+        } catch (e) {
+            alert(e.response?.data?.error || "Lỗi khi thêm thành viên");
+        }
+    };
+    const handleRemoveMember = async (memberId) => {
+        if (!window.confirm("Xóa thành viên này khỏi dự án?")) return;
+        try {
+            await removeMember(id, memberId);
+            fetchData();
+        } catch (e) {
+            alert("Lỗi khi xóa thành viên");
+        }
+    };
+
+    if (loading) return <div className="loading-screen"><div className="spinner"></div><p>Đang tải dữ liệu...</p></div>;
+    if (!project) return <div className="loading-screen"><p>Không tìm thấy hồ sơ</p><button className="btn-back-main" onClick={() => navigate("/")}>← Quay lại</button></div>;
+
+    const tasks = project.tasks || [];
+    const documents = project.documents || [];
+    const members = project.members || [];
+    const equipments = project.equipments || [];
+    const supervisorName = project.supervisor?.full_name || "—";
+    const customerName = project.customer?.full_name || project.customer?.name || "—";
+    const startDateFormatted = project.start_date ? new Date(project.start_date).toLocaleDateString("vi-VN", { year: "numeric", month: "long", day: "numeric" }) : "—";
 
     return (
         <div className="detail-container">
@@ -43,159 +186,329 @@ export default function ChiTietHoSo() {
             <div className="detail-content">
                 {/* Sidebar */}
                 <div className="detail-sidebar">
-                    <button className={activeTab === "thong-tin" ? "active" : ""} onClick={() => setActiveTab("thong-tin")}>
-                        Thông tin chung <span>›</span>
-                    </button>
-                    <button className={activeTab === "phap-ly" ? "active" : ""} onClick={() => setActiveTab("phap-ly")}>
-                        Tài liệu pháp lý
-                    </button>
-                    <button className={activeTab === "nhan-su" ? "active" : ""} onClick={() => setActiveTab("nhan-su")}>
-                        Nhân sự & Thành viên
-                    </button>
-                    <button className={activeTab === "vat-tu" ? "active" : ""} onClick={() => setActiveTab("vat-tu")}>
-                        Vật tư & Thiết bị
-                    </button>
-                    <button className={activeTab === "tien-do" ? "active" : ""} onClick={() => setActiveTab("tien-do")}>
-                        Tiến độ thi công
-                    </button>
-                    <button className="btn-back" onClick={() => navigate("/")} style={{marginTop: '20px'}}>
+                    {[
+                        { key: "thong-tin", label: "Thông tin chung", icon: "📊" },
+                        { key: "phap-ly", label: "Tài liệu pháp lý", icon: "📄" },
+                        { key: "nhan-su", label: "Nhân sự & Thành viên", icon: "👥" },
+                        { key: "vat-tu", label: "Vật tư & Thiết bị", icon: "🏗️" },
+                        { key: "tien-do", label: "Tiến độ thi công", icon: "📋" },
+                    ].map((tab) => (
+                        <button
+                            key={tab.key}
+                            className={activeTab === tab.key ? "active" : ""}
+                            onClick={() => setActiveTab(tab.key)}
+                        >
+                            <span className="tab-icon">{tab.icon}</span> {tab.label}
+                            {activeTab === tab.key && <span className="tab-arrow">›</span>}
+                        </button>
+                    ))}
+                    <button className="btn-back" onClick={() => navigate("/")}>
                         ← Quay lại bảng
                     </button>
                 </div>
 
                 {/* Nội dung chính */}
                 <div className="detail-main">
-                    {/* Tab Thông tin chung */}
+                    {/* ═══ TAB: THÔNG TIN CHUNG (DASHBOARD) ═══ */}
                     {activeTab === "thong-tin" && (
-                        <section className="info-section animate-fade-in">
-                            <div className="section-header">
-                                <h3>Thông tin dự án chi tiết</h3>
-                                <button className="btn-edit">✎ Chỉnh sửa hồ sơ</button>
+                        <div className="dashboard-layout animate-fade-in">
+                            <div className="dashboard-left">
+                                <section className="info-section">
+                                    <div className="section-header">
+                                        <h3>Thông tin dự án</h3>
+                                        <button className="btn-edit">✎ Sửa thông tin</button>
+                                    </div>
+                                    <div className="info-grid big-grid">
+                                        <div className="info-item"><label>TÊN DỰ ÁN</label><p>{project.name}</p></div>
+                                        <div className="info-item"><label>KỸ SƯ TRƯỞNG</label><p>👤 {supervisorName}</p></div>
+                                        <div className="info-item full"><label>ĐỊA CHỈ</label><p>{project.address}</p></div>
+                                        <div className="info-item"><label>CHỦ ĐẦU TƯ</label><p>{customerName}</p></div>
+                                        <div className="info-item"><label>NGÀY KHỞI CÔNG</label><p>{startDateFormatted}</p></div>
+                                    </div>
+                                </section>
+
+                                {/* Tài liệu pháp lý preview */}
+                                <section className="info-section" style={{ marginTop: 20 }}>
+                                    <div className="section-header">
+                                        <h3>Tài liệu pháp lý</h3>
+                                        <button className="btn-edit" onClick={() => setActiveTab("phap-ly")}>Xem tất cả →</button>
+                                    </div>
+                                    {documents.length > 0 ? (
+                                        <table className="doc-table">
+                                            <thead><tr><th>TÊN TÀI LIỆU</th><th>NGÀY TẢI LÊN</th><th>TRẠNG THÁI</th></tr></thead>
+                                            <tbody>
+                                                {documents.slice(0, 3).map((doc) => (
+                                                    <tr key={doc.id}>
+                                                        <td>📄 {doc.document_name}</td>
+                                                        <td>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString("vi-VN") : "—"}</td>
+                                                        <td><span className={STATUS_CLASS[doc.status] || "st-wait"}>{STATUS_LABELS[doc.status] || doc.status}</span></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : <p className="empty-text">Chưa có tài liệu</p>}
+                                </section>
+
+                                {/* Tiến độ Kanban preview */}
+                                <section className="info-section" style={{ marginTop: 20 }}>
+                                    <div className="section-header">
+                                        <h3>Tiến độ thi công (Kanban)</h3>
+                                        <button className="btn-edit" onClick={() => setActiveTab("tien-do")}>Xem chi tiết →</button>
+                                    </div>
+                                    <div className="kanban-preview">
+                                        {TASK_COLS.map((col) => {
+                                            const colTasks = tasks.filter((t) => t.status === col.id);
+                                            return (
+                                                <div className="kanban-preview-col" key={col.id}>
+                                                    <div className="kanban-col-header">
+                                                        <span className="kanban-dot" style={{ background: col.color }}></span>
+                                                        <span className="kanban-col-title">{col.title}</span>
+                                                        <span className="kanban-col-count">{colTasks.length}</span>
+                                                    </div>
+                                                    {colTasks.slice(0, 2).map((t) => (
+                                                        <div className="kanban-mini-card" key={t.id}>{t.task_name}</div>
+                                                    ))}
+                                                    {colTasks.length > 2 && <span className="kanban-more">+{colTasks.length - 2} khác</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
                             </div>
-                            <div className="info-grid big-grid">
-                                <div className="info-item"><label>TÊN DỰ ÁN</label><p>{project.name}</p></div>
-                                <div className="info-item"><label>KỸ SƯ TRƯỞNG</label><p>👤 {project.supervisor}</p></div>
-                                <div className="info-item full"><label>ĐỊA CHỈ CÔNG TRÌNH</label><p>{project.address}</p></div>
-                                <div className="info-item"><label>CHỦ ĐẦU TƯ</label><p>{project.investor}</p></div>
-                                <div className="info-item"><label>NGÀY KHỞI CÔNG</label><p>{project.start_date}</p></div>
+
+                            {/* Progress widget */}
+                            <div className="detail-right">
+                                <div className="progress-widget">
+                                    <h4>Tiến độ tổng</h4>
+                                    <p className="progress-desc">Dự án đang trong giai đoạn thi công phần thô theo đúng kế hoạch đề ra.</p>
+                                    <div className="progress-circle">
+                                        <svg viewBox="0 0 120 120">
+                                            <circle cx="60" cy="60" r="52" className="progress-bg" />
+                                            <circle cx="60" cy="60" r="52" className="progress-fill"
+                                                style={{ strokeDasharray: `${(project.progress / 100) * 327} 327` }} />
+                                        </svg>
+                                        <span className="progress-number">{project.progress}%</span>
+                                    </div>
+                                    <button className="btn-progress-detail" onClick={() => setActiveTab("tien-do")}>Xem báo cáo chi tiết</button>
+                                </div>
                             </div>
-                        </section>
+                        </div>
                     )}
 
-                    {/* Tab Pháp lý */}
+                    {/* ═══ TAB: TÀI LIỆU PHÁP LÝ ═══ */}
                     {activeTab === "phap-ly" && (
                         <section className="document-section animate-fade-in">
                             <div className="section-header">
                                 <h3>Danh sách hồ sơ pháp lý</h3>
-                                <button className="btn-upload">↑ Tải hồ sơ mới</button>
                             </div>
-                            <table className="doc-table">
-                                <thead>
-                                    <tr>
-                                        <th>TÊN TÀI LIỆU</th>
-                                        <th>NGÀY TẢI LÊN</th>
-                                        <th>TRẠNG THÁI</th>
-                                        <th>HÀNH ĐỘNG</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>📄 Giấy phép xây dựng #GP-88</td>
-                                        <td>12/06/2024</td>
-                                        <td><span className="st-done">ĐÃ XONG</span></td>
-                                        <td><button className="btn-icon">⬇</button></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            {documents.length > 0 ? (
+                                <table className="doc-table">
+                                    <thead>
+                                        <tr><th>TÊN TÀI LIỆU</th><th>NGÀY TẢI LÊN</th><th>TRẠNG THÁI</th><th>HÀNH ĐỘNG</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {documents.map((doc) => (
+                                            <tr key={doc.id}>
+                                                <td>📄 {doc.document_name}</td>
+                                                <td>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString("vi-VN") : "—"}</td>
+                                                <td><span className={STATUS_CLASS[doc.status] || "st-wait"}>{STATUS_LABELS[doc.status] || doc.status}</span></td>
+                                                <td className="doc-actions">
+                                                    {doc.file_url && (
+                                                        <a href={doc.file_url} target="_blank" rel="noreferrer" className="btn-doc btn-doc-view">👁 Xem</a>
+                                                    )}
+                                                    {doc.status !== "COMPLETED" && (
+                                                        <button className="btn-doc btn-doc-approve" onClick={() => handleDocAction(doc.id, "COMPLETED")}>✓ Duyệt</button>
+                                                    )}
+                                                    {doc.status !== "REVISION" && (
+                                                        <button className="btn-doc btn-doc-reject" onClick={() => handleDocAction(doc.id, "REVISION")}>✗ Từ chối</button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : <p className="empty-text">Chưa có tài liệu pháp lý nào.</p>}
                         </section>
                     )}
 
-                    {/* Tab Nhân sự mới */}
+                    {/* ═══ TAB: NHÂN SỰ & THÀNH VIÊN ═══ */}
                     {activeTab === "nhan-su" && (
-                        <section className="document-section animate-fade-in">
+                        <section className="members-section animate-fade-in">
                             <div className="section-header">
-                                <h3>Đội ngũ nhân sự dự án</h3>
-                                <button className="btn-upload">+ Thêm thành viên</button>
+                                <h3>Thành viên dự án</h3>
+                                <button className="btn-add-member" onClick={handleOpenAddMember}>👤+ Thêm thành viên</button>
                             </div>
-                            <table className="doc-table">
-                                <thead>
-                                    <tr>
-                                        <th>HỌ VÀ TÊN</th>
-                                        <th>CHỨC VỤ</th>
-                                        <th>SỐ ĐIỆN THOẠI</th>
-                                        <th>TRẠNG THÁI</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>👤 Nguyễn Văn Nam</td>
-                                        <td>Kỹ sư trưởng</td>
-                                        <td>0901.234.xxx</td>
-                                        <td><span className="st-done">ĐANG TRỰC</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td>👤 Trần Thị Bé</td>
-                                        <td>Kế toán công trình</td>
-                                        <td>0908.777.xxx</td>
-                                        <td><span className="st-done">ĐANG TRỰC</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <div className="members-stats">
+                                <div className="stat-box">
+                                    <span className="stat-number">{members.length}</span>
+                                    <span className="stat-label">Tổng số nhân sự</span>
+                                </div>
+                            </div>
+                            <div className="members-grid">
+                                {members.map((m) => {
+                                    const emp = m.employee || {};
+                                    const initials = (emp.full_name || "?").split(" ").map((w) => w[0]).join("").slice(-2);
+                                    return (
+                                        <div className="member-card" key={m.id}>
+                                            <div className="member-avatar">{initials}</div>
+                                            <span className="member-role-badge">{emp.job_title || "Nhân viên"}</span>
+                                            <h4 className="member-name">{emp.full_name || "—"}</h4>
+                                            <p className="member-email">{emp.email || "—"}</p>
+                                            <div className="member-footer">
+                                                <span className="member-date">📞 {emp.phone || "—"}</span>
+                                                <button className="member-menu" onClick={() => handleRemoveMember(m.id)} title="Xóa thành viên">🗑</button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {/* Card thêm thành viên */}
+                                <div className="member-card add-card" onClick={handleOpenAddMember}>
+                                    <span className="add-icon">+</span>
+                                    <p>Mời thành viên mới</p>
+                                </div>
+                            </div>
                         </section>
                     )}
 
-                    {/* Tab Vật tư mới */}
+                    {/* ═══ TAB: VẬT TƯ & THIẾT BỊ ═══ */}
                     {activeTab === "vat-tu" && (
-                        <section className="document-section animate-fade-in">
+                        <section className="equipment-section animate-fade-in">
                             <div className="section-header">
                                 <h3>Quản lý Vật tư & Thiết bị</h3>
-                                <button className="btn-upload">+ Nhập vật tư</button>
                             </div>
-                            <table className="doc-table">
-                                <thead>
-                                    <tr>
-                                        <th>TÊN VẬT TƯ / THIẾT BỊ</th>
-                                        <th>SỐ LƯỢNG</th>
-                                        <th>ĐƠN VỊ</th>
-                                        <th>TÌNH TRẠNG</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>🏗️ Cần cẩu tháp Potain</td>
-                                        <td>02</td>
-                                        <td>Bộ</td>
-                                        <td><span className="st-done">ỔN ĐỊNH</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td>🧱 Xi măng Holcim</td>
-                                        <td>500</td>
-                                        <td>Tấn</td>
-                                        <td><span className="st-wait">SẮP HẾT</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            {equipments.length > 0 ? (
+                                <div className="equipment-grid">
+                                    {equipments.map((eq) => {
+                                        const prod = eq.product || {};
+                                        const statusClass = eq.status === "IN_USE" ? "eq-in-use" : eq.status === "FULLY_RETURNED" ? "eq-returned" : "eq-partial";
+                                        const statusLabel = eq.status === "IN_USE" ? "Đang sử dụng" : eq.status === "FULLY_RETURNED" ? "Đã trả" : "Trả 1 phần";
+                                        return (
+                                            <div className="equipment-card" key={eq.id}>
+                                                <div className="eq-header">
+                                                    <span className="eq-icon">{prod.type === "RETURNABLE" ? "🏗️" : "🧱"}</span>
+                                                    <span className={`eq-status ${statusClass}`}>{statusLabel}</span>
+                                                </div>
+                                                <h4 className="eq-name">{prod.name || "—"}</h4>
+                                                <div className="eq-details">
+                                                    <div className="eq-detail"><label>Số lượng xuất</label><span>{eq.quantity_dispatched}</span></div>
+                                                    <div className="eq-detail"><label>Đã trả</label><span>{eq.quantity_returned}</span></div>
+                                                    <div className="eq-detail"><label>Đơn vị</label><span>{prod.unit || "—"}</span></div>
+                                                    <div className="eq-detail"><label>Ngày xuất</label><span>{eq.dispatched_date ? new Date(eq.dispatched_date).toLocaleDateString("vi-VN") : "—"}</span></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : <p className="empty-text">Chưa có vật tư / thiết bị nào.</p>}
                         </section>
                     )}
 
-                    {/* Tab Tiến độ */}
+                    {/* ═══ TAB: TIẾN ĐỘ THI CÔNG (KANBAN) ═══ */}
                     {activeTab === "tien-do" && (
-                        <section className="progress-details animate-fade-in">
+                        <section className="progress-section animate-fade-in">
                             <div className="section-header">
-                                <h3>Tiến độ thi công thực tế</h3>
+                                <h3>Tiến độ thi công</h3>
+                                <button className="btn-add-member" onClick={handleAddTask}>+ Thêm công việc</button>
                             </div>
-                            <div className="progress-big-card">
-                                <p>Hiện trạng: <strong>Đang thi công phần thô tầng 5</strong></p>
-                                <div className="big-progress-bar">
-                                    <div className="fill" style={{width: `${project.progress}%`}}></div>
+
+                            {/* Progress bar */}
+                            <div className="progress-summary">
+                                <div className="progress-bar-wrap">
+                                    <div className="progress-bar-fill" style={{ width: `${project.progress}%` }}></div>
                                 </div>
-                                <span className="big-percent">{project.progress}% Hoàn thành</span>
+                                <span className="progress-text">{project.progress}% hoàn thành ({tasks.filter(t => t.status === "DONE").length}/{tasks.length} công việc)</span>
+                            </div>
+
+                            {/* Kanban Board */}
+                            <div className="kanban-board">
+                                {TASK_COLS.map((col) => {
+                                    const colTasks = tasks.filter((t) => t.status === col.id);
+                                    return (
+                                        <div
+                                            className="kanban-column"
+                                            key={col.id}
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, col.id)}
+                                        >
+                                            <div className="kanban-col-header">
+                                                <span className="kanban-dot" style={{ background: col.color }}></span>
+                                                <span className="kanban-col-title">{col.title}</span>
+                                                <span className="kanban-col-count">{colTasks.length}</span>
+                                            </div>
+                                            <div className="kanban-cards">
+                                                {colTasks.map((task) => (
+                                                    <div
+                                                        className="kanban-task-card"
+                                                        key={task.id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, task)}
+                                                    >
+                                                        <div className="task-card-top">
+                                                            <span className="task-name">{task.task_name}</span>
+                                                        </div>
+                                                        {task.work_volume > 0 && (
+                                                            <span className="task-volume">KL: {task.work_volume}</span>
+                                                        )}
+                                                        <div className="task-card-actions">
+                                                            <button className="task-btn task-btn-edit" onClick={() => handleEditTask(task)} title="Sửa">✎</button>
+                                                            <button className="task-btn task-btn-del" onClick={() => handleDeleteTask(task.id)} title="Xóa">🗑</button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </section>
                     )}
                 </div>
             </div>
-        </div> 
+
+            {/* ═══ MODALS ═══ */}
+
+            {/* Modal Thêm/Sửa Công việc */}
+            {showTaskModal && (
+                <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
+                    <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+                        <h3>{editingTask ? "Sửa công việc" : "Thêm công việc mới"}</h3>
+                        <div className="form-group">
+                            <label>Tên công việc</label>
+                            <input className="form-input" value={taskForm.task_name} onChange={(e) => setTaskForm({ ...taskForm, task_name: e.target.value })} placeholder="Nhập tên công việc..." />
+                        </div>
+                        <div className="form-group">
+                            <label>Khối lượng</label>
+                            <input className="form-input" type="number" value={taskForm.work_volume} onChange={(e) => setTaskForm({ ...taskForm, work_volume: e.target.value })} />
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-cancel" onClick={() => setShowTaskModal(false)}>Hủy</button>
+                            <button className="btn-submit" onClick={handleSaveTask}>Lưu</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Thêm Thành viên */}
+            {showMemberModal && (
+                <div className="modal-overlay" onClick={() => setShowMemberModal(false)}>
+                    <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+                        <h3>Thêm thành viên vào dự án</h3>
+                        <div className="form-group">
+                            <label>Chọn nhân viên</label>
+                            <select className="form-input" value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
+                                <option value="">— Chọn nhân viên —</option>
+                                {employees.map((emp) => (
+                                    <option key={emp.id} value={emp.id}>{emp.full_name} - {emp.job_title || "N/A"}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-cancel" onClick={() => setShowMemberModal(false)}>Hủy</button>
+                            <button className="btn-submit" onClick={handleAddMember}>Thêm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
-
