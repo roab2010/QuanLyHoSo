@@ -37,8 +37,12 @@ export default function DanhSachHoSo({ search }) {
     const handleDelete = async (item) => {
         const confirm = await toast.showConfirm('Bạn có chắc chắn muốn xóa hồ sơ này?');
         if (confirm) {
-            await xoaHoSo(item.id);
-            toast.success('Đã xóa hồ sơ thành công');
+            try {
+                await xoaHoSo(item.id);
+                toast.success('Đã xóa hồ sơ thành công');
+            } catch (err) {
+                toast.error('Không thể xóa hồ sơ: ' + (err?.response?.data?.message || 'Lỗi không xác định'));
+            }
         }
     };
 

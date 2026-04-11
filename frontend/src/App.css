@@ -2957,12 +2957,14 @@ body {
     font-weight: 600 !important;
 }
 }
-Toast Container */
+/* Toast Container */
 .toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 99999 !important;
     display: flex;
     flex-direction: column;
     gap: 10px;

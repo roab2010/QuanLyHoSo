@@ -136,6 +136,7 @@ class ProjectController extends Controller
         foreach ($actions as $action) {
             DB::table('project_histories')->insert([
                 'project_id' => $project->id,
+                'actor' => 'Nguyễn Văn A',
                 'action' => $action,
                 'created_at' => now()
             ]);
@@ -156,9 +157,20 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Không tìm thấy hồ sơ'], 404);
         }
 
-        $project->delete();
+        try {
+            // Xóa các bảng liên quan trước
+            DB::table('project_tasks')->where('project_id', $id)->delete();
+            DB::table('project_members')->where('project_id', $id)->delete();
+            DB::table('project_documents')->where('project_id', $id)->delete();
+            DB::table('project_equipments')->where('project_id', $id)->delete();
+            DB::table('project_histories')->where('project_id', $id)->delete();
 
-        return response()->json(['message' => 'Đã xóa hồ sơ thành công']);
+            $project->delete();
+
+            return response()->json(['message' => 'Đã xóa hồ sơ thành công']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Lỗi khi xóa: ' . $e->getMessage()], 500);
+        }
     }
 
     public function getCustomers()

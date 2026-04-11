@@ -135,11 +135,12 @@ export default function useHoSo() {
     };
 
     const xoaHoSo = async (id) => {
-        setCards((prev) => prev.filter((c) => c.id !== id));
         try {
             await deleteHoSo(id);
-        } catch {
+            setCards((prev) => prev.filter((c) => c.id !== id));
+        } catch (err) {
             fetchAll();
+            throw err;
         }
     };
 

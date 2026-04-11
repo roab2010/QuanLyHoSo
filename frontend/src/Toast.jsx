@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 
 /* ─── Toast Context ─── */
 const ToastContext = createContext();
@@ -55,14 +56,17 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ success, error, warning, info, showConfirm }}>
       {children}
-      {/* Toast Container */}
-      <div className="toast-container">
-        {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onClose={() => setToasts((p) => p.filter((x) => x.id !== t.id))} />
-        ))}
-      </div>
-      {/* Confirm Dialog */}
-      {confirm && <ConfirmDialog {...confirm} />}
+      {/* Dùng createPortal để render toast trực tiếp vào body, tránh bị overflow:hidden che mất */}
+      {createPortal(
+        <div className="toast-container">
+          {toasts.map((t) => (
+            <ToastItem key={t.id} toast={t} onClose={() => setToasts((p) => p.filter((x) => x.id !== t.id))} />
+          ))}
+        </div>,
+        document.body
+      )}
+      {/* Confirm Dialog cũng render vào body */}
+      {confirm && createPortal(<ConfirmDialog {...confirm} />, document.body)}
     </ToastContext.Provider>
   );
 }
