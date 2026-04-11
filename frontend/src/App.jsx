@@ -83,6 +83,8 @@ export default function App() {
                         />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
+                    ) : activeNav === "Tin tức" ? (
+                        <News />    
                     ) : (
                         <div style={{ padding: "40px", textAlign: "center" }}>
                             <h3>Trang {activeNav}</h3>
