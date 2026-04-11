@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
 use Symfony\Component\DomCrawler\Crawler;
 
+use App\Http\Controllers\InventoryController;
+
+Route::get('/products-list', [InventoryController::class, 'getProductList']);
+Route::post('/inventory/store', [InventoryController::class, 'store']);
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');

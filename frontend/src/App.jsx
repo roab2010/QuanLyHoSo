@@ -7,8 +7,9 @@ import KanbanBoard from "./KanbanBoard";
 import ProjectCategoryList from "./ProjectCategoryList";
 import ChiTietHoSo from "./ChiTietHoSo"; 
 import News from "./News";
+import ProfessionalInventory from "./ProfessionalInventory.jsx";
+import ProductList from "./ProductList.jsx";
 import ModalAddProject from "./ModalAddProject"; 
-
 
 const COLUMNS = [
     { id: "new",         title: "Mới tạo",    color: "#6b7280" },
@@ -16,7 +17,8 @@ const COLUMNS = [
     { id: "done",        title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Dashboard", "Danh mục dự án", "Báo cáo", "Tin tức", "Cài đặt"];
+
+const NAV_ITEMS = ["Dashboard", "Danh mục dự án", "Quản lý kho", "Tin tức", "Kho vật tư", "Cài đặt"];
 
 export default function App() {
     const [activeNav, setActiveNav] = useState("Dashboard");
@@ -42,7 +44,6 @@ export default function App() {
         }
     };
 
-    // Component bọc giao diện chính
     const MainLayout = () => (
         <div className="app">
             <Sidebar 
@@ -83,8 +84,15 @@ export default function App() {
                         />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
+                    ) : activeNav === "Quản lý kho" ? ( 
+                        <div style={{ padding: "20px" }}>
+                            <ProfessionalInventory />
+                        </div>
                     ) : activeNav === "Tin tức" ? (
                         <News />    
+                    ) : activeNav === "Kho vật tư" ? (
+                        /* ProductList đóng vai trò quản lý danh mục vật tư gốc */
+                        <ProductList />    
                     ) : (
                         <div style={{ padding: "40px", textAlign: "center" }}>
                             <h3>Trang {activeNav}</h3>
@@ -103,14 +111,10 @@ export default function App() {
         </div>
     );
 
-    // CHỈ DÙNG 1 LỆNH RETURN DUY NHẤT Ở ĐÂY
     return (
         <Router>
             <Routes>
-                {/* Khi ở đường dẫn gốc "/" thì hiện giao diện chính */}
                 <Route path="/" element={<MainLayout />} />
-                
-                {/* Khi bấm vào card sẽ nhảy sang đường dẫn này */}
                 <Route path="/ho-so/:id" element={<ChiTietHoSo />} />
             </Routes>
         </Router>
