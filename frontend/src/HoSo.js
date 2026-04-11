@@ -42,6 +42,8 @@ const normalize = (item) => ({
     trang_thai: item.status,
     colId: TRANG_THAI_MAP[item.status] ?? 'new',
     date: item.start_date ?? '',
+    created_at: item.created_at ?? item.start_date ?? '',
+    category_name: item.category?.name ?? 'Không phân loại',
     avatar: item.name?.charAt(0).toUpperCase() ?? 'P',
     avatarBg: '#e0e7ff',
     avatarColor: '#3730a3',

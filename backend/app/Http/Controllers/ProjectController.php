@@ -76,6 +76,13 @@ class ProjectController extends Controller
                 }
             }
 
+            // 3. LOG LỊCH SỬ
+            DB::table('project_histories')->insert([
+                'project_id' => $id,
+                'action' => 'Khởi tạo hồ sơ mới',
+                'created_at' => now(),
+            ]);
+
             DB::commit(); // Mọi thứ hoàn hảo, chốt lưu vào DB!
 
             // Lấy lại data để Frontend hiển thị thẻ Kanban mới
@@ -104,21 +111,40 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Không tìm thấy'], 404);
         }
 
-        // Nhận giá trị từ React (ví dụ: 'PROCESSING')
-        if ($request->has('status')) {
-            // Gán trực tiếp vào cột status
+        $actions = [];
+        if ($request->has('name') || $request->has('category_id') || $request->has('address')) {
+            $actions[] = 'Cập nhật nội dung hồ sơ';
+        }
+
+        if ($request->has('status') && $project->status !== $request->status) {
             $project->status = $request->status;
+            $project->status_updated_at = now();
+            $actions[] = 'Thay đổi trạng thái sang "' . $request->status . '"';
+        }
 
-            // Lưu xuống Database
-            $project->save();
+        // Cập nhật các trường nếu có
+        if ($request->has('name'))
+            $project->name = $request->name;
+        if ($request->has('category_id'))
+            $project->category_id = $request->category_id;
+        if ($request->has('address'))
+            $project->address = $request->address;
 
-            return response()->json([
-                'status' => 'success',
-                'data' => $project
+        // Lưu xuống Database
+        $project->save();
+
+        foreach ($actions as $action) {
+            DB::table('project_histories')->insert([
+                'project_id' => $project->id,
+                'action' => $action,
+                'created_at' => now()
             ]);
         }
 
-        return response()->json(['message' => 'Thiếu dữ liệu status'], 400);
+        return response()->json([
+            'status' => 'success',
+            'data' => $project
+        ]);
     }
     /**
      * Xóa hồ sơ
@@ -157,6 +183,7 @@ class ProjectController extends Controller
             'members.employee',
             'documents',
             'equipments.product',
+            'histories',
             'tasks' => function ($q) {
                 $q->orderBy('sort_order');
             },

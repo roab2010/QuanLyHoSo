@@ -77,4 +77,10 @@ public $timestamps = false;
     {
         return $this->hasMany(ProjectTask::class, 'project_id');
     }
+
+    // Lịch sử cập nhật
+    public function histories()
+    {
+        return $this->hasMany(ProjectHistory::class, 'project_id')->orderBy('created_at', 'desc');
+    }
 }

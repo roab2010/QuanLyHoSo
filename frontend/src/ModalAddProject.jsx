@@ -7,16 +7,19 @@ export default function ModalAddProject({ onClose, onSubmit }) {
     const [loading, setLoading] = useState(true);
     
     const [formData, setFormData] = useState({
-        name: "",                   // Khớp cột 'name' (varchar)
-        project_code: "",           // Khớp cột 'project_code' (varchar)
-        start_date: new Date().toISOString().split('T')[0], // Khớp 'start_date' (date)
-        customer_id: "",            // Khớp 'customer_id' (bigint)
-        category_id: "",            // Khớp 'category_id' (bigint)
-        address: "",                // Khớp 'address' (text)
-        priority: "MEDIUM",         // Khớp Enum 'priority'
-        max_warehouse_capacity: 0,  // Khớp 'max_warehouse_capacity' (decimal)
-        supervisor_id: 1,           // Mặc định ID quản lý là 1
-        status: "DRAFT"             // Mặc định Enum 'status'
+        name: "",                   
+        project_code: "",           
+        start_date: (() => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })(), 
+        customer_id: "",            
+        category_id: "",            
+        address: "",                
+        priority: "MEDIUM",         
+        max_warehouse_capacity: 0,  
+        supervisor_id: 1,           
+        status: "DRAFT"             
     });
 
     useEffect(() => {

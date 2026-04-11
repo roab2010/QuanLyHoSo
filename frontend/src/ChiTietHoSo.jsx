@@ -13,16 +13,24 @@ import {
 import { useToast } from "./Toast";
 
 const STATUS_LABELS = {
-    PENDING: "Chờ duyệt",
-    PROCESSING: "Đang xử lý",
-    REVISION: "Cần sửa",
-    COMPLETED: "Đã xong",
+    'new': 'Chờ duyệt',
+    'DRAFT': 'Chờ duyệt',
+    'PENDING': 'Chờ duyệt',
+    'processing': 'Đang xử lý',
+    'PROCESSING': 'Đang xử lý',
+    'done': 'Hoàn thành',
+    'COMPLETED': 'Hoàn thành',
+    'REVISION': 'Chờ duyệt'
 };
 const STATUS_CLASS = {
-    PENDING: "st-wait",
-    PROCESSING: "st-processing",
-    REVISION: "st-reject",
-    COMPLETED: "st-done",
+    'new': 'st-reject',
+    'DRAFT': 'st-reject',
+    'PENDING': 'st-reject',
+    'processing': 'st-processing',
+    'PROCESSING': 'st-processing',
+    'done': 'st-done',
+    'COMPLETED': 'st-done',
+    'REVISION': 'st-reject'
 };
 
 const TASK_COLS = [
@@ -120,7 +128,7 @@ export default function ChiTietHoSo() {
 
         // Optimistic UI: Cập nhật giao diện ngay lập tức mà không cần chờ API
         setProject(prev => {
-            const newTasks = prev.tasks.map(t => 
+            const newTasks = prev.tasks.map(t =>
                 t.id === task.id ? { ...t, status: targetStatus } : t
             );
             return { ...prev, tasks: newTasks };
@@ -258,7 +266,7 @@ export default function ChiTietHoSo() {
                                 <section className="info-section">
                                     <div className="section-header">
                                         <h3>Thông tin dự án</h3>
-                                        <button className="btn-edit">✎ Sửa thông tin</button>
+                                        <button className="btn-edit" onClick={() => navigate(`/ho-so/${id}/edit`)}>✎ Sửa thông tin</button>
                                     </div>
                                     <div className="info-grid big-grid">
                                         <div className="info-item">
@@ -712,8 +720,8 @@ export default function ChiTietHoSo() {
 
             {/* Modal Thêm/Sửa Công việc */}
             {showTaskModal && (
-                <div 
-                    className="modal-overlay" 
+                <div
+                    className="modal-overlay"
                     onMouseDown={(e) => {
                         if (e.target === e.currentTarget) setShowTaskModal(false);
                     }}
