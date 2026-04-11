@@ -34,7 +34,7 @@ class CategoryController extends Controller
 
         DB::beginTransaction();
         try {
-            $category = ProjectCategory::create($request->only(['category_code', 'name', 'description']));
+            $category = ProjectCategory::create($request->only(['category_code', 'name', 'description', 'status']));
 
             if ($request->has('tasks')) {
                 foreach ($request->tasks as $index => $taskData) {

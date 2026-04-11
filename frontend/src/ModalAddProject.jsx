@@ -32,7 +32,8 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                 const finalCats = Array.isArray(catRes) ? catRes : (catRes?.data || []);
                 const finalCusts = Array.isArray(custRes) ? custRes : (custRes?.data || []);
 
-                setCategories(finalCats);
+                // Lọc chỉ giữ lại các danh mục Đang hoạt động (status = 1)
+                setCategories(finalCats.filter(cat => cat.status === 1));
                 setCustomers(finalCusts);
             } catch (e) {
                 console.error("Lỗi tải dữ liệu metadata:", e);
