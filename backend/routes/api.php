@@ -10,6 +10,16 @@ use GuzzleHttp\Client;
 use Symfony\Component\DomCrawler\Crawler;
 use App\Http\Controllers\TemplateTaskController;
 
+use App\Http\Controllers\InventoryController;
+
+use App\Http\Controllers\SupplierController;
+
+Route::get('/products-list', [InventoryController::class, 'getProductList']);
+Route::post('/inventory/store', [InventoryController::class, 'store']);
+
+Route::get('/suppliers/stats', [SupplierController::class, 'getStats']); // Cho các thẻ thống kê
+Route::apiResource('suppliers', SupplierController::class);
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');

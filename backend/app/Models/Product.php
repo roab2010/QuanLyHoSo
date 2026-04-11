@@ -18,6 +18,6 @@ class Product extends Model
         'price' => 'decimal:2',
         'min_stock_level' => 'decimal:2',
         'current_stock' => 'decimal:2',
-        'status' => 'boolean',
+        // ĐÃ XÓA ép kiểu boolean cho status ở đây để nhận chữ ACTIVE, SUSPEND...
     ];
 }
