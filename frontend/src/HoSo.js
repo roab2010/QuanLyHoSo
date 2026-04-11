@@ -89,17 +89,16 @@ export default function useHoSo() {
     const themHoSo = async (payload) => {
     try {
         const dbPayload = {
-            name: payload.ten,
-            project_code: payload.ma_ho_so || `HS-${Date.now()}`, // Tạo mã tự động nếu trống
-            address: payload.mo_ta,
-            status: 'DRAFT',    // Khớp với ENUM của bạn
-            priority: 'MEDIUM', // Khớp với ENUM của bạn
-            start_date: payload.ngay_tao,
-            
-            // THÊM 2 DÒNG NÀY (Thay số 1 bằng ID thực tế bạn có trong DB)
-            category_id: 1, 
-            customer_id: 1,
-            supervisor_id: 1
+            name: payload.name,
+            project_code: payload.project_code || `HS-${Date.now()}`,
+            address: payload.address,
+            status: payload.status || 'DRAFT',    
+            priority: payload.priority || 'MEDIUM', 
+            start_date: payload.start_date,
+            category_id: payload.category_id, 
+            customer_id: payload.customer_id,
+            max_warehouse_capacity: payload.max_warehouse_capacity || 0,
+            supervisor_id: payload.supervisor_id || 1
         };
         const created = await createHoSo(dbPayload);
         setCards((prev) => [...prev, normalize(created)]);
