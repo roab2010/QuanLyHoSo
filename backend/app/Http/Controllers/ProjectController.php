@@ -35,18 +35,18 @@ class ProjectController extends Controller
 
             // 1. TẠO HỒ SƠ (Dùng chính xác đoạn code siêu chuẩn của bạn)
             $id = DB::table('projects')->insertGetId([
-                'project_code'           => $request->project_code,
-                'category_id'            => $categoryId,
-                'name'                   => $request->name,
-                'customer_id'            => $request->customer_id,
-                'supervisor_id'          => $request->supervisor_id ?? 1,
-                'address'                => $request->address,
-                'start_date'             => $request->start_date,
-                'status'                 => $request->status ?? 'DRAFT',
-                'priority'               => $request->priority ?? 'MEDIUM',
-                'created_at'             => now(),
+                'project_code' => $request->project_code,
+                'category_id' => $categoryId,
+                'name' => $request->name,
+                'customer_id' => $request->customer_id,
+                'supervisor_id' => $request->supervisor_id ?? 1,
+                'address' => $request->address,
+                'start_date' => $request->start_date,
+                'status' => $request->status ?? 'DRAFT',
+                'priority' => $request->priority ?? 'MEDIUM',
+                'created_at' => now(),
                 'max_warehouse_capacity' => $request->max_warehouse_capacity ?? 0,
-                'status_updated_at'      => now(),
+                'status_updated_at' => now(),
             ]);
 
             // 2. TỰ ĐỘNG HÓA: LẤY VÀ COPY QUY TRÌNH MẪU
@@ -62,12 +62,12 @@ class ProjectController extends Controller
                     // Gom tất cả các đầu việc lại
                     foreach ($templates as $template) {
                         $tasksToInsert[] = [
-                            'project_id'  => $id, // Gắn vào ID của dự án vừa đẻ ra ở bước 1
-                            'task_name'   => $template->task_name,
+                            'project_id' => $id, // Gắn vào ID của dự án vừa đẻ ra ở bước 1
+                            'task_name' => $template->task_name,
                             'work_volume' => $template->work_volume,
-                            'status'      => 'TODO', // Mặc định là chưa làm
-                            'sort_order'  => $template->sort_order,
-                            'created_at'  => now(),
+                            'status' => 'TODO', // Mặc định là chưa làm
+                            'sort_order' => $template->sort_order,
+                            'created_at' => now(),
                         ];
                     }
 
@@ -83,7 +83,7 @@ class ProjectController extends Controller
 
             return response()->json([
                 'message' => 'Tạo hồ sơ và tự động thêm quy trình thành công!',
-                'data'    => $newProject
+                'data' => $newProject
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack(); // Lỗi (do vướng khóa ngoại, thiếu trường...) thì lập tức "quay xe"
@@ -185,9 +185,9 @@ class ProjectController extends Controller
         try {
             $id = DB::table('project_tasks')->insertGetId([
                 'project_id' => $projectId,
-                'task_name'  => $request->task_name,
+                'task_name' => $request->task_name,
                 'work_volume' => $request->work_volume ?? 0,
-                'status'     => 'TODO',
+                'status' => 'TODO',
                 'sort_order' => $request->sort_order ?? 0,
                 'created_at' => now(),
             ]);
@@ -214,9 +214,12 @@ class ProjectController extends Controller
         }
 
         $updateData = [];
-        if ($request->has('task_name')) $updateData['task_name'] = $request->task_name;
-        if ($request->has('work_volume')) $updateData['work_volume'] = $request->work_volume;
-        if ($request->has('sort_order')) $updateData['sort_order'] = $request->sort_order;
+        if ($request->has('task_name'))
+            $updateData['task_name'] = $request->task_name;
+        if ($request->has('work_volume'))
+            $updateData['work_volume'] = $request->work_volume;
+        if ($request->has('sort_order'))
+            $updateData['sort_order'] = $request->sort_order;
 
         if ($request->has('status')) {
             // Kiểm tra logic chỉ cho phép chuyển trạng thái tiến lên
@@ -277,8 +280,10 @@ class ProjectController extends Controller
         }
 
         $updateData = [];
-        if ($request->has('status')) $updateData['status'] = $request->status;
-        if ($request->has('note')) $updateData['note'] = $request->note;
+        if ($request->has('status'))
+            $updateData['status'] = $request->status;
+        if ($request->has('note'))
+            $updateData['note'] = $request->note;
 
         DB::table('project_documents')
             ->where('id', $docId)
@@ -295,7 +300,7 @@ class ProjectController extends Controller
     {
         try {
             $id = DB::table('project_members')->insertGetId([
-                'project_id'  => $projectId,
+                'project_id' => $projectId,
                 'employee_id' => $request->employee_id,
             ]);
 
