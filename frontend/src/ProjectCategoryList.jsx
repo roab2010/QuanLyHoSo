@@ -72,8 +72,36 @@ export default function ProjectCategoryList() {
                                 </span>
                             </td>
                             <td>
-                                <button className="btn-edit" onClick={() => { setEditingCategory(cat); setShowModal(true); }}>Sửa</button>
-                                <button className="btn-delete-small" onClick={() => handleDelete(cat.id)}>Xóa</button>
+<td>
+    {/* 1. Nút Sửa (hiện tại) */}
+    <button 
+        className="btn-edit" 
+        onClick={() => { setEditingCategory(cat); setShowModal(true); }}
+        title="Sửa"
+    >
+        <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="20" alt="Edit" />
+    </button>
+
+    {/* 2. NÚT QUẢN LÝ TEMPLATE (CHÈN VÀO ĐÂY) */}
+    <button 
+        className="btn-template" 
+        onClick={() => handleManageTemplate(cat.id)}
+        title="Quản lý Template"
+        style={{ margin: "0 10px", background: "none", border: "none", cursor: "pointer" }}
+    >
+        {/* Dùng icon dạng danh sách/task để đồng bộ với 2 icon kia */}
+        <img src="https://cdn-icons-png.flaticon.com/512/2666/2666505.png" width="20" alt="Template" />
+    </button>
+
+    {/* 3. Nút Xóa (hiện tại) */}
+    <button 
+        className="btn-delete-small" 
+        onClick={() => handleDelete(cat.id)}
+        title="Xóa"
+    >
+        <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="20" alt="Delete" />
+    </button>
+</td>
                             </td>
                         </tr>
                     ))}
