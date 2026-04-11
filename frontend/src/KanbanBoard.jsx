@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-/* Icons giữ nguyên từ code gốc */
+/* Icons giữ nguyên */
 const CalendarIcon = () => (
     <svg viewBox="0 0 12 12" fill="currentColor"><path d="M9 1V0H8v1H4V0H3v1H1a1 1 0 00-1 1v9a1 1 0 001 1h10a1 1 0 001-1V2a1 1 0 00-1-1H9zm1 10H2V4h8v7z" /></svg>
 );
@@ -13,11 +13,20 @@ const CheckCircleIcon = () => (
 
 function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
     const [showMenu, setShowMenu] = useState(false);
+
+    // Logic chặn menu ba chấm: Chỉ hiện nút chuyển nếu đi từ 'new' sang 'processing'
+    const canMoveTo = (targetColId) => {
+        return card.colId === 'new' && targetColId === 'processing';
+    };
+
     return (
         <div 
-            className={`card${card.processing ? " processing" : ""}`} 
+            className={`card ${card.colId}`} // Thêm colId vào class để CSS nhận diện màu
             draggable 
-            onDragStart={(e) => e.dataTransfer.setData("cardId", String(card.id))}
+            onDragStart={(e) => {
+                e.dataTransfer.setData("cardId", String(card.id));
+                e.dataTransfer.setData("fromColId", card.colId);
+            }}
         >
             <div className="card-top">
                 <span className={`badge ${card.badgeClass}`}>{card.badge}</span>
@@ -27,7 +36,7 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
                         <button className="card-menu-btn" onClick={() => setShowMenu(!showMenu)}>···</button>
                         {showMenu && (
                             <div className="card-menu-dropdown" onMouseLeave={() => setShowMenu(false)}>
-                                {COLUMNS.filter((c) => c.id !== card.colId).map((c) => (
+                                {COLUMNS.filter((c) => c.id !== card.colId && canMoveTo(c.id)).map((c) => (
                                     <button key={c.id} onClick={() => { onMoveCard(card.id, c.id); setShowMenu(false); }}>
                                         Chuyển → {c.title}
                                     </button>
@@ -59,20 +68,31 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, search, onDelete, onM
         return cardsByCol(colId).filter(c => !q || c.title.toLowerCase().includes(q) || c.ma_ho_so.toLowerCase().includes(q));
     };
 
+    const handleDrop = (e, targetColId) => {
+        e.preventDefault();
+        setDragOverCol(null);
+        
+        const cardId = Number(e.dataTransfer.getData("cardId"));
+        const fromColId = e.dataTransfer.getData("fromColId");
+
+        // Logic chặn kéo thả theo yêu cầu
+        if (fromColId === 'new' && targetColId === 'processing') {
+            onMoveCard(cardId, targetColId);
+        } else if (fromColId !== targetColId) {
+            alert("Không thể chuyển trạng thái!");
+        }
+    };
+
     return (
         <div className="board">
             {COLUMNS.map((col) => (
                 <div 
                     key={col.id} 
-                    className={`col${dragOverCol === col.id ? " col-drag-over" : ""}`}
+                    className={`col ${dragOverCol === col.id ? " col-drag-over" : ""}`}
+                    data-col-id={col.id} // Thêm để CSS nhận diện cột
                     onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
                     onDragLeave={() => setDragOverCol(null)}
-                    onDrop={(e) => {
-                        e.preventDefault();
-                        const cardId = Number(e.dataTransfer.getData("cardId"));
-                        onMoveCard(cardId, col.id); // Hàm này sẽ gọi moveCard trong useHoSo để update DB
-                        setDragOverCol(null);
-                    }}
+                    onDrop={(e) => handleDrop(e, col.id)}
                 >
                     <div className="col-header">
                         <div className="col-dot" style={{ background: col.color }} />
@@ -90,7 +110,6 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, search, onDelete, onM
                             />
                         ))}
                     </div>
-                    <button className="add-card-btn" onClick={onShowModal}>+ Thêm thẻ</button>
                 </div>
             ))}
         </div>
