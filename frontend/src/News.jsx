@@ -32,34 +32,38 @@ function News() {
 
     if (loading) {
         return (
-            <div style={{ padding: "50px", textAlign: "center" }}>
-                🔄 Đang tải tin tức...
+            <div style={{ padding: "50px", textAlign: "center", fontSize: "18px" }}>
+                🔄 Đang tải tin tức từ VnExpress...
             </div>
         );
     }
 
     return (
-        <div style={{ padding: "20px", background: "#f3f4f6", minHeight: "100vh" }}>
+        <div style={{ padding: "20px", background: "#f3f4f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
             
             {/* Header */}
-            <h2 style={{ marginBottom: "5px" }}>📰 Bản tin tổng hợp</h2>
-            <p style={{ marginBottom: "20px", color: "#6b7280" }}>
-                Nguồn: VnExpress
-            </p>
+            <div style={{ marginBottom: "25px" }}>
+                <h2 style={{ marginBottom: "5px", color: "#111827" }}>📰 Bản tin tổng hợp</h2>
+                <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
+                    Cập nhật tin tức mới nhất từ VnExpress
+                </p>
+            </div>
 
-            {/* Filter */}
-            <div style={{ marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            {/* Filter Buttons */}
+            <div style={{ marginBottom: '25px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {categories.map(cat => (
                     <button
                         key={cat}
                         onClick={() => setFilter(cat)}
                         style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
+                            padding: '8px 18px',
+                            borderRadius: '25px',
                             border: '1px solid #2563eb',
                             background: filter === cat ? '#2563eb' : '#fff',
                             color: filter === cat ? '#fff' : '#2563eb',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            fontWeight: "500",
+                            transition: "all 0.2s"
                         }}
                     >
                         {cat}
@@ -67,83 +71,108 @@ function News() {
                 ))}
             </div>
 
-            {/* Grid */}
+            {/* News Grid - CHỈNH 4 CỘT TẠI ĐÂY */}
             <div style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                gap: "25px"
+                // Chia cố định 4 cột, mỗi cột chiếm 1 phần bằng nhau (1fr)
+                gridTemplateColumns: "repeat(4, 1fr)", 
+                gap: "20px"
             }}>
-                {filteredNews.map(item => (
-                    <div key={item.link} style={{
+                {filteredNews.map((item, index) => (
+                    <div key={item.link || index} style={{
                         background: "#fff",
-                        borderRadius: "15px",
+                        borderRadius: "12px",
                         overflow: "hidden",
-                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                        display: "flex",
+                        flexDirection: "column",
+                        transition: "transform 0.2s"
                     }}>
-                        <div style={{ position: "relative" }}>
+                        {/* Image Container */}
+                        <div style={{ position: "relative", height: "160px" }}>
                             <span style={{
                                 position: "absolute",
-                                top: "10px",
-                                left: "10px",
-                                background: "#2563eb",
+                                top: "8px",
+                                left: "8px",
+                                background: "rgba(37, 99, 235, 0.9)",
                                 color: "#fff",
-                                padding: "4px 10px",
-                                borderRadius: "20px",
-                                fontSize: "12px"
+                                padding: "3px 10px",
+                                borderRadius: "12px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                zIndex: 1
                             }}>
                                 {item.category}
                             </span>
 
                             <img
                                 src={item.image}
-                                alt=""
+                                alt={item.title}
                                 onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = "https://via.placeholder.com/400x250";
+                                    e.target.src = "https://via.placeholder.com/400x250?text=No+Image";
                                 }}
                                 style={{
                                     width: "100%",
-                                    height: "180px",
+                                    height: "100%",
                                     objectFit: "cover"
                                 }}
                             />
                         </div>
 
-                        <div style={{ padding: "15px" }}>
+                        {/* Content Container */}
+                        <div style={{ padding: "12px", flex: 1, display: "flex", flexDirection: "column" }}>
                             <h4 style={{
-                                fontSize: "16px",
-                                height: "50px",
-                                overflow: "hidden"
+                                fontSize: "14px",
+                                lineHeight: "1.5",
+                                height: "42px", // Giới hạn chiều cao tiêu đề (khoảng 2 dòng)
+                                margin: "0 0 10px 0",
+                                overflow: "hidden",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                color: "#1f2937"
                             }}>
                                 {item.title}
                             </h4>
 
-                            <p style={{
-                                fontSize: "12px",
-                                color: "#6b7280",
-                                margin: "5px 0"
-                            }}>
-                                Nguồn: VnExpress
-                            </p>
+                            <div style={{ marginTop: "auto" }}>
+                                <p style={{
+                                    fontSize: "11px",
+                                    color: "#9ca3af",
+                                    marginBottom: "10px"
+                                }}>
+                                    VnExpress • {new Date().toLocaleDateString('vi-VN')}
+                                </p>
 
-                            <button
-                                onClick={() => window.open(item.link, "_blank")}
-                                style={{
-                                    marginTop: "10px",
-                                    background: "#2563eb",
-                                    color: "#fff",
-                                    border: "none",
-                                    padding: "8px 12px",
-                                    borderRadius: "6px",
-                                    cursor: "pointer"
-                                }}
-                            >
-                                Đọc chi tiết →
-                            </button>
+                                <button
+                                    onClick={() => window.open(item.link, "_blank")}
+                                    style={{
+                                        width: "100%",
+                                        background: "#2563eb",
+                                        color: "#fff",
+                                        border: "none",
+                                        padding: "8px 0",
+                                        borderRadius: "6px",
+                                        cursor: "pointer",
+                                        fontSize: "13px",
+                                        fontWeight: "500"
+                                    }}
+                                >
+                                    Đọc chi tiết →
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* Empty State */}
+            {filteredNews.length === 0 && (
+                <div style={{ textAlign: "center", padding: "100px", color: "#6b7280" }}>
+                    Không có tin tức nào trong danh mục này.
+                </div>
+            )}
         </div>
     );
 }

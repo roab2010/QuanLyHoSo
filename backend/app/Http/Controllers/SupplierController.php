@@ -23,7 +23,7 @@ class SupplierController extends Controller
             'main_material_type' => 'nullable|string',
             'phone'              => 'nullable|string',
             'email'              => 'nullable|email',
-            'status'             => 'required|in:active,paused',
+            'status'             => 'required|in:ACTIVE,SUSPENDED,PENDING',
             'is_strategic'       => 'boolean',
             'rating_stars'       => 'nullable|integer|min:1|max:5',
             'evaluation_tag'     => 'nullable|string'

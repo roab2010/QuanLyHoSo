@@ -9,10 +9,10 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
         main_material_type: "",
         phone: "",
         email: "",
-        status: "active",
+        status: "ACTIVE",
         is_strategic: false,
         rating_stars: 5,
-        evaluation_tag: "Tin cậy"
+        evaluation_tag: "TIN_CAY"
     });
 
     useEffect(() => {
@@ -26,11 +26,12 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
             [name]: type === "checkbox" ? checked : value
         });
     };
+
     const handleRatingChange = (e) => {
         const stars = parseFloat(e.target.value);
         let tag = "";
 
-        // Logic phân loại của ông
+        // Logic phân loại giữ nguyên của ông
         if (stars >= 5) {
             tag = "TIN_CAY";
         } else if (stars >= 3) {
@@ -42,7 +43,7 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
         setFormData({
             ...formData,
             rating_stars: stars,
-            evaluation_tag: tag // Tự động cập nhật nhãn
+            evaluation_tag: tag 
         });
     };
 
@@ -79,7 +80,7 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                                 value={formData.supplier_code} 
                                 onChange={handleChange} 
                                 required 
-                                disabled={!!editingData} // Khóa khi sửa
+                                disabled={!!editingData}
                                 style={editingData ? {backgroundColor: '#eee'} : {}}
                             />
                         </div>
@@ -87,29 +88,36 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                             <label>Tên nhà cung cấp *</label>
                             <input name="name" value={formData.name} onChange={handleChange} required />
                         </div>
+
+                        {/* --- THÊM LẠI TAX CODE --- */}
+                        <div className="form-group">
+                            <label>Mã số thuế</label>
+                            <input name="tax_code" value={formData.tax_code} onChange={handleChange} />
+                        </div>
+
                         <div className="form-group">
                             <label>Số điện thoại</label>
                             <input name="phone" value={formData.phone} onChange={handleChange} />
                         </div>
-                       <div className="form-group">
+
+                        {/* --- THÊM LẠI EMAIL --- */}
+                        <div className="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" value={formData.email} onChange={handleChange} />
+                        </div>
+
+                        <div className="form-group">
                             <label>Trạng thái</label>
-                            <select 
-                                name="status" 
-                                value={formData.status} 
-                                onChange={handleChange}
-                            >
+                            <select name="status" value={formData.status} onChange={handleChange}>
                                 <option value="ACTIVE">Đang hợp tác (ACTIVE)</option>
                                 <option value="SUSPENDED">Tạm dừng (SUSPEND)</option>
                                 <option value="PENDING">Đang chờ (PENDING)</option>
                             </select>
                         </div>
-                            <div className="form-group">
+
+                        <div className="form-group">
                             <label>Đánh giá: {formData.rating_stars} Sao</label>
-                            <select 
-                                name="rating_stars" 
-                                value={formData.rating_stars} 
-                                onChange={handleRatingChange} // Dùng hàm mới này
-                            >
+                            <select name="rating_stars" value={formData.rating_stars} onChange={handleRatingChange}>
                                 <option value="5">5.0 Sao (Tin cậy)</option>
                                 <option value="4">4.0 Sao (Tiềm năng)</option>
                                 <option value="3">3.0 Sao (Tiềm năng)</option>
@@ -123,10 +131,11 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                             <input 
                                 name="evaluation_tag" 
                                 value={formData.evaluation_tag} 
-                                readOnly // Khóa lại không cho nhập tay để đảm bảo logic đúng
+                                readOnly 
                                 style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}
                             />
                         </div>
+
                         <div className="form-group">
                             <label>Phân loại vật tư</label>
                             <input name="main_material_type" value={formData.main_material_type} onChange={handleChange} />
