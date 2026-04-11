@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getChiTietHoSo, updateHoSo, getAllCategories } from "./hoSoService";
 import { useToast } from "./Toast";
 import Sidebar from "./Sidebar";
-import './App.css'; 
+import './App.css';
 
 const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Báo cáo", "Tin tức", "Quản lý kho"];
 
@@ -48,7 +48,7 @@ export default function EditHoSo({ setActiveAppNav }) {
                 getChiTietHoSo(id),
                 getAllCategories()
             ]);
-            
+
             if (projData) {
                 setProject(projData);
                 setFormData({
@@ -56,18 +56,18 @@ export default function EditHoSo({ setActiveAppNav }) {
                     category_id: projData.category_id || "",
                     address: projData.address || ""
                 });
-                
+
                 if (projData.status_updated_at) {
                     setLastUpdated(new Date(projData.status_updated_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }));
                 } else if (projData.updated_at) {
                     setLastUpdated(new Date(projData.updated_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }));
                 }
-                
+
                 if (projData.created_at) {
                     setCreatedAt(new Date(projData.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }));
                 }
             }
-            if(cats) setCategories(cats.filter(c => c.status == 1));
+            if (cats) setCategories(cats.filter(c => c.status == 1));
             setLoading(false);
         };
         loadData();
@@ -81,7 +81,7 @@ export default function EditHoSo({ setActiveAppNav }) {
         try {
             await updateHoSo(id, formData);
             toast.success("Cập nhật hồ sơ thành công!");
-            
+
             // Lấy lại data để có History và Status mới nhất
             const projData = await getChiTietHoSo(id);
             if (projData) {
@@ -99,15 +99,14 @@ export default function EditHoSo({ setActiveAppNav }) {
 
     return (
         <div className="app">
-            <Sidebar 
-                activeNav="Danh sách hồ sơ" 
-                setActiveNav={(nav) => { 
+            <Sidebar
+                activeNav="Danh sách hồ sơ"
+                setActiveNav={(nav) => {
                     if (setActiveAppNav) setActiveAppNav(nav);
-                    localStorage.setItem('activeNav', nav); 
-                    navigate('/'); 
-                }} 
-                NAV_ITEMS={NAV_ITEMS} 
-                onShowModal={() => {}} 
+                    navigate('/');
+                }}
+                NAV_ITEMS={NAV_ITEMS}
+                onShowModal={() => { }}
             />
             <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', padding: '0', background: '#f8fafc' }}>
                 {loading ? (
@@ -129,108 +128,108 @@ export default function EditHoSo({ setActiveAppNav }) {
                         </div>
 
                         <div style={{ display: 'flex', gap: '32px', padding: '32px', overflowY: 'auto', flex: 1 }}>
-                    {/* Cột trái */}
-                    <div style={{ flex: '2', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        {/* Box 1: Thông tin chung */}
-                        <div style={{ background: 'white', padding: '32px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: '#111827' }}>
-                                <span style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e3a8a', color: 'white', borderRadius: '50%', fontSize: '14px', fontWeight: 'bold' }}>i</span>
-                                Thông tin chung
-                            </h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                <div>
-                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>TÊN HỒ SƠ</label>
-                                    <input className="form-input" name="name" value={formData.name} onChange={handleFormChange} style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', fontSize: '15px' }} />
-                                </div>
-                                <div style={{ display: 'flex', gap: '24px' }}>
-                                    <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>MÃ HỒ SƠ</label>
-                                        <input className="form-input" value={project.project_code} disabled style={{ background: '#f9fafb', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', color: '#6b7280', fontSize: '15px' }} />
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>LOẠI CÔNG TRÌNH</label>
-                                        <select className="form-input" name="category_id" value={formData.category_id} onChange={handleFormChange} style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '0 16px', height: '46px', width: '100%', fontSize: '15px', color: '#111827', boxSizing: 'border-box' }}>
-                                            <option value="">— Không phân loại —</option>
-                                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Box 2: Vị trí dự án */}
-                        <div style={{ background: 'white', padding: '32px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: '#111827' }}>
-                                <span style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e3a8a', color: 'white', borderRadius: '50%', fontSize: '14px' }}>📍</span>
-                                Vị trí dự án
-                            </h3>
-                            <div style={{ display: 'flex', gap: '32px' }}>
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>ĐỊA CHỈ TỔNG HỢP</label>
-                                        <input className="form-input" name="address" value={formData.address} onChange={handleFormChange} placeholder="123 Tên đường, Phường, Quận, Thành phố" style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', fontSize: '15px' }} />
-                                    </div>
-                                </div>
-                                <div style={{ flex: 1, minHeight: '200px', borderRadius: '12px', background: 'url("https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800") center/cover', position: 'relative', overflow: 'hidden' }}>
-                                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 82, 186, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <button onClick={() => window.open('https://maps.google.com/?q='+encodeURIComponent(formData.address), '_blank')} style={{ background: 'white', color: '#1e3a8a', padding: '10px 24px', borderRadius: '24px', fontWeight: 'bold', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', cursor: 'pointer' }}>Mở bản đồ</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Cột phải */}
-                    <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '24px', minWidth: '320px' }}>
-                        {/* Box 3: Trạng thái hồ sơ */}
-                        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '16px', letterSpacing: '0.05em' }}>TRẠNG THÁI HỒ SƠ</label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: STATUS_COLORS[STATUS_LABELS[project.status] || 'Chờ duyệt']?.bg || '#eff6ff', borderRadius: '12px' }}>
-                                <div style={{ width: '40px', height: '40px', background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', fontSize: '20px' }}>
-                                    📋
-                                </div>
-                                <div>
-                                    <div style={{ fontWeight: 'bold', color: STATUS_COLORS[STATUS_LABELS[project.status] || 'Chờ duyệt']?.color || '#1e3a8a', fontSize: '16px', marginBottom: '4px' }}>{STATUS_LABELS[project.status] || 'Chờ duyệt'}</div>
-                                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Cập nhật lần cuối: {lastUpdated}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Box 4: Lịch sử cập nhật */}
-                        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' }}>
-                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '24px', letterSpacing: '0.05em' }}>LỊCH SỬ CẬP NHẬT</label>
-                            <div style={{ position: 'relative', paddingLeft: '16px', overflowY: 'auto', maxHeight: '300px', flex: 1, paddingRight: '8px' }}>
-                                <div style={{ position: 'absolute', top: 0, bottom: 0, left: '3px', width: '2px', background: '#e5e7eb' }}></div>
-                                
-                                {project.histories && project.histories.length > 0 ? (
-                                    project.histories.map((history, idx) => (
-                                        <div key={idx} style={{ position: 'relative', marginBottom: idx === project.histories.length - 1 ? '0' : '20px' }}>
-                                            <div style={{ position: 'absolute', left: '-18px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', background: idx === 0 ? '#1e3a8a' : '#9ca3af', border: '2px solid white', boxShadow: `0 0 0 1px ${idx === 0 ? '#1e3a8a' : '#e5e7eb'}` }}></div>
-                                            <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827', marginBottom: '2px' }}>
-                                                {/* Translate status in history dynamically if it contains "Thay đổi trạng thái sang" */}
-                                                {history.action.includes('Thay đổi trạng thái sang') 
-                                                    ? `Thay đổi trạng thái sang "${STATUS_LABELS[history.action.split('"')[1]] || history.action.split('"')[1]}"`
-                                                    : history.action}
+                            {/* Cột trái */}
+                            <div style={{ flex: '2', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                {/* Box 1: Thông tin chung */}
+                                <div style={{ background: 'white', padding: '32px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: '#111827' }}>
+                                        <span style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e3a8a', color: 'white', borderRadius: '50%', fontSize: '14px', fontWeight: 'bold' }}>i</span>
+                                        Thông tin chung
+                                    </h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>TÊN HỒ SƠ</label>
+                                            <input className="form-input" name="name" value={formData.name} onChange={handleFormChange} style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', fontSize: '15px' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '24px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>MÃ HỒ SƠ</label>
+                                                <input className="form-input" value={project.project_code} disabled style={{ background: '#f9fafb', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', color: '#6b7280', fontSize: '15px' }} />
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                                                Bởi {history.actor} • {new Date(history.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>LOẠI CÔNG TRÌNH</label>
+                                                <select className="form-input" name="category_id" value={formData.category_id} onChange={handleFormChange} style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '0 16px', height: '46px', width: '100%', fontSize: '15px', color: '#111827', boxSizing: 'border-box' }}>
+                                                    <option value="">— Không phân loại —</option>
+                                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
                                             </div>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div style={{ position: 'relative' }}>
-                                        <div style={{ position: 'absolute', left: '-18px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', background: '#9ca3af', border: '2px solid white', boxShadow: '0 0 0 1px #e5e7eb' }}></div>
-                                        <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827', marginBottom: '2px' }}>Khởi tạo hồ sơ mới</div>
-                                        <div style={{ fontSize: '12px', color: '#6b7280' }}>Bởi Hệ thống tự động • {createdAt}</div>
                                     </div>
-                                )}
+                                </div>
+
+                                {/* Box 2: Vị trí dự án */}
+                                <div style={{ background: 'white', padding: '32px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: '#111827' }}>
+                                        <span style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e3a8a', color: 'white', borderRadius: '50%', fontSize: '14px' }}>📍</span>
+                                        Vị trí dự án
+                                    </h3>
+                                    <div style={{ display: 'flex', gap: '32px' }}>
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>ĐỊA CHỈ TỔNG HỢP</label>
+                                                <input className="form-input" name="address" value={formData.address} onChange={handleFormChange} placeholder="123 Tên đường, Phường, Quận, Thành phố" style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', fontSize: '15px' }} />
+                                            </div>
+                                        </div>
+                                        <div style={{ flex: 1, minHeight: '200px', borderRadius: '12px', background: 'url("https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800") center/cover', position: 'relative', overflow: 'hidden' }}>
+                                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 82, 186, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <button onClick={() => window.open('https://maps.google.com/?q=' + encodeURIComponent(formData.address), '_blank')} style={{ background: 'white', color: '#1e3a8a', padding: '10px 24px', borderRadius: '24px', fontWeight: 'bold', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', cursor: 'pointer' }}>Mở bản đồ</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Cột phải */}
+                            <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '24px', minWidth: '320px' }}>
+                                {/* Box 3: Trạng thái hồ sơ */}
+                                <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '16px', letterSpacing: '0.05em' }}>TRẠNG THÁI HỒ SƠ</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: STATUS_COLORS[STATUS_LABELS[project.status] || 'Chờ duyệt']?.bg || '#eff6ff', borderRadius: '12px' }}>
+                                        <div style={{ width: '40px', height: '40px', background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', fontSize: '20px' }}>
+                                            📋
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', color: STATUS_COLORS[STATUS_LABELS[project.status] || 'Chờ duyệt']?.color || '#1e3a8a', fontSize: '16px', marginBottom: '4px' }}>{STATUS_LABELS[project.status] || 'Chờ duyệt'}</div>
+                                            <div style={{ fontSize: '12px', color: '#6b7280' }}>Cập nhật lần cuối: {lastUpdated}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Box 4: Lịch sử cập nhật */}
+                                <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' }}>
+                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', display: 'block', marginBottom: '24px', letterSpacing: '0.05em' }}>LỊCH SỬ CẬP NHẬT</label>
+                                    <div style={{ position: 'relative', paddingLeft: '16px', overflowY: 'auto', maxHeight: '300px', flex: 1, paddingRight: '8px' }}>
+                                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '3px', width: '2px', background: '#e5e7eb' }}></div>
+
+                                        {project.histories && project.histories.length > 0 ? (
+                                            project.histories.map((history, idx) => (
+                                                <div key={idx} style={{ position: 'relative', marginBottom: idx === project.histories.length - 1 ? '0' : '20px' }}>
+                                                    <div style={{ position: 'absolute', left: '-18px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', background: idx === 0 ? '#1e3a8a' : '#9ca3af', border: '2px solid white', boxShadow: `0 0 0 1px ${idx === 0 ? '#1e3a8a' : '#e5e7eb'}` }}></div>
+                                                    <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827', marginBottom: '2px' }}>
+                                                        {/* Translate status in history dynamically if it contains "Thay đổi trạng thái sang" */}
+                                                        {history.action.includes('Thay đổi trạng thái sang')
+                                                            ? `Thay đổi trạng thái sang "${STATUS_LABELS[history.action.split('"')[1]] || history.action.split('"')[1]}"`
+                                                            : history.action}
+                                                    </div>
+                                                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                                        Bởi {history.actor} • {new Date(history.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ position: 'relative' }}>
+                                                <div style={{ position: 'absolute', left: '-18px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', background: '#9ca3af', border: '2px solid white', boxShadow: '0 0 0 1px #e5e7eb' }}></div>
+                                                <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827', marginBottom: '2px' }}>Khởi tạo hồ sơ mới</div>
+                                                <div style={{ fontSize: '12px', color: '#6b7280' }}>Bởi Hệ thống tự động • {createdAt}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </>
-        )}
-    </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

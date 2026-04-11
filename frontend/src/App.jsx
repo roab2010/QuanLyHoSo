@@ -25,8 +25,7 @@ const COLUMNS = [
 const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Báo cáo", "Tin tức", "Quản lý kho"];
 
 export default function App() {
-    const [activeNav, setActiveNav] = useState(() => localStorage.getItem('activeNav') || "Bảng điều khiển");
-    useEffect(() => { localStorage.setItem('activeNav', activeNav); }, [activeNav]);
+    const [activeNav, setActiveNav] = useState("Bảng điều khiển");
     const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [inventoryView, setInventoryView] = useState("selection");
