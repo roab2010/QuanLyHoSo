@@ -102,14 +102,47 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .fab:hover { background: #1d4ed8; transform: scale(1.05); }
 
 /* ── Modal ── */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modal { background: #fff; border-radius: 14px; width: 480px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.16); }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 0.5px solid #e5e7eb; }
-.modal-header h3 { font-size: 15px; font-weight: 600; color: #111827; }
-.modal-close { background: transparent; border: none; font-size: 16px; color: #9ca3af; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
-.modal-close:hover { background: #f3f4f6; color: #374151; }
-.modal-body { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-.modal-footer { padding: 12px 20px; border-top: 0.5px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px; }
+/* Overlay làm mờ nền */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+}
+
+.project-modal {
+    background: white;
+    width: 550px;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.form-row {
+    display: flex; gap: 15px; margin-bottom: 10px;
+}
+
+.form-group {
+    display: flex; flex-direction: column; margin-bottom: 15px; flex: 1;
+}
+
+.form-group label {
+    font-weight: bold; margin-bottom: 5px; font-size: 14px;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;
+}
+
+.btn-save { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+.btn-cancel { background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
 
 /* ── Form elements ── */
 .form-label { font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block; }
@@ -137,3 +170,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-add-cat { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
 .btn-edit { color: #2563eb; background: none; border: none; cursor: pointer; margin-right: 10px; }
 .btn-delete-small { color: #dc2626; background: none; border: none; cursor: pointer; }
+
+/* --- HIỆU ỨNG VÒNG MÀU CHO THẺ HỒ SƠ --- */
+
+/* 1. Mặc định: thẻ có border mờ để nhìn cho đẹp */
+.board .col .cards .card {
+    border: 2px solid transparent; /* Border mặc định trong suốt */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Hiệu ứng chuyển màu mượt mà */
+    border-radius: 8px; /* Bo góc thẻ cho đẹp */
+}
+
+/* 2. Khi nằm trong cột "Mới tạo" (Giả sử ID cột là 'new') */
+/* Thêm vòng màu đỏ */
+.board .col[data-col-id="new"] .cards .card {
+    border-color: #ef4444; /* Màu đỏ (Red 500) */
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); /* Thêm bóng mờ màu đỏ cho đẹp */
+}
+
+/* 3. Khi nằm trong cột "Đang xử lý" (Giả sử ID cột là 'processing') */
+/* Thêm vòng màu vàng */
+.board .col[data-col-id="processing"] .cards .card {
+    border-color: #f59e0b; /* Màu vàng (Amber 500) */
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); /* Bóng mờ màu vàng */
+}
+
+/* 4. Khi nằm trong cột "Hoàn thành" (Giả sử ID cột là 'done') */
+/* Thêm vòng màu xanh lá */
+.board .col[data-col-id="done"] .cards .card {
+    border-color: #10b981; /* Màu xanh lá (Emerald 500) */
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3); /* Bóng mờ màu xanh lá */
+}
+
+/* Hiệu ứng khi kéo thẻ (giữ nguyên hoặc tối ưu) */
+.card:active {
+    opacity: 0.6;
+    cursor: grabbing;
+}

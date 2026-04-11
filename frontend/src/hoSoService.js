@@ -1,77 +1,82 @@
 import api from './api';
 
 /**
- * Lấy toàn bộ hồ sơ
- * GET /ho-so
- * Response mong đợi: { data: HoSo[] }
- * hoặc mảng trực tiếp: HoSo[]
+ * --- PHẦN HỒ SƠ (PROJECTS) ---
  */
 export const getAllHoSo = async () => {
-    const res = await api.get('/projects');
-    // Hỗ trợ cả 2 dạng response của Laravel
-    return res.data?.data ?? res.data;
+    try {
+        const res = await api.get('/projects');
+        const data = res.data?.data ?? res.data;
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.error("Lỗi lấy danh sách hồ sơ:", error);
+        return [];
+    }
 };
-export const getAllCategories = async () => {
-    const res = await api.get('/categories'); // Đường dẫn API Laravel của bạn
-    return res.data?.data ?? res.data;
-};
-/**
- * Tạo hồ sơ mới
- * POST /ho-so
- * Body: { ten, mo_ta, muc_do, trang_thai, ngay_tao }
- */
+
 export const createHoSo = async (payload) => {
     const res = await api.post('/projects', payload);
     return res.data?.data ?? res.data;
 };
 
-/**
- * Cập nhật trạng thái (dùng khi kéo thả)
- * PATCH /ho-so/{id}
- * Body: { trang_thai: 'moi_tao' | 'dang_xu_ly' | 'hoan_thanh' }
- */
 export const updateTrangThai = async (id, statusValue) => {
-    // Đảm bảo truyền đúng key 'status' và value là CHỮ HOA
+    // Đảm bảo truyền đúng key 'status' và giá trị CHỮ HOA cho Backend Laravel
     return api.put(`/projects/${id}`, { 
         status: statusValue 
     });
 };
-/**
- * Cập nhật toàn bộ thông tin hồ sơ
- * PUT /ho-so/{id}
- */
+
 export const updateHoSo = async (id, payload) => {
     const res = await api.put(`/projects/${id}`, payload);
     return res.data?.data ?? res.data;
 };
 
-/**
- * Xóa hồ sơ
- * DELETE /ho-so/{id}
- */
 export const deleteHoSo = async (id) => {
     await api.delete(`/projects/${id}`);
 };
 
-// Bổ sung vào cuối file hoSoService.js của bạn
 
-// Tạo danh mục mới
+/**
+ * --- PHẦN LOẠI DỰ ÁN (CATEGORIES) ---
+ */
+export const getAllCategories = async () => {
+    try {
+        const res = await api.get('/categories');
+        // Xử lý để luôn lấy được mảng dữ liệu dù Laravel có bọc trong 'data' hay không
+        const data = res.data?.data ?? res.data;
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.error("Lỗi lấy danh mục:", error);
+        return [];
+    }
+};
+
 export const createCategory = async (payload) => {
-    const res = await api.post('/categories', payload); //
+    const res = await api.post('/categories', payload);
     return res.data?.data ?? res.data;
 };
 
-// Cập nhật danh mục
 export const updateCategory = async (id, payload) => {
-    const res = await api.put(`/categories/${id}`, payload); //
+    const res = await api.put(`/categories/${id}`, payload);
     return res.data?.data ?? res.data;
 };
 
-// Xóa danh mục
 export const deleteCategory = async (id) => {
-    await api.delete(`/categories/${id}`); //
+    await api.delete(`/categories/${id}`);
 };
 
-// export const createCategory = (payload) => api.post('/categories', payload);
-// export const updateCategory = (id, payload) => api.put(`/categories/${id}`, payload);
-// export const deleteCategory = (id) => api.delete(`/categories/${id}`);
+
+/**
+ * --- PHẦN KHÁCH HÀNG (CUSTOMERS) ---
+ */
+export const getAllCustomers = async () => {
+    try {
+        const res = await api.get('/customers');
+        // Luôn ép về mảng để không lỗi map
+        const data = res.data?.data ?? res.data;
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error("Lỗi API Customer:", e);
+        return [];
+    }
+};

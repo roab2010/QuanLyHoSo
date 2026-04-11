@@ -20,6 +20,9 @@ Route::apiResource('categories', CategoryController::class);
 Route::put('projects/{id}', [ProjectController::class, 'update']); 
 Route::apiResource('projects', ProjectController::class);
 
+//route xử lí customer
+Route::get('/customers', [ProjectController::class, 'getCustomers']);
+
 // Route để cào tin tức từ VnExpress
 Route::get('/news', function () {
 
