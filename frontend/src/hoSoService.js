@@ -1,6 +1,7 @@
-import api from "./api";
 import axios from "axios"; // THÊM DÒNG NÀY VÀO ĐẦU FILE
 const API_URL = "http://127.0.0.1:8000/api";
+
+import api from "./api";
 
 /**
  * --- PHẦN HỒ SƠ (PROJECTS) ---
@@ -88,6 +89,60 @@ export const getChiTietHoSo = async (id) => {
   } catch (error) {
     console.error("Lỗi lấy chi tiết hồ sơ:", error);
     return null;
+  }
+};
+
+/**
+ * --- PHẦN TASKS (TIẾN ĐỘ THI CÔNG) ---
+ */
+export const createTask = async (projectId, payload) => {
+  const res = await api.post(`/projects/${projectId}/tasks`, payload);
+  return res.data?.data ?? res.data;
+};
+
+export const updateTask = async (projectId, taskId, payload) => {
+  const res = await api.put(`/projects/${projectId}/tasks/${taskId}`, payload);
+  return res.data?.data ?? res.data;
+};
+
+export const deleteTask = async (projectId, taskId) => {
+  await api.delete(`/projects/${projectId}/tasks/${taskId}`);
+};
+
+/**
+ * --- PHẦN TÀI LIỆU ---
+ */
+export const updateDocument = async (projectId, docId, payload) => {
+  const res = await api.put(
+    `/projects/${projectId}/documents/${docId}`,
+    payload,
+  );
+  return res.data?.data ?? res.data;
+};
+
+/**
+ * --- PHẦN THÀNH VIÊN ---
+ */
+export const addMember = async (projectId, payload) => {
+  const res = await api.post(`/projects/${projectId}/members`, payload);
+  return res.data?.data ?? res.data;
+};
+
+export const removeMember = async (projectId, memberId) => {
+  await api.delete(`/projects/${projectId}/members/${memberId}`);
+};
+
+/**
+ * --- PHẦN NHÂN VIÊN ---
+ */
+export const getAllEmployees = async () => {
+  try {
+    const res = await api.get("/employees");
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Lỗi API Employee:", e);
+    return [];
   }
 };
 export const getTemplatesByCategoryId = async (categoryId) => {

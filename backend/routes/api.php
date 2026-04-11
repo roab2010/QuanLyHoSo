@@ -36,6 +36,21 @@ Route::apiResource('projects', ProjectController::class);
 //route xử lí customer
 Route::get('/customers', [ProjectController::class, 'getCustomers']);
 
+// Route cho nhân viên
+Route::get('/employees', [ProjectController::class, 'getEmployees']);
+
+// Route cho tasks (tiến độ thi công)
+Route::post('/projects/{projectId}/tasks', [ProjectController::class, 'storeTask']);
+Route::put('/projects/{projectId}/tasks/{taskId}', [ProjectController::class, 'updateTask']);
+Route::delete('/projects/{projectId}/tasks/{taskId}', [ProjectController::class, 'destroyTask']);
+
+// Route cho tài liệu
+Route::put('/projects/{projectId}/documents/{docId}', [ProjectController::class, 'updateDocument']);
+
+// Route cho thành viên
+Route::post('/projects/{projectId}/members', [ProjectController::class, 'addMember']);
+Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::class, 'removeMember']);
+
 // Route để cào tin tức từ VnExpress
 Route::get('/news', function () {
 
