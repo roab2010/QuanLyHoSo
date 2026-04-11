@@ -5,6 +5,7 @@ import {
   updateTemplateTask,
   deleteTemplateTask,
 } from "./hoSoService";
+import { useToast } from "./Toast";
 
 export default function ModalTemplateManagement({
   onClose,
@@ -16,6 +17,7 @@ export default function ModalTemplateManagement({
   const [newTaskVolume, setNewTaskVolume] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("");
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const toast = useToast();
 
   const loadTemplates = async () => {
     try {
@@ -35,7 +37,7 @@ export default function ModalTemplateManagement({
 
   const handleSubmit = async () => {
     if (!newTaskName || !newTaskVolume || !newTaskPriority) {
-      alert("Vui lòng nhập đầy đủ thông tin!");
+      toast.warning("Vui lòng nhập đầy đủ thông tin!");
       return;
     }
 
@@ -49,16 +51,16 @@ export default function ModalTemplateManagement({
 
       if (editingTaskId) {
         await updateTemplateTask(editingTaskId, payload);
-        alert("Cập nhật thành công!");
+        toast.success("Cập nhật quy trình mẫu thành công!");
       } else {
         await createTemplateTask(payload);
-        alert("Thêm tác vụ mẫu thành công!");
+        toast.success("Thêm quy trình mẫu thành công!");
       }
 
       resetForm();
       loadTemplates();
     } catch (error) {
-      alert("Lỗi: " + (error.response?.data?.message || "Lỗi kết nối"));
+      toast.error("Lỗi: " + (error.response?.data?.message || "Lỗi kết nối"));
     }
   };
 
@@ -77,44 +79,32 @@ export default function ModalTemplateManagement({
   };
 
   const handleDeleteTask = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa quy trình này?")) {
-      try {
-        await deleteTemplateTask(id);
-        loadTemplates();
-      } catch (error) {
-        alert("Không thể xóa!");
-      }
+    const ok = await toast.showConfirm("Bạn có chắc chắn muốn xóa quy trình này?");
+    if (!ok) return;
+    try {
+      await deleteTemplateTask(id);
+      toast.success("Đã xóa quy trình mẫu!");
+      loadTemplates();
+    } catch (error) {
+      toast.error("Không thể xóa!");
     }
   };
 
   return (
-    <div className="modal-overlay">
-      {/* Tao dùng class 'modal' và inline style để đảm bảo nó to và đẹp */}
-      <div className="modal" style={{ width: "850px", maxWidth: "95%" }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>
-            Quản lý quy trình mẫu:{" "}
+            📋 Quản lý quy trình mẫu:{" "}
             <span style={{ color: "#2563eb" }}>{categoryName}</span>
           </h3>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
+          <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
-          {/* Form thêm mới - Tao dùng grid cho gọn */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              gap: "10px",
-              background: "#f8fafc",
-              padding: "15px",
-              borderRadius: "8px",
-              marginBottom: "20px",
-            }}
-          >
-            <div>
+          {/* Form thêm mới */}
+          <div className="template-form-grid">
+            <div className="template-form-item">
               <label className="form-label">Tên công việc mẫu</label>
               <input
                 className="form-input"
@@ -124,33 +114,29 @@ export default function ModalTemplateManagement({
                 onChange={(e) => setNewTaskName(e.target.value)}
               />
             </div>
-            <div>
+            <div className="template-form-item">
               <label className="form-label">Khối lượng (%)</label>
               <input
                 className="form-input"
                 type="number"
+                placeholder="0"
                 value={newTaskVolume}
                 onChange={(e) => setNewTaskVolume(e.target.value)}
               />
             </div>
-            <div>
+            <div className="template-form-item">
               <label className="form-label">Thứ tự</label>
               <input
                 className="form-input"
                 type="number"
+                placeholder="1"
                 value={newTaskPriority}
                 onChange={(e) => setNewTaskPriority(e.target.value)}
               />
             </div>
-            <div
-              style={{ display: "flex", alignItems: "flex-end", gap: "5px" }}
-            >
-              <button
-                className="btn-submit"
-                onClick={handleSubmit}
-                style={{ width: "100%" }}
-              >
-                {editingTaskId ? "Lưu" : "Thêm"}
+            <div className="template-form-item template-form-actions">
+              <button className="btn-submit" onClick={handleSubmit}>
+                {editingTaskId ? "💾 Lưu" : "➕ Thêm"}
               </button>
               {editingTaskId && (
                 <button className="btn-cancel" onClick={resetForm}>
@@ -160,8 +146,8 @@ export default function ModalTemplateManagement({
             </div>
           </div>
 
-          {/* Bảng danh sách - Dùng class category-table để đồng bộ layout */}
-          <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+          {/* Bảng danh sách */}
+          <div className="template-table-wrap">
             <table className="category-table">
               <thead>
                 <tr>
@@ -175,49 +161,27 @@ export default function ModalTemplateManagement({
                 {tasks.length > 0 ? (
                   tasks.map((task) => (
                     <tr key={task.id}>
-                      <td style={{ textAlign: "center" }}>{task.sort_order}</td>
+                      <td style={{ textAlign: "center", fontWeight: 700 }}>{task.sort_order}</td>
                       <td>{task.task_name}</td>
-                      <td>{task.work_volume}%</td>
                       <td>
-                        <button
-                          className="btn-edit"
-                          onClick={() => handleEditClick(task)}
-                          style={{
-                            marginRight: "15px",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#2563eb",
-                          }}
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          className="btn-delete-small"
-                          onClick={() => handleDeleteTask(task.id)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#dc2626",
-                          }}
-                        >
-                          Xóa
-                        </button>
+                        <span className="volume-badge">{task.work_volume}%</span>
+                      </td>
+                      <td>
+                        <div className="template-actions">
+                          <button className="tpl-btn tpl-btn-edit" onClick={() => handleEditClick(task)}>
+                            ✏️ Sửa
+                          </button>
+                          <button className="tpl-btn tpl-btn-del" onClick={() => handleDeleteTask(task.id)}>
+                            🗑 Xóa
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan="4"
-                      style={{
-                        textAlign: "center",
-                        padding: "20px",
-                        color: "#94a3b8",
-                      }}
-                    >
-                      Chưa có quy trình mẫu nào cho danh mục này
+                    <td colSpan="4" className="empty-template">
+                      📭 Chưa có quy trình mẫu nào cho danh mục này
                     </td>
                   </tr>
                 )}

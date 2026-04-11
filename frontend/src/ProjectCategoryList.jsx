@@ -6,19 +6,17 @@ import {
   deleteCategory,
 } from "./hoSoService";
 import ModalCategory from "./ModalCategory";
-// 1. PHẢI THÊM DÒNG NÀY ĐỂ NÓ BIẾT CÁI BẢNG TEMPLATE LÀ CÁI NÀO
 import ModalTemplateManagement from "./ModalTemplateManagement";
+import { useToast } from "./Toast";
 
 export default function ProjectCategoryList() {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-
-  // 2. THÊM 2 CÁI STATE NÀY ĐỂ QUẢN LÝ BẬT/TẮT BẢNG TEMPLATE
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const toast = useToast();
 
-  // 1. Tải dữ liệu
   const loadData = async () => {
     try {
       const data = await getAllCategories();
@@ -32,39 +30,37 @@ export default function ProjectCategoryList() {
     loadData();
   }, []);
 
-  // 3. ĐỊNH NGHĨA HÀM NÀY THÌ MỚI CLICK ĐƯỢC (LỖI CỦA MÀY Ở ĐÂY)
   const handleManageTemplate = (cat) => {
-    setSelectedCategory(cat); // Lưu lại cái danh mục mày vừa chọn
-    setShowTemplateModal(true); // Mở cái bảng Template lên
+    setSelectedCategory(cat);
+    setShowTemplateModal(true);
   };
 
-  // 3. Hàm Lưu (Thêm/Sửa danh mục dự án)
   const handleSave = async (payload) => {
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, payload);
-        alert("Cập nhật thành công!");
+        toast.success("Cập nhật danh mục thành công!");
       } else {
         await createCategory(payload);
-        alert("Thêm mới thành công!");
+        toast.success("Thêm danh mục mới thành công!");
       }
       setShowModal(false);
       loadData();
     } catch (error) {
       const msg = error.response?.data?.message || "Lỗi lưu dữ liệu!";
-      alert("Lỗi: " + msg);
+      toast.error("Lỗi: " + msg);
     }
   };
 
-  // 4. Hàm Xóa
   const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa danh mục này?")) {
-      try {
-        await deleteCategory(id);
-        loadData();
-      } catch (error) {
-        alert("Xóa thất bại!");
-      }
+    const ok = await toast.showConfirm("Bạn có chắc chắn muốn xóa danh mục này?");
+    if (!ok) return;
+    try {
+      await deleteCategory(id);
+      toast.success("Đã xóa danh mục thành công!");
+      loadData();
+    } catch (error) {
+      toast.error("Xóa thất bại! Danh mục có thể đang được sử dụng.");
     }
   };
 
@@ -124,7 +120,7 @@ export default function ProjectCategoryList() {
 
                 <button
                   className="btn-template"
-                  onClick={() => handleManageTemplate(cat)} // ĐỔI cat.id THÀNH cat ĐỂ LẤY CẢ TÊN
+                  onClick={() => handleManageTemplate(cat)}
                   title="Quản lý Template"
                   style={{
                     margin: "0 10px",
@@ -157,7 +153,6 @@ export default function ProjectCategoryList() {
         </tbody>
       </table>
 
-      {/* Modal Thêm/Sửa Danh mục */}
       {showModal && (
         <ModalCategory
           onClose={() => setShowModal(false)}
@@ -166,7 +161,6 @@ export default function ProjectCategoryList() {
         />
       )}
 
-      {/* 4. PHẢI THÊM ĐOẠN NÀY ĐỂ NÓ HIỂN THỊ CÁI BẢNG QUY TRÌNH MẪU KHI CLICK */}
       {showTemplateModal && (
         <ModalTemplateManagement
           categoryId={selectedCategory?.id}

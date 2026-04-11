@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from "./hoSoService";
 import ModalCategory from "./ModalCategory";
+import { useToast } from "./Toast";
 
 export default function ProjectCategoryList() {
     const [categories, setCategories] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
+    const toast = useToast();
 
     const loadData = async () => {
         try {
@@ -19,13 +21,14 @@ export default function ProjectCategoryList() {
     useEffect(() => { loadData(); }, []);
 
     const handleDelete = async (id) => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa danh mục này?")) {
-            try {
-                await deleteCategory(id);
-                loadData();
-            } catch (error) {
-                alert("Xóa thất bại!");
-            }
+        const ok = await toast.showConfirm("Bạn có chắc chắn muốn xóa danh mục này?");
+        if (!ok) return;
+        try {
+            await deleteCategory(id);
+            toast.success("Đã xóa danh mục thành công!");
+            loadData();
+        } catch (error) {
+            toast.error("Xóa thất bại!");
         }
     };
 
@@ -33,13 +36,15 @@ export default function ProjectCategoryList() {
         try {
             if (editingCategory) {
                 await updateCategory(editingCategory.id, payload);
+                toast.success("Cập nhật thành công!");
             } else {
                 await createCategory(payload);
+                toast.success("Thêm mới thành công!");
             }
             setShowModal(false);
             loadData();
         } catch (error) {
-            alert("Lưu dữ liệu thất bại!");
+            toast.error("Lưu dữ liệu thất bại!");
         }
     };
 
