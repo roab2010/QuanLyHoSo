@@ -450,3 +450,238 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* --- CONTAINER CHÍNH --- */
+.supplier-container {
+    padding: 30px;
+    background-color: #F4F7FE; /* Màu nền xám xanh đặc trưng của Dashboard */
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+}
+
+/* --- HEADER --- */
+.supplier-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.supplier-header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #1B2559;
+    margin: 0;
+}
+
+.sub-text {
+    color: #A3AED0;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-export-outline {
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: 1px solid #E0E5F2;
+    background: white;
+    font-weight: 700;
+    color: #1B2559;
+    cursor: pointer;
+}
+
+.btn-add-supplier {
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #4318FF;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0px 10px 20px rgba(67, 24, 255, 0.2);
+}
+
+/* --- STATS GRID (4 THẺ TRÊN CÙNG) --- */
+.supplier-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.08);
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.stat-info label {
+    font-size: 12px;
+    color: #A3AED0;
+    font-weight: 700;
+}
+
+.stat-info .value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1B2559;
+}
+
+.val-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-badge {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+/* --- FILTER BAR --- */
+.filter-bar {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.04);
+}
+
+.search-box { flex: 1; }
+.search-supplier {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 12px;
+    border: 1px solid #E0E5F2;
+    background: #F4F7FE;
+    outline: none;
+}
+
+.filter-select {
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #E0E5F2;
+    color: #1B2559;
+    font-weight: 600;
+}
+
+.view-mode {
+    display: flex;
+    background: #F4F7FE;
+    padding: 5px;
+    border-radius: 10px;
+}
+
+.mode-btn {
+    border: none;
+    background: transparent;
+    padding: 5px 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    color: #A3AED0;
+}
+
+.mode-btn.active {
+    background: white;
+    color: #4318FF;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* --- TABLE --- */
+.supplier-table-wrapper {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.08);
+}
+
+.supplier-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supplier-table th {
+    text-align: left;
+    padding: 15px;
+    color: #A3AED0;
+    font-size: 12px;
+    font-weight: 800;
+    border-bottom: 1px solid #F4F7FE;
+}
+
+.supplier-table td {
+    padding: 20px 15px;
+    border-bottom: 1px solid #F4F7FE;
+}
+
+.sup-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sup-logo {
+    width: 40px;
+    height: 40px;
+    background: #F4F7FE;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.name { font-weight: 800; color: #1B2559; font-size: 15px; }
+.mst { font-size: 12px; color: #A3AED0; font-weight: 600; }
+
+.type-tag {
+    background: #F4F7FE;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    color: #1B2559;
+    font-size: 13px;
+}
+
+/* --- TRẠNG THÁI TAGS --- */
+.rating-tag {
+    padding: 6px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.reliable { background: #E6F9F0; color: #05CD99; } /* Còn hàng */
+.potential { background: #FFF7ED; color: #FFA000; } /* Sắp hết */
+.review { background: #FEE2E2; color: #EE5D50; }    /* Hết hàng */
+
+.btn-more-action {
+    background: transparent;
+    border: none;
+    color: #A3AED0;
+    font-size: 18px;
+    cursor: pointer;
+}
