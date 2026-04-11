@@ -10,6 +10,8 @@ import News from "./News";
 import ProfessionalInventory from "./ProfessionalInventory.jsx";
 import ProductList from "./ProductList.jsx";
 import ModalAddProject from "./ModalAddProject"; 
+import InventoryDashboard from "./InventoryDashboard";
+import QuanLyNhaCungCap from "./QuanLyNhaCungCap";
 
 const COLUMNS = [
     { id: "new",         title: "Mới tạo",    color: "#6b7280" },
@@ -17,13 +19,13 @@ const COLUMNS = [
     { id: "done",        title: "Hoàn thành", color: "#16a34a" },
 ];
 
-
-const NAV_ITEMS = ["Dashboard", "Danh mục dự án", "Quản lý kho", "Tin tức", "Kho vật tư", "Cài đặt"];
+const NAV_ITEMS = ["Dashboard", "Danh mục dự án", "Tin tức","Cài đặt", "Quản lý kho"];
 
 export default function App() {
     const [activeNav, setActiveNav] = useState("Dashboard");
     const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
+    const [inventoryView, setInventoryView] = useState("selection");
     
     const { 
         loading, 
@@ -31,7 +33,6 @@ export default function App() {
         cardsByCol, 
         xoaHoSo, 
         moveCard, 
-        fetchAll, 
         themHoSo 
     } = useHoSo();
 
@@ -44,11 +45,15 @@ export default function App() {
         }
     };
 
+    // Component giao diện chính để dễ quản lý trong Route
     const MainLayout = () => (
         <div className="app">
             <Sidebar 
                 activeNav={activeNav} 
-                setActiveNav={setActiveNav} 
+                setActiveNav={(nav) => {
+                    setActiveNav(nav);
+                    setInventoryView("selection"); // Reset về bảng chọn khi đổi menu
+                }} 
                 NAV_ITEMS={NAV_ITEMS} 
                 onShowModal={() => setShowModal(true)} 
             />
@@ -62,17 +67,12 @@ export default function App() {
                         value={search} 
                         onChange={(e) => setSearch(e.target.value)} 
                     />
-                    <div className="topbar-right">
-                        <button className="icon-btn" onClick={fetchAll} title="Làm mới dữ liệu">
-                            ↻ Làm mới
-                        </button>
-                    </div>
                 </div>
 
                 {loading && <div className="state-banner loading">⏳ Đang xử lý...</div>}
                 {error && <div className="state-banner error">⚠️ {error}</div>}
 
-                <div className="content-container" style={{ flex: 1, overflow: "auto" }}>
+                <div className="content-container" style={{ flex: 1, overflow: "auto", padding: "20px" }}>
                     {activeNav === "Dashboard" ? (
                         <KanbanBoard 
                             COLUMNS={COLUMNS} 
@@ -84,15 +84,28 @@ export default function App() {
                         />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
-                    ) : activeNav === "Quản lý kho" ? ( 
-                        <div style={{ padding: "20px" }}>
-                            <ProfessionalInventory />
-                        </div>
                     ) : activeNav === "Tin tức" ? (
-                        <News />    
-                    ) : activeNav === "Kho vật tư" ? (
-                        /* ProductList đóng vai trò quản lý danh mục vật tư gốc */
-                        <ProductList />    
+                        <News />
+                    ) : activeNav === "Quản lý kho" ? (
+                        inventoryView === "selection" ? (
+                            <InventoryDashboard onSelect={setInventoryView} />
+                        ) : (
+                            <div>
+                                <button 
+                                    className="btn-back-selection" 
+                                    onClick={() => setInventoryView("selection")}
+                                    style={{ marginBottom: '20px', padding: '8px 15px', cursor: 'pointer' }}
+                                >
+                                    ← Quay lại Dashboard Kho
+                                </button>
+                                
+                                {inventoryView === "vat-tu" ? (
+                                    <ProfessionalInventory />
+                                ) : (
+                                    <QuanLyNhaCungCap />
+                                )}
+                            </div>
+                        )
                     ) : (
                         <div style={{ padding: "40px", textAlign: "center" }}>
                             <h3>Trang {activeNav}</h3>
@@ -105,7 +118,7 @@ export default function App() {
             {showModal && (
                 <ModalAddProject 
                     onClose={() => setShowModal(false)} 
-                    onSubmit={handleSaveProject} 
+                    onSave={handleSaveProject} 
                 />
             )}
         </div>

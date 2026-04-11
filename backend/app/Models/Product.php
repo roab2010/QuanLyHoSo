@@ -4,7 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Product extends Model {
-    public $timestamps = false; // Bắt buộc phải có dòng này
-    protected $fillable = ['sku', 'name', 'unit', 'type', 'category_name', 'price', 'status', 'min_stock_level', 'current_stock'];
+class Product extends Model
+{
+    protected $table = 'products';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'sku', 'name', 'unit', 'type', 'category_name',
+        'price', 'status', 'min_stock_level', 'current_stock'
+    ];
+
+    protected $casts = [
+        'price' => 'decimal:2',
+        'min_stock_level' => 'decimal:2',
+        'current_stock' => 'decimal:2',
+        // ĐÃ XÓA ép kiểu boolean cho status ở đây để nhận chữ ACTIVE, SUSPEND...
+    ];
 }
