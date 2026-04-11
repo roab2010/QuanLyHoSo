@@ -52,6 +52,6 @@ public $timestamps = false;
     // Giả sử bạn có model Employee hoặc User
     public function supervisor()
     {
-        return $this->belongsTo(Employee::class, 'supervisor_id');
+        return $this->belongsTo(Employees::class, 'supervisor_id');
     }
 }

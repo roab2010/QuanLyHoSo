@@ -4,7 +4,7 @@ import useHoSo from "./HoSo.js";
 import Sidebar from "./Sidebar";
 import KanbanBoard from "./KanbanBoard";
 import ProjectCategoryList from "./ProjectCategoryList";
-// import News from "./News";
+import News from "./News";
 import ModalAddProject from "./ModalAddProject"; // Đảm bảo bạn đã tạo file này
 
 const COLUMNS = [
