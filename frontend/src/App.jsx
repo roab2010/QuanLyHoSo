@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"; 
 import "./App.css";
 import useHoSo from "./HoSo.js"; 
 import Sidebar from "./Sidebar";
 import KanbanBoard from "./KanbanBoard";
 import ProjectCategoryList from "./ProjectCategoryList";
-// import News from "./News";
-import ModalAddProject from "./ModalAddProject"; // Đảm bảo bạn đã tạo file này
+import ChiTietHoSo from "./ChiTietHoSo"; 
+import News from "./News";
+import ModalAddProject from "./ModalAddProject"; 
 
 const COLUMNS = [
     { id: "new",         title: "Mới tạo",    color: "#6b7280" },
@@ -20,7 +22,6 @@ export default function App() {
     const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     
-    // 1. Lấy tất cả các hàm xử lý từ hook useHoSo
     const { 
         loading, 
         error, 
@@ -28,23 +29,21 @@ export default function App() {
         xoaHoSo, 
         moveCard, 
         fetchAll, 
-        themHoSo // Hàm này bạn đã định nghĩa trong HoSo.js
+        themHoSo 
     } = useHoSo();
 
-    // 2. Hàm xử lý khi người dùng nhấn "Lưu" trong Modal thêm mới
     const handleSaveProject = async (formData) => {
         const result = await themHoSo(formData);
         if (result.ok) {
-            setShowModal(false); // Đóng modal sau khi thêm thành công
-            // Chú ý: Trong HoSo.js của bạn, themHoSo đã có setCards nên UI sẽ tự cập nhật
+            setShowModal(false);
         } else {
             alert(result.message || "Không thể tạo hồ sơ");
         }
     };
 
-    return (
+    // Component bọc giao diện chính
+    const MainLayout = () => (
         <div className="app">
-            {/* Sidebar điều hướng và nút mở Modal */}
             <Sidebar 
                 activeNav={activeNav} 
                 setActiveNav={setActiveNav} 
@@ -53,7 +52,6 @@ export default function App() {
             />
 
             <div className="main">
-                {/* Thanh công cụ phía trên */}
                 <div className="topbar">
                     <span className="topbar-title">Quản Lý Hồ Sơ</span>
                     <input 
@@ -69,11 +67,9 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* Hiển thị thông báo khi đang xử lý API */}
                 {loading && <div className="state-banner loading">⏳ Đang xử lý...</div>}
                 {error && <div className="state-banner error">⚠️ {error}</div>}
 
-                {/* Phần nội dung thay đổi theo Sidebar */}
                 <div className="content-container" style={{ flex: 1, overflow: "auto" }}>
                     {activeNav === "Dashboard" ? (
                         <KanbanBoard 
@@ -86,8 +82,6 @@ export default function App() {
                         />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
-                    ) : activeNav === "Tin tức" ? (
-                        <News />
                     ) : (
                         <div style={{ padding: "40px", textAlign: "center" }}>
                             <h3>Trang {activeNav}</h3>
@@ -97,7 +91,6 @@ export default function App() {
                 </div>
             </div>
 
-            {/* 3. Modal thêm hồ sơ mới */}
             {showModal && (
                 <ModalAddProject 
                     onClose={() => setShowModal(false)} 
@@ -105,5 +98,18 @@ export default function App() {
                 />
             )}
         </div>
+    );
+
+    // CHỈ DÙNG 1 LỆNH RETURN DUY NHẤT Ở ĐÂY
+    return (
+        <Router>
+            <Routes>
+                {/* Khi ở đường dẫn gốc "/" thì hiện giao diện chính */}
+                <Route path="/" element={<MainLayout />} />
+                
+                {/* Khi bấm vào card sẽ nhảy sang đường dẫn này */}
+                <Route path="/ho-so/:id" element={<ChiTietHoSo />} />
+            </Routes>
+        </Router>
     );
 }

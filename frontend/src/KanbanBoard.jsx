@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // THÊM DÒNG NÀY
 
 /* Icons giữ nguyên */
 const CalendarIcon = () => (
@@ -13,16 +14,28 @@ const CheckCircleIcon = () => (
 
 function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
     const [showMenu, setShowMenu] = useState(false);
+    const navigate = useNavigate(); // THÊM DÒNG NÀY
 
     // Logic chặn menu ba chấm: Chỉ hiện nút chuyển nếu đi từ 'new' sang 'processing'
     const canMoveTo = (targetColId) => {
         return card.colId === 'new' && targetColId === 'processing';
     };
 
+    // THÊM HÀM NÀY VÀO
+    const handleCardClick = (e) => {
+        // Nếu bấm vào nút menu hoặc menu dropdown thì không chuyển trang
+        if (e.target.closest('.card-menu-btn') || e.target.closest('.card-menu-dropdown')) {
+            return;
+        }
+        navigate(`/ho-so/${card.id}`);
+    };
+
     return (
         <div 
-            className={`card ${card.colId}`} // Thêm colId vào class để CSS nhận diện màu
+            className={`card ${card.colId}`} 
             draggable 
+            onClick={handleCardClick} // THÊM DÒNG NÀY
+            style={{ cursor: 'pointer' }} // THÊM DÒNG NÀY cho đẹp
             onDragStart={(e) => {
                 e.dataTransfer.setData("cardId", String(card.id));
                 e.dataTransfer.setData("fromColId", card.colId);
@@ -89,7 +102,7 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, search, onDelete, onM
                 <div 
                     key={col.id} 
                     className={`col ${dragOverCol === col.id ? " col-drag-over" : ""}`}
-                    data-col-id={col.id} // Thêm để CSS nhận diện cột
+                    data-col-id={col.id} 
                     onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
                     onDragLeave={() => setDragOverCol(null)}
                     onDrop={(e) => handleDrop(e, col.id)}
