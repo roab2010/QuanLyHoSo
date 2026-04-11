@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProjectController;
 
+use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Client;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -24,54 +25,71 @@ Route::get('/customers', [ProjectController::class, 'getCustomers']);
 
 // Route để cào tin tức từ VnExpress
 Route::get('/news', function () {
-    $client = new Client(['verify' => false, 'timeout' => 10]);
-    
-    // Danh sách các chuyên mục bạn muốn cào
-    $categories = [
-        'Thời sự' => 'https://vnexpress.net/thoi-su',
-        'Thế giới'  => 'https://vnexpress.net/the-gioi',
-        'Kinh doanh' => 'https://vnexpress.net/kinh-doanh',
-        'Thể thao'  => 'https://vnexpress.net/the-thao',
-        'Giải trí'  => 'https://vnexpress.net/giai-tri'
-    ];
 
-    $allNews = [];
+    return Cache::remember('news_cache', 300, function () {
 
-    foreach ($categories as $name => $url) {
-        try {
-            $response = $client->request('GET', $url);
-            $html = $response->getBody()->getContents();
-            $crawler = new Crawler($html);
+        $client = new Client([
+            'timeout' => 10,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0'
+            ]
+        ]);
 
-            // Lấy tối đa 5-7 tin mỗi chuyên mục để tránh danh sách quá dài
-            $crawler->filter('article.item-news')->slice(0, 6)->each(function (Crawler $node) use (&$allNews, $name) {
-                $titleNode = $node->filter('h3.title-news > a');
-                $title = $titleNode->count() > 0 ? $titleNode->text() : null;
-                $link = $titleNode->count() > 0 ? $titleNode->attr('href') : null;
+        $categories = [
+            'Thời sự' => 'https://vnexpress.net/thoi-su',
+            'Thế giới' => 'https://vnexpress.net/the-gioi',
+            'Kinh doanh' => 'https://vnexpress.net/kinh-doanh',
+            'Thể thao' => 'https://vnexpress.net/the-thao',
+            'Giải trí' => 'https://vnexpress.net/giai-tri'
+        ];
 
-                $imgNode = $node->filter('div.thumb-art img');
-                $image = null;
-                if ($imgNode->count() > 0) {
-                    $image = $imgNode->attr('data-src') ?? $imgNode->attr('src');
-                }
+        $allNews = [];
 
-                if ($title && $link) {
-                    $allNews[] = [
-                        'title'    => $title,
-                        'link'     => $link,
-                        'image'    => $image ?? 'https://via.placeholder.com/400x250',
-                        'category' => $name // Lưu thêm tên chuyên mục để React hiển thị tag
-                    ];
-                }
-            });
-        } catch (\Exception $e) {
-            // Nếu một chuyên mục lỗi thì bỏ qua, cào tiếp cái khác
-            continue;
+        foreach ($categories as $name => $url) {
+            try {
+                $response = $client->request('GET', $url);
+                $crawler = new Crawler($response->getBody()->getContents());
+
+                $crawler->filter('article.item-news')->slice(0, 6)
+                    ->each(function (Crawler $node) use (&$allNews, $name) {
+
+                        $titleNode = $node->filter('h3.title-news > a');
+                        if ($titleNode->count() === 0) return;
+
+                        $imgNode = $node->filter('div.thumb-art img');
+
+                        // ✅ Lấy ảnh chuẩn
+                        $image = null;
+                        if ($imgNode->count() > 0) {
+                            $image = $imgNode->attr('data-src')
+                                ?? $imgNode->attr('data-original')
+                                ?? $imgNode->attr('src');
+                        }
+
+                        // ✅ Fix thiếu https
+                        if ($image && str_starts_with($image, '//')) {
+                            $image = 'https:' . $image;
+                        }
+
+                        // ✅ fallback
+                        if (!$image) {
+                            $image = 'https://via.placeholder.com/400x250';
+                        }
+
+                        $allNews[] = [
+                            'title' => $titleNode->text(),
+                            'link' => $titleNode->attr('href'),
+                            'image' => $image,
+                            'category' => $name
+                        ];
+                    });
+
+            } catch (\Exception $e) {
+                continue;
+            }
         }
-    }
 
-    // Trộn ngẫu nhiên tin tức để nhìn cho đa dạng (tùy chọn)
-    // shuffle($allNews);
-
-    return response()->json($allNews);
+        return $allNews;
+    });
 });
+

@@ -9,6 +9,7 @@ import ChiTietHoSo from "./ChiTietHoSo";
 import News from "./News";
 import ModalAddProject from "./ModalAddProject"; 
 
+
 const COLUMNS = [
     { id: "new",         title: "Mới tạo",    color: "#6b7280" },
     { id: "processing", title: "Đang xử lý", color: "#f59e0b" },
