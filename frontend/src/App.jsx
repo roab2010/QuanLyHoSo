@@ -9,7 +9,7 @@ import ChiTietHoSo from "./ChiTietHoSo";
 import News from "./News";
 import ModalAddProject from "./ModalAddProject"; 
 import InventoryDashboard from "./InventoryDashboard";
-
+import QuanLyNhaCungCap from "./QuanLyNhaCungCap";
 
 const COLUMNS = [
     { id: "new",         title: "Mới tạo",    color: "#6b7280" },
@@ -45,81 +45,77 @@ export default function App() {
     };
 
     // Component bọc giao diện chính
-    const MainLayout = () => (
-        <div className="app">
-            <Sidebar 
-                activeNav={activeNav} 
-                setActiveNav={setActiveNav} 
-                NAV_ITEMS={NAV_ITEMS} 
-                onShowModal={() => setShowModal(true)} 
-            />
+    // Component bọc giao diện chính
+const MainLayout = () => (
+    <div className="app">
+        <Sidebar 
+            activeNav={activeNav} 
+            setActiveNav={setActiveNav} 
+            NAV_ITEMS={NAV_ITEMS} 
+            onShowModal={() => setShowModal(true)} 
+        />
 
-            <div className="main">
-                <div className="topbar">
-                    <span className="topbar-title">Quản Lý Hồ Sơ</span>
-                    <input 
-                        className="search-input" 
-                        placeholder="Tìm kiếm mã hồ sơ hoặc tên dự án..." 
-                        value={search} 
-                        onChange={(e) => setSearch(e.target.value)} 
-                    />
-                    {/* <div className="topbar-right">
-                        <button className="icon-btn" onClick={fetchAll} title="Làm mới dữ liệu">
-                            ↻ Làm mới
-                        </button>
-                    </div> */}
-                </div>
-
-                {loading && <div className="state-banner loading">⏳ Đang xử lý...</div>}
-                {error && <div className="state-banner error">⚠️ {error}</div>}
-
-                <div className="content-container" style={{ flex: 1, overflow: "auto" }}>
-                    {activeNav === "Dashboard" ? (
-                        <KanbanBoard 
-                            COLUMNS={COLUMNS} 
-                            cardsByCol={cardsByCol} 
-                            search={search} 
-                            onDelete={xoaHoSo} 
-                            onMoveCard={moveCard} 
-                            onShowModal={() => setShowModal(true)}
-                        />
-                    ) : activeNav === "Danh mục dự án" ? (
-                        <ProjectCategoryList />
-                    ) : activeNav === "Tin tức" ? (
-                        <News />    
-                    ) : activeNav === "Quản lý kho" ? ( /* THÊM ĐOẠN NÀY DÔ ĐÂY */
-                        inventoryView === "selection" ? (
-                            <InventoryDashboard onSelect={setInventoryView} />
-                        ) : (
-                            <div style={{ padding: "20px" }}>
-                                <button className="btn-back-selection" onClick={() => setInventoryView("selection")}>
-                                    ← Quay lại chọn danh mục
-                                </button>
-                                {inventoryView === "vat-tu" ? (
-                                    <div className="animate-fade-in"><h3>Trang Vật Tư</h3><p>Đang tải...</p></div>
-                                ) : (
-                                    <div className="animate-fade-in"><h3>Trang Nhà Cung Cấp</h3><p>Đang tải...</p></div>
-                                )}
-                            </div>
-                        )
-                    ): (
-                        <div style={{ padding: "40px", textAlign: "center" }}>
-                            <h3>Trang {activeNav}</h3>
-                            <p>Tính năng đang được phát triển...</p>
-                        </div>
-                    )}
-                </div>
+        <div className="main">
+            <div className="topbar">
+                <span className="topbar-title">Quản Lý Hồ Sơ</span>
+                <input 
+                    className="search-input" 
+                    placeholder="Tìm kiếm mã hồ sơ hoặc tên dự án..." 
+                    value={search} 
+                    onChange={(e) => setSearch(e.target.value)} 
+                />
             </div>
 
-            {showModal && (
-                <ModalAddProject 
-                    onClose={() => setShowModal(false)} 
-                    onSubmit={handleSaveProject} 
-                />
-            )}
+            {loading && <div className="state-banner loading">⏳ Đang xử lý...</div>}
+            {error && <div className="state-banner error">⚠️ {error}</div>}
+
+            <div className="content-container" style={{ flex: 1, overflow: "auto" }}>
+                {activeNav === "Dashboard" ? (
+                    <KanbanBoard 
+                        COLUMNS={COLUMNS} 
+                        cardsByCol={cardsByCol} 
+                        search={search} 
+                        onDelete={xoaHoSo} 
+                        onMoveCard={moveCard} 
+                        onShowModal={() => setShowModal(true)}
+                    />
+                ) : activeNav === "Danh mục dự án" ? (
+                    <ProjectCategoryList />
+                ) : activeNav === "Tin tức" ? (
+                    <News />
+                ) : activeNav === "Quản lý kho" ? ( // ĐOẠN NÀY PHẢI VIẾT NHƯ THẾ NÀY
+                    inventoryView === "selection" ? (
+                        <InventoryDashboard onSelect={setInventoryView} />
+                    ) : (
+                        <div style={{ padding: "20px" }}>
+                            <button className="btn-back-selection" onClick={() => setInventoryView("selection")}>
+                                ← Quay lại chọn danh mục
+                            </button>
+                            
+                            {inventoryView === "vat-tu" ? (
+                                <div className="animate-fade-in"><h3>Trang Vật Tư</h3><p>Đang phát triển...</p></div>
+                            ) : (
+                                <QuanLyNhaCungCap />
+                            )}
+                        </div>
+                    )
+                ) : ( // ĐÂY LÀ DẤU ĐÓNG CUỐI CÙNG CHO CÁC TRANG KHÁC
+                    <div style={{ padding: "40px", textAlign: "center" }}>
+                        <h3>Trang {activeNav}</h3>
+                        <p>Tính năng đang được phát triển...</p>
+                    </div>
+                )}
+            </div>
         </div>
-    );
-    
+
+        {showModal && (
+            <ModalAddProject 
+                onClose={() => setShowModal(false)} 
+                onSubmit={handleSaveProject} 
+            />
+        )}
+    </div>
+);
 
     // CHỈ DÙNG 1 LỆNH RETURN DUY NHẤT Ở ĐÂY
     return (
