@@ -326,3 +326,40 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* Tăng chiều rộng bảng cho thoáng */
+.doc-table td {
+    white-space: nowrap; /* Không cho chữ xuống dòng lung tung */
+}
+
+/* Màu sắc bổ sung cho trạng thái nhân sự và vật tư */
+.st-done {
+    background: #e6f9f0 !important;
+    color: #05cd99 !important;
+}
+
+.st-wait {
+    background: #fff7ed !important;
+    color: #ffa000 !important;
+}
+
+/* Hiệu ứng di chuột vào dòng bảng */
+.doc-table tbody tr:hover {
+    background-color: #f8faff;
+    cursor: default;
+}
+
+/* Nút quay lại ở Sidebar */
+.btn-back {
+    background: none;
+    border: 1px dashed #a3aed0;
+    color: #a3aed0;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-back:hover {
+    border-color: #0052cc;
+    color: #0052cc;
+}

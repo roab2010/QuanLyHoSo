@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getChiTietHoSo } from "./hoSoService";
 
-
 export default function ChiTietHoSo() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -11,10 +10,6 @@ export default function ChiTietHoSo() {
 
     useEffect(() => {
         const fetchData = async () => {
-            // Sau này dùng API thật thì mở dòng dưới ra:
-            // const data = await getChiTietHoSo(id);
-            // setProject(data);
-            
             setProject({
                 project_code: "HS-9021",
                 name: "Tòa nhà Landmark 81",
@@ -32,7 +27,7 @@ export default function ChiTietHoSo() {
 
     return (
         <div className="detail-container">
-            {/* 1. Header luôn hiển thị */}
+            {/* Header */}
             <div className="detail-header">
                 <div className="breadcrumb">DỰ ÁN / CHI TIẾT HỒ SƠ</div>
                 <div className="header-main">
@@ -46,24 +41,21 @@ export default function ChiTietHoSo() {
             </div>
 
             <div className="detail-content">
-                {/* 2. Sidebar luôn hiển thị */}
+                {/* Sidebar */}
                 <div className="detail-sidebar">
-                    <button 
-                        className={activeTab === "thong-tin" ? "active" : ""} 
-                        onClick={() => setActiveTab("thong-tin")}
-                    >
+                    <button className={activeTab === "thong-tin" ? "active" : ""} onClick={() => setActiveTab("thong-tin")}>
                         Thông tin chung <span>›</span>
                     </button>
-                    <button 
-                        className={activeTab === "phap-ly" ? "active" : ""} 
-                        onClick={() => setActiveTab("phap-ly")}
-                    >
+                    <button className={activeTab === "phap-ly" ? "active" : ""} onClick={() => setActiveTab("phap-ly")}>
                         Tài liệu pháp lý
                     </button>
-                    <button 
-                        className={activeTab === "tien-do" ? "active" : ""} 
-                        onClick={() => setActiveTab("tien-do")}
-                    >
+                    <button className={activeTab === "nhan-su" ? "active" : ""} onClick={() => setActiveTab("nhan-su")}>
+                        Nhân sự & Thành viên
+                    </button>
+                    <button className={activeTab === "vat-tu" ? "active" : ""} onClick={() => setActiveTab("vat-tu")}>
+                        Vật tư & Thiết bị
+                    </button>
+                    <button className={activeTab === "tien-do" ? "active" : ""} onClick={() => setActiveTab("tien-do")}>
                         Tiến độ thi công
                     </button>
                     <button className="btn-back" onClick={() => navigate("/")} style={{marginTop: '20px'}}>
@@ -71,8 +63,9 @@ export default function ChiTietHoSo() {
                     </button>
                 </div>
 
-                {/* 3. Nội dung chính thay đổi theo Tab */}
+                {/* Nội dung chính */}
                 <div className="detail-main">
+                    {/* Tab Thông tin chung */}
                     {activeTab === "thong-tin" && (
                         <section className="info-section animate-fade-in">
                             <div className="section-header">
@@ -80,30 +73,16 @@ export default function ChiTietHoSo() {
                                 <button className="btn-edit">✎ Chỉnh sửa hồ sơ</button>
                             </div>
                             <div className="info-grid big-grid">
-                                <div className="info-item">
-                                    <label>TÊN DỰ ÁN</label>
-                                    <p>{project.name}</p>
-                                </div>
-                                <div className="info-item">
-                                    <label>KỸ SƯ TRƯỞNG</label>
-                                    <p>👤 {project.supervisor}</p>
-                                </div>
-                                <div className="info-item full">
-                                    <label>ĐỊA CHỈ CÔNG TRÌNH</label>
-                                    <p>{project.address}</p>
-                                </div>
-                                <div className="info-item">
-                                    <label>CHỦ ĐẦU TƯ</label>
-                                    <p>{project.investor}</p>
-                                </div>
-                                <div className="info-item">
-                                    <label>NGÀY KHỞI CÔNG</label>
-                                    <p>{project.start_date}</p>
-                                </div>
+                                <div className="info-item"><label>TÊN DỰ ÁN</label><p>{project.name}</p></div>
+                                <div className="info-item"><label>KỸ SƯ TRƯỞNG</label><p>👤 {project.supervisor}</p></div>
+                                <div className="info-item full"><label>ĐỊA CHỈ CÔNG TRÌNH</label><p>{project.address}</p></div>
+                                <div className="info-item"><label>CHỦ ĐẦU TƯ</label><p>{project.investor}</p></div>
+                                <div className="info-item"><label>NGÀY KHỞI CÔNG</label><p>{project.start_date}</p></div>
                             </div>
                         </section>
                     )}
 
+                    {/* Tab Pháp lý */}
                     {activeTab === "phap-ly" && (
                         <section className="document-section animate-fade-in">
                             <div className="section-header">
@@ -126,20 +105,80 @@ export default function ChiTietHoSo() {
                                         <td><span className="st-done">ĐÃ XONG</span></td>
                                         <td><button className="btn-icon">⬇</button></td>
                                     </tr>
+                                </tbody>
+                            </table>
+                        </section>
+                    )}
+
+                    {/* Tab Nhân sự mới */}
+                    {activeTab === "nhan-su" && (
+                        <section className="document-section animate-fade-in">
+                            <div className="section-header">
+                                <h3>Đội ngũ nhân sự dự án</h3>
+                                <button className="btn-upload">+ Thêm thành viên</button>
+                            </div>
+                            <table className="doc-table">
+                                <thead>
                                     <tr>
-                                        <td>📄 Bản vẽ kiến trúc tầng 1-10</td>
-                                        <td>15/06/2024</td>
-                                        <td><span className="st-wait">CHỜ DUYỆT</span></td>
-                                        <td>
-                                            <button className="btn-approve">DUYỆT</button>
-                                            <button className="btn-reject">TỪ CHỐI</button>
-                                        </td>
+                                        <th>HỌ VÀ TÊN</th>
+                                        <th>CHỨC VỤ</th>
+                                        <th>SỐ ĐIỆN THOẠI</th>
+                                        <th>TRẠNG THÁI</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>👤 Nguyễn Văn Nam</td>
+                                        <td>Kỹ sư trưởng</td>
+                                        <td>0901.234.xxx</td>
+                                        <td><span className="st-done">ĐANG TRỰC</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>👤 Trần Thị Bé</td>
+                                        <td>Kế toán công trình</td>
+                                        <td>0908.777.xxx</td>
+                                        <td><span className="st-done">ĐANG TRỰC</span></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </section>
                     )}
 
+                    {/* Tab Vật tư mới */}
+                    {activeTab === "vat-tu" && (
+                        <section className="document-section animate-fade-in">
+                            <div className="section-header">
+                                <h3>Quản lý Vật tư & Thiết bị</h3>
+                                <button className="btn-upload">+ Nhập vật tư</button>
+                            </div>
+                            <table className="doc-table">
+                                <thead>
+                                    <tr>
+                                        <th>TÊN VẬT TƯ / THIẾT BỊ</th>
+                                        <th>SỐ LƯỢNG</th>
+                                        <th>ĐƠN VỊ</th>
+                                        <th>TÌNH TRẠNG</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>🏗️ Cần cẩu tháp Potain</td>
+                                        <td>02</td>
+                                        <td>Bộ</td>
+                                        <td><span className="st-done">ỔN ĐỊNH</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>🧱 Xi măng Holcim</td>
+                                        <td>500</td>
+                                        <td>Tấn</td>
+                                        <td><span className="st-wait">SẮP HẾT</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </section>
+                    )}
+
+                    {/* Tab Tiến độ */}
                     {activeTab === "tien-do" && (
                         <section className="progress-details animate-fade-in">
                             <div className="section-header">
@@ -154,8 +193,9 @@ export default function ChiTietHoSo() {
                             </div>
                         </section>
                     )}
-                </div> {/* Đóng detail-main */}
-            </div> {/* Đóng detail-content */}
+                </div>
+            </div>
         </div> 
     );
 }
+
