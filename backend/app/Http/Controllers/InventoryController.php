@@ -34,7 +34,9 @@ class InventoryController extends Controller
                     'quantity'  => (float) $p->current_stock,
                     'minStock'  => (float) $p->min_stock_level,
                     'status'    => $p->stock_status, // Phải có $appends trong Model Product mới chạy được
-                    'location'  => 'Kho chính'
+                    'location'  => 'Kho chính',
+                    'type'          => $p->type, 
+                    'category_name' => $p->category_name,
                 ];
             })
         ]);
@@ -137,6 +139,16 @@ class InventoryController extends Controller
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 400);
+        }
+    }
+    public function destroy($id)
+    {
+        try {
+            $product = Product::findOrFail($id);
+            $product->delete();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Không thể xóa vật tư này'], 400);
         }
     }
 }

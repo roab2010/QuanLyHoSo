@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import api from "./api"; 
 
 export default function QuanLyVatTu() {
@@ -6,8 +6,12 @@ export default function QuanLyVatTu() {
     const [statsData, setStatsData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false); 
+    
+    // State cho Tìm kiếm & Lọc
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterType, setFilterType] = useState("ALL");
 
-    // 1. State cho Form nhập liệu
+    // 1. State cho Form (Full 8 trường như ông yêu cầu)
     const [formData, setFormData] = useState({
         name: '',
         sku: '',
@@ -19,9 +23,7 @@ export default function QuanLyVatTu() {
         category_name: ''
     });
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useEffect(() => { loadData(); }, []);
 
     const loadData = async () => {
         try {
@@ -36,7 +38,32 @@ export default function QuanLyVatTu() {
         }
     };
 
-    // 2. Hàm xử lý thêm vật tư mới
+    // 2. Hàm Xử lý Xóa
+    const handleDelete = async (id, name) => {
+        if (window.confirm(`⚠️ Ông có chắc muốn xóa vật tư "${name}" không?`)) {
+            try {
+                const res = await api.delete(`/products/${id}`);
+                if (res.data.success) {
+                    alert("✅ Đã xóa xong!");
+                    loadData();
+                }
+            } catch (err) {
+                console.error("Lỗi xóa:", err);
+                alert("❌ Lỗi: " + (err.response?.data?.message || "Không thể xóa vật tư này vì đã có dữ liệu xuất nhập kho!"));
+            }
+        }
+    };
+
+    // Logic lọc danh sách (Tìm kiếm + Lọc loại)
+    const filteredInventory = useMemo(() => {
+        return inventory.filter(item => {
+            const matchesSearch = (item.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
+                                 (item.code?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+            const matchesType = filterType === "ALL" || item.type === filterType;
+            return matchesSearch && matchesType;
+        });
+    }, [searchTerm, filterType, inventory]);
+
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
@@ -44,8 +71,7 @@ export default function QuanLyVatTu() {
             if (res.data.success) {
                 alert("🎉 Thêm vật tư thành công!");
                 setIsModalOpen(false); 
-                loadData(); // Load lại danh sách
-                // Reset form
+                loadData();
                 setFormData({ 
                     name: '', sku: '', unit: 'Cái', 
                     current_stock: 0, min_stock_level: 10, price: 0, 
@@ -53,7 +79,6 @@ export default function QuanLyVatTu() {
                 });
             }
         } catch (err) {
-            console.error("Lỗi API:", err.response?.data);
             alert("❌ Lỗi: " + (err.response?.data?.message || "Không thể lưu vật tư"));
         }
     };
@@ -65,7 +90,7 @@ export default function QuanLyVatTu() {
         { label: "GIÁ TRỊ TỒN KHO", value: new Intl.NumberFormat('vi-VN').format(statsData?.total_value || 0), badge: "VND", icon: "💰", color: "#05CD99" },
     ];
 
-    if (loading) return <div className="p-10 text-center">⏳ Đang tải dữ liệu thực tế...</div>;
+    if (loading) return <div className="p-10 text-center">⏳ Đang tải dữ liệu...</div>;
 
     return (
         <div className="supplier-container animate-fade-in">
@@ -73,10 +98,9 @@ export default function QuanLyVatTu() {
             <div className="supplier-header">
                 <div>
                     <h1>Quản lý vật tư tồn kho</h1>
-                    <p className="sub-text">Theo dõi số lượng và nhóm ngành vật tư công trình</p>
+                    <p className="sub-text">Hiển thị {filteredInventory.length} vật tư phù hợp</p>
                 </div>
                 <div className="header-actions">
-                    <button className="btn-export-outline">📥 Xuất file</button>
                     <button className="btn-add-supplier" onClick={() => setIsModalOpen(true)}>📦+ Nhập vật tư mới</button>
                 </div>
             </div>
@@ -88,10 +112,7 @@ export default function QuanLyVatTu() {
                         <div className="stat-icon" style={{ backgroundColor: s.color + '15', color: s.color }}>{s.icon}</div>
                         <div className="stat-info">
                             <label>{s.label}</label>
-                            <div className="val-row">
-                                <span className="value">{s.value}</span>
-                                {s.badge && <span className="stat-badge" style={{ backgroundColor: s.color + '20', color: s.color }}>{s.badge}</span>}
-                            </div>
+                            <div className="val-row"><span className="value">{s.value}</span></div>
                         </div>
                     </div>
                 ))}
@@ -100,13 +121,23 @@ export default function QuanLyVatTu() {
             {/* Filter Bar */}
             <div className="filter-bar">
                 <div className="search-box">
-                    <input type="text" placeholder="Tìm tên, mã vật tư..." className="search-supplier" />
+                    <input 
+                        type="text" 
+                        placeholder="Tìm tên, mã vật tư..." 
+                        className="search-supplier"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
-                <select className="filter-select"><option>Tất cả loại</option></select>
-                <div className="view-mode">
-                    <button className="mode-btn">☰</button>
-                    <button className="mode-btn active">▦</button>
-                </div>
+                <select 
+                    className="filter-select"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                >
+                    <option value="ALL">Tất cả loại</option>
+                    <option value="CONSUMABLE">Vật tư tiêu hao</option>
+                    <option value="RETURNABLE">Vật tư thu hồi</option>
+                </select>
             </div>
 
             {/* Table */}
@@ -115,15 +146,15 @@ export default function QuanLyVatTu() {
                     <thead>
                         <tr>
                             <th>VẬT TƯ / MÃ VT</th>
-                            <th>LOẠI / NHÓM</th>
+                            <th style={{ textAlign: 'center' }}>LOẠI / NHÓM</th>
                             <th>SỐ LƯỢNG</th>
                             <th>TRẠNG THÁI</th>
                             <th>THAO TÁC</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {inventory.length > 0 ? (
-                            inventory.map((item, idx) => (
+                        {filteredInventory.length > 0 ? (
+                            filteredInventory.map((item, idx) => (
                                 <tr key={item.id || idx}>
                                     <td>
                                         <div className="sup-name-cell">
@@ -134,32 +165,48 @@ export default function QuanLyVatTu() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td style={{ textAlign: 'center' }}>
                                         <span className={`type-tag ${item.type === 'RETURNABLE' ? 'potential' : 'reliable'}`}>
                                             {item.type === 'CONSUMABLE' ? 'Tiêu hao' : 'Thu hồi'}
                                         </span>
-                                        <div className="mst">{item.category_name || 'Chưa phân nhóm'}</div>
+                                        <div className="mst" style={{ marginTop: '4px' }}>
+                                            {item.category_name || 'Chưa phân nhóm'}
+                                        </div>
                                     </td>
                                     <td>
                                         <div className="name">{item.quantity} {item.unit}</div>
                                         <div className="mst">Tối thiểu: {item.minStock}</div>
                                     </td>
                                     <td>
-                                        <span className={`rating-tag ${item.status === 'Còn hàng' ? 'reliable' : item.status === 'Sắp hết' ? 'potential' : 'review'}`}>
+                                        <span className={`rating-tag ${item.status === 'Còn hàng' ? 'reliable' : 'review'}`}>
                                             {item.status}
                                         </span>
                                     </td>
-                                    <td><button className="btn-more-action">•••</button></td>
+                                    <td>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button 
+                                                onClick={() => handleDelete(item.id, item.name)}
+                                                style={{ 
+                                                    color: '#EE5D50', border: '1px solid #EE5D50', 
+                                                    background: 'none', padding: '4px 8px', 
+                                                    borderRadius: '4px', cursor: 'pointer', fontSize: '12px' 
+                                                }}
+                                            >
+                                                Xóa
+                                            </button>
+                                            <button className="btn-more-action">•••</button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="5" style={{textAlign:'center', padding:'40px'}}>Chưa có dữ liệu.</td></tr>
+                            <tr><td colSpan="5" style={{textAlign:'center', padding:'40px'}}>Không tìm thấy vật tư nào.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {/* --- MODAL THÊM MỚI --- */}
+            {/* Modal (Full 8 ô như cũ) */}
             {isModalOpen && (
                 <div style={modalOverlayStyle}>
                     <div style={modalContentStyle}>
@@ -180,11 +227,11 @@ export default function QuanLyVatTu() {
                                 </div>
                                 <div className="form-group">
                                     <label style={labelStyle}>Đơn vị tính</label>
-                                    <input type="text" style={inputStyle} placeholder="Cái, Bộ, Kg..." value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} />
+                                    <input type="text" style={inputStyle} value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} />
                                 </div>
                                 <div className="form-group">
                                     <label style={labelStyle}>Nhóm ngành</label>
-                                    <input type="text" style={inputStyle} placeholder="Cát đá, Điện nước..." value={formData.category_name} onChange={(e) => setFormData({...formData, category_name: e.target.value})} />
+                                    <input type="text" style={inputStyle} value={formData.category_name} onChange={(e) => setFormData({...formData, category_name: e.target.value})} />
                                 </div>
                                 <div className="form-group">
                                     <label style={labelStyle}>Số lượng ban đầu</label>
@@ -219,24 +266,8 @@ export default function QuanLyVatTu() {
     );
 }
 
-// Inline Styles
-const modalOverlayStyle = {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', zIndex: 1000
-};
-
-const modalContentStyle = {
-    backgroundColor: '#fff', padding: '30px', borderRadius: '15px',
-    width: '600px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-    animation: 'fade-in 0.3s ease'
-};
-
-const inputStyle = {
-    width: '100%', padding: '10px', borderRadius: '8px',
-    border: '1px solid #ddd', outline: 'none', marginTop: '5px'
-};
-
-const labelStyle = {
-    fontSize: '13px', fontWeight: '600', color: '#444'
-};
+// Style
+const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
+const modalContentStyle = { backgroundColor: '#fff', padding: '30px', borderRadius: '15px', width: '600px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' };
+const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', outline: 'none', marginTop: '5px' };
+const labelStyle = { fontSize: '13px', fontWeight: '600', color: '#444' };
