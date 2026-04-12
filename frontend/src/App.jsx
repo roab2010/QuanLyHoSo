@@ -7,8 +7,6 @@ import KanbanBoard from "./KanbanBoard";
 import ProjectCategoryList from "./ProjectCategoryList";
 import ChiTietHoSo from "./ChiTietHoSo";
 import News from "./News";
-import ProfessionalInventory from "./ProfessionalInventory.jsx";
-import ProductList from "./ProductList.jsx";
 import ModalAddProject from "./ModalAddProject";
 import InventoryDashboard from "./InventoryDashboard";
 import QuanLyVatTu from "./QuanLyVatTu";

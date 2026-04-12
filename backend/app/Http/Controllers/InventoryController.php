@@ -2,76 +2,141 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\InventoryTransaction;
-use App\Models\InventoryTransactionDetail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Exception; // Quan trọng để catch lỗi trong transaction
 
 class InventoryController extends Controller
 {
-    public function getProductList()
+    public function index()
     {
-        return response()->json(Product::all());
+        $products = Product::all();
+        
+        $stats = [
+            'total_types'  => $products->count(),
+            'low_stock'    => $products->filter(function($p) {
+                return $p->current_stock <= $p->min_stock_level && $p->current_stock > 0;
+            })->count(),
+            'out_of_stock' => $products->where('current_stock', '<=', 0)->count(),
+            'total_value'  => (float) $products->sum(fn($p) => $p->current_stock * $p->price)
+        ];
+
+        return response()->json([
+            'stats' => $stats,
+            'inventory' => $products->map(function($p) {
+                return [
+                    'id'        => $p->id,
+                    'name'      => $p->name,
+                    'code'      => $p->sku,
+                    'unit'      => $p->unit,
+                    'quantity'  => (float) $p->current_stock,
+                    'minStock'  => (float) $p->min_stock_level,
+                    'status'    => $p->stock_status, // Phải có $appends trong Model Product mới chạy được
+                    'location'  => 'Kho chính'
+                ];
+            })
+        ]);
     }
-    
-    public function store(Request $request)
+    public function storeTransaction(Request $request)
     {
+        // Validate dữ liệu đầu vào để tránh lỗi bậy
         $request->validate([
-            'type' => 'required|in:import,export',
-            'project_id' => $request->type === 'export' ? 'required|exists:projects,id' : 'nullable',
-            'supplier_id' => 'nullable',
-            'note' => 'nullable|string',
+            'type' => 'required|in:IN,OUT',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|numeric|gt:0',
+            'items.*.quantity' => 'required|numeric|min:0.01',
         ]);
 
         try {
             return DB::transaction(function () use ($request) {
-                // 1. Tạo đầu phiếu
+                $subTotal = collect($request->items)->sum(function ($item) {
+                    return $item['quantity'] * ($item['price'] ?? 0);
+                });
+                
+                $taxAmount = $subTotal * ($request->tax_rate ?? 0);
+                $grandTotal = $subTotal + $taxAmount;
+
                 $transaction = InventoryTransaction::create([
-                    // Thêm mã phiếu tự động để không bị lỗi thiếu field
-                    'transaction_code' => ($request->type === 'import' ? 'PN-' : 'PX-') . strtoupper(uniqid()), 
-                    'type' => $request->type === 'import' ? 'IN' : 'OUT',
-                    'project_id' => $request->project_id,
-                    'supplier_id' => $request->supplier_id,
-                    
-                    // SỬA TÊN CỘT TỪ user_id THÀNH created_by
-                    'created_by' => auth()->id() ?? 1, 
-                    
+                    'transaction_code' => 'TRX-' . strtoupper(bin2hex(random_bytes(4))),
+                    'type'             => $request->type,
+                    'supplier_id'      => $request->supplier_id,
+                    'project_id'       => $request->project_id,
+                    'created_by'       => auth()->id() ?? 1,
                     'transaction_date' => now(),
-                    'note' => $request->note,
-                    'status' => 'completed' // Đảm bảo có trạng thái
+                    'note'             => $request->note,
+                    'tax_amount'       => $taxAmount,
+                    'grand_total'      => $grandTotal,
+                    'attachment_url'   => $request->attachment_url,
+                    'status'           => 'COMPLETED',
                 ]);
 
                 foreach ($request->items as $item) {
-                    // Lock dòng này để tránh xung đột khi nhiều người cùng nhập/xuất
-                    $product = Product::lockForUpdate()->find($item['product_id']);
+                    $lineTotal = $item['quantity'] * ($item['price'] ?? 0);
+
+                    $transaction->details()->create([
+                        'product_id'  => $item['product_id'],
+                        'quantity'    => $item['quantity'],
+                        'unit_price'  => $item['price'] ?? 0,
+                        'total_price' => $lineTotal,
+                    ]);
+
+                    // Khóa dòng product để tránh tranh chấp dữ liệu (Race condition)
+                    $product = Product::lockForUpdate()->find($item['product_id']); 
                     
-                    if ($request->type === 'import') {
-                        $product->current_stock += $item['quantity'];
+                    if ($request->type === 'IN') {
+                        $product->increment('current_stock', $item['quantity']);
                     } else {
                         if ($product->current_stock < $item['quantity']) {
-                            throw new \Exception("Vật tư [{$product->name}] không đủ tồn (Còn: {$product->current_stock})");
+                            throw new Exception("Sản phẩm {$product->name} hiện chỉ còn {$product->current_stock}, không đủ để xuất {$item['quantity']}!");
                         }
-                        $product->current_stock -= $item['quantity'];
+                        $product->decrement('current_stock', $item['quantity']);
                     }
-                    $product->save();
-
-                    // 2. Lưu chi tiết phiếu
-                    InventoryTransactionDetail::create([
-                        'transaction_id' => $transaction->id, // Đã sửa từ inventory_transaction_id thành transaction_id
-                        'product_id'     => $item['product_id'],
-                        'quantity'       => $item['quantity'],
-                        'unit_price'     => $item['price'] ?? $product->price,
-                        // Thêm luôn cột total_price cho đủ bộ
-                    ]);
                 }
-                return response()->json(['message' => 'Lưu phiếu kho thành công!']);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Giao dịch đã được lưu thành công!',
+                    'code'    => $transaction->transaction_code
+                ]);
             });
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 400);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+    public function store(Request $request)
+    {
+        try {
+            // 1. Validate dữ liệu đầu vào
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'sku'  => 'required|string|unique:products,sku', // Mã vật tư không được trùng
+                'unit' => 'required|string|max:50',
+                'current_stock'   => 'required|numeric|min:0',
+                'min_stock_level' => 'required|numeric|min:0',
+                'price'           => 'required|numeric|min:0',
+                'type'            => 'required|in:CONSUMABLE,RETURNABLE', // Chốt chặn ở đây
+                'category_name'   => 'nullable|string',
+            ]);
+
+            // 2. Tạo mới sản phẩm/vật tư
+            $product = Product::create($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Thêm vật tư mới thành công!',
+                'data'    => $product
+            ], 201);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi: ' . $e->getMessage()
+            ], 400);
         }
     }
 }

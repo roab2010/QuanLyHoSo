@@ -14,8 +14,9 @@ use App\Http\Controllers\InventoryController;
 
 use App\Http\Controllers\SupplierController;
 
-Route::get('/products-list', [InventoryController::class, 'getProductList']);
-Route::post('/inventory/store', [InventoryController::class, 'store']);
+Route::get('/inventory', [InventoryController::class, 'index']);
+Route::post('/products', [InventoryController::class, 'store']);
+Route::post('/inventory/transaction', [InventoryController::class, 'storeTransaction']);
 
 Route::get('/suppliers/stats', [SupplierController::class, 'getStats']); // Cho các thẻ thống kê
 Route::apiResource('suppliers', SupplierController::class);
