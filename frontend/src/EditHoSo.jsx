@@ -41,6 +41,15 @@ export default function EditHoSo({ setActiveAppNav }) {
         address: ""
     });
 
+    const [debouncedAddress, setDebouncedAddress] = useState("");
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedAddress(formData.address);
+        }, 1200);
+        return () => clearTimeout(timer);
+    }, [formData.address]);
+
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
@@ -170,10 +179,22 @@ export default function EditHoSo({ setActiveAppNav }) {
                                                 <input className="form-input" name="address" value={formData.address} onChange={handleFormChange} placeholder="123 Tên đường, Phường, Quận, Thành phố" style={{ background: '#f3f4f6', border: '1px solid transparent', borderRadius: '8px', padding: '12px 16px', width: '100%', fontSize: '15px' }} />
                                             </div>
                                         </div>
-                                        <div style={{ flex: 1, minHeight: '200px', borderRadius: '12px', background: 'url("https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800") center/cover', position: 'relative', overflow: 'hidden' }}>
-                                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 82, 186, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <button onClick={() => window.open('https://maps.google.com/?q=' + encodeURIComponent(formData.address), '_blank')} style={{ background: 'white', color: '#1e3a8a', padding: '10px 24px', borderRadius: '24px', fontWeight: 'bold', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', cursor: 'pointer' }}>Mở bản đồ</button>
-                                            </div>
+                                        <div style={{ flex: 1, minHeight: '200px', borderRadius: '12px', position: 'relative', overflow: 'hidden', border: '1px solid #e5e7eb', background: '#f8fafc' }}>
+                                            {debouncedAddress ? (
+                                                <iframe 
+                                                    width="100%" 
+                                                    height="100%" 
+                                                    frameBorder="0" 
+                                                    style={{ border: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} 
+                                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(debouncedAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`} 
+                                                    allowFullScreen
+                                                    title="Bản đồ vị trí dự án"
+                                                ></iframe>
+                                            ) : (
+                                                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: '14px' }}>
+                                                    Vui lòng nhập địa chỉ để xem bản đồ
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
