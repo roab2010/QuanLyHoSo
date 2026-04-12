@@ -9,25 +9,46 @@ function News() {
     const categories = ["Tất cả", "Thời sự", "Thế giới", "Kinh doanh", "Thể thao", "Giải trí"];
 
     useEffect(() => {
-        axios.get('http://127.0.0.1:8000/api/news')
-            .then(res => {
+
+        // 🔥 gọi crawl nền (KHÔNG await)
+        axios.get('http://127.0.0.1:8000/api/crawl-news');
+
+        const fetchNews = async () => {
+            try {
+                const res = await axios.get('http://127.0.0.1:8000/api/news', { timeout: 5000 });
+
                 const data = Array.isArray(res.data)
                     ? res.data
                     : Object.values(res.data).flat();
 
                 setListNews(data);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setLoading(false);
-            });
-    }, []);
 
+                localStorage.setItem("news_cache", JSON.stringify(data));
+
+            } catch (err) {
+                console.error(err);
+
+                try {
+                    const res = await axios.get('http://127.0.0.1:8000/api/news');
+                    setListNews(res.data);
+                } catch (e) {
+                    const cache = localStorage.getItem("news_cache");
+                    if (cache) {
+                        setListNews(JSON.parse(cache));
+                    }
+                }
+
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchNews();
+    }, []);
     const filteredNews = useMemo(() => {
         return filter === "Tất cả"
             ? listNews
-            : listNews.filter(item => item.category === filter);
+            : listNews.filter(item => item && item.category === filter);
     }, [filter, listNews]);
 
     if (loading) {
@@ -49,7 +70,7 @@ function News() {
                 </p>
             </div>
 
-            {/* Filter Buttons */}
+            {/* Filter */}
             <div style={{ marginBottom: '25px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {categories.map(cat => (
                     <button
@@ -61,9 +82,7 @@ function News() {
                             border: '1px solid #2563eb',
                             background: filter === cat ? '#2563eb' : '#fff',
                             color: filter === cat ? '#fff' : '#2563eb',
-                            cursor: 'pointer',
-                            fontWeight: "500",
-                            transition: "all 0.2s"
+                            cursor: 'pointer'
                         }}
                     >
                         {cat}
@@ -71,36 +90,38 @@ function News() {
                 ))}
             </div>
 
-            {/* News Grid - CHỈNH 4 CỘT TẠI ĐÂY */}
+            {/* Grid */}
             <div style={{
                 display: "grid",
-                // Chia cố định 4 cột, mỗi cột chiếm 1 phần bằng nhau (1fr)
-                gridTemplateColumns: "repeat(4, 1fr)", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
                 gap: "20px"
             }}>
                 {filteredNews.map((item, index) => (
-                    <div key={item.link || index} style={{
-                        background: "#fff",
-                        borderRadius: "12px",
-                        overflow: "hidden",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                        display: "flex",
-                        flexDirection: "column",
-                        transition: "transform 0.2s"
-                    }}>
-                        {/* Image Container */}
+                    <div
+                        key={index}
+                        style={{
+                            background: "#fff",
+                            borderRadius: "12px",
+                            overflow: "hidden",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                            display: "flex",
+                            flexDirection: "column",
+                            transition: "transform 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-5px)"}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+                    >
+                        {/* Image */}
                         <div style={{ position: "relative", height: "160px" }}>
                             <span style={{
                                 position: "absolute",
                                 top: "8px",
                                 left: "8px",
-                                background: "rgba(37, 99, 235, 0.9)",
+                                background: "#2563eb",
                                 color: "#fff",
                                 padding: "3px 10px",
                                 borderRadius: "12px",
-                                fontSize: "11px",
-                                fontWeight: "bold",
-                                zIndex: 1
+                                fontSize: "11px"
                             }}>
                                 {item.category}
                             </span>
@@ -109,8 +130,7 @@ function News() {
                                 src={item.image}
                                 alt={item.title}
                                 onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = "https://via.placeholder.com/400x250?text=No+Image";
+                                    e.target.src = "https://via.placeholder.com/400x250";
                                 }}
                                 style={{
                                     width: "100%",
@@ -120,28 +140,18 @@ function News() {
                             />
                         </div>
 
-                        {/* Content Container */}
+                        {/* Content */}
                         <div style={{ padding: "12px", flex: 1, display: "flex", flexDirection: "column" }}>
                             <h4 style={{
                                 fontSize: "14px",
-                                lineHeight: "1.5",
-                                height: "42px", // Giới hạn chiều cao tiêu đề (khoảng 2 dòng)
-                                margin: "0 0 10px 0",
-                                overflow: "hidden",
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                color: "#1f2937"
+                                height: "42px",
+                                overflow: "hidden"
                             }}>
                                 {item.title}
                             </h4>
 
                             <div style={{ marginTop: "auto" }}>
-                                <p style={{
-                                    fontSize: "11px",
-                                    color: "#9ca3af",
-                                    marginBottom: "10px"
-                                }}>
+                                <p style={{ fontSize: "11px", color: "#9ca3af" }}>
                                     VnExpress • {new Date().toLocaleDateString('vi-VN')}
                                 </p>
 
@@ -152,11 +162,9 @@ function News() {
                                         background: "#2563eb",
                                         color: "#fff",
                                         border: "none",
-                                        padding: "8px 0",
+                                        padding: "8px",
                                         borderRadius: "6px",
-                                        cursor: "pointer",
-                                        fontSize: "13px",
-                                        fontWeight: "500"
+                                        cursor: "pointer"
                                     }}
                                 >
                                     Đọc chi tiết →
@@ -167,10 +175,10 @@ function News() {
                 ))}
             </div>
 
-            {/* Empty State */}
+            {/* Empty */}
             {filteredNews.length === 0 && (
-                <div style={{ textAlign: "center", padding: "100px", color: "#6b7280" }}>
-                    Không có tin tức nào trong danh mục này.
+                <div style={{ textAlign: "center", padding: "100px" }}>
+                    Không có tin tức nào.
                 </div>
             )}
         </div>
