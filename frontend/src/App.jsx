@@ -24,7 +24,6 @@ const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục 
 
 export default function App() {
     const [activeNav, setActiveNav] = useState("Bảng điều khiển");
-    const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [inventoryView, setInventoryView] = useState("selection");
 
@@ -60,12 +59,6 @@ export default function App() {
             <div className="main">
                 <div className="topbar">
                     <span className="topbar-title">Quản Lý Hồ Sơ</span>
-                    <input
-                        className="search-input"
-                        placeholder="Tìm kiếm mã hồ sơ hoặc tên dự án..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
                 </div>
 
                 {loading && <div className="state-banner loading">⏳ Đang xử lý...</div>}
@@ -76,13 +69,12 @@ export default function App() {
                         <KanbanBoard
                             COLUMNS={COLUMNS}
                             cardsByCol={cardsByCol}
-                            search={search}
                             onDelete={xoaHoSo}
                             onMoveCard={moveCard}
                             onShowModal={() => setShowModal(true)}
                         />
                     ) : activeNav === "Danh sách hồ sơ" ? (
-                        <DanhSachHoSo search={search} />
+                        <DanhSachHoSo />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
                     ) : activeNav === "Tin tức" ? (

@@ -73,13 +73,8 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
     );
 }
 
-export default function KanbanBoard({ COLUMNS, cardsByCol, search, onDelete, onMoveCard, onShowModal }) {
+export default function KanbanBoard({ COLUMNS, cardsByCol, onDelete, onMoveCard, onShowModal }) {
     const [dragOverCol, setDragOverCol] = useState(null);
-
-    const filteredCards = (colId) => {
-        const q = search.toLowerCase();
-        return cardsByCol(colId).filter(c => !q || c.title.toLowerCase().includes(q) || c.ma_ho_so.toLowerCase().includes(q));
-    };
 
     const handleDrop = (e, targetColId) => {
         e.preventDefault();
@@ -110,10 +105,10 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, search, onDelete, onM
                     <div className="col-header">
                         <div className="col-dot" style={{ background: col.color }} />
                         <span className="col-title">{col.title}</span>
-                        <span className="col-count">{String(filteredCards(col.id).length).padStart(2, "0")}</span>
+                        <span className="col-count">{String(cardsByCol(col.id).length).padStart(2, "0")}</span>
                     </div>
                     <div className="cards">
-                        {filteredCards(col.id).map((card) => (
+                        {cardsByCol(col.id).map((card) => (
                             <KanbanCard 
                                 key={card.id} 
                                 card={card} 
