@@ -296,35 +296,40 @@ body {
 .board {
   flex: 1;
   display: flex;
-  gap: 14px;
-  padding: 16px 20px;
+  gap: 24px; /* Giãn cách các cột rộng hơn */
+  padding: 30px;
   overflow-x: auto;
   align-items: flex-start;
+  background: #ffffff; /* Nền trắng toàn trang */
 }
 
 /* ── Column ── */
 .col {
   flex: 1;
-  min-width: 240px;
-  max-width: 280px;
+  min-width: 350px; /* Tăng chiều ngang tối thiểu */
+  max-width: 450px; /* Tăng chiều ngang tối đa để bớt trống */
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: background 0.15s;
-  border-radius: 10px;
-  padding: 4px;
+  gap: 12px;
+  transition: all 0.3s ease;
+  border-radius: 20px; /* Bo góc hiện đại hơn */
+  padding: 20px; /* Tạo khoảng đệm bên trong khối màu xám */
+  background: #f3f4f6; /* Màu xám cho khối chứa hồ sơ */
+  min-height: calc(100vh - 150px); /* Kéo dài cột xuống dưới */
 }
 
 .col.col-drag-over {
-  background: #eff6ff;
-  outline: 2px dashed #93c5fd;
+  background: #e5e7eb;
+  outline: 2px dashed #2563eb;
 }
 
 .col-header {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 2px 4px;
+  gap: 10px;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  margin-bottom: 8px;
 }
 
 .col-dot {
