@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import "./App.css";
 import useHoSo from "./HoSo.js";
 import Sidebar from "./Sidebar";
@@ -13,6 +13,9 @@ import QuanLyVatTu from "./QuanLyVatTu";
 import QuanLyNhaCungCap from "./QuanLyNhaCungCap";
 import EditHoSo from "./EditHoSo";
 import DanhSachHoSo from "./DanhSachHoSo";
+import LoginPage from "./LoginPage";
+import CustomerLayout from "./CustomerLayout";
+import CustomerDetail from "./CustomerDetail";
 
 const COLUMNS = [
     { id: "new", title: "Mới tạo", color: "#6b7280" },
@@ -121,17 +124,15 @@ export default function App() {
         </div>
     );
 
-    return (
-        <Router>
-            <Routes>
-                <Route path="/" element={<MainLayout />} />
+   return (
+   <Routes>
+  <Route path="/" element={<MainLayout />} />
+  <Route path="/ho-so/:id" element={<ChiTietHoSo />} />
 
-                {/* Khi bấm vào card sẽ nhảy sang đường dẫn này */}
-                <Route path="/ho-so/:id" element={<ChiTietHoSo />} />
+  <Route path="/customer/login" element={<LoginPage />} />
+  <Route path="/customer" element={<CustomerLayout />} />
+  <Route path="/customer/ho-so/:id" element={<CustomerDetail />} />
+</Routes>
+);
 
-                {/* Khi bấm sửa sẽ nhảy sang đường dẫn này */}
-                <Route path="/ho-so/:id/edit" element={<EditHoSo setActiveAppNav={setActiveNav} />} />
-            </Routes>
-        </Router>
-    );
 }

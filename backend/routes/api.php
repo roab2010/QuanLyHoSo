@@ -16,6 +16,11 @@ use App\Http\Controllers\SupplierController;
 
 use App\Http\Controllers\NewsController;
 
+use App\Http\Controllers\AuthController;
+
+use App\Http\Controllers\CustomerController;
+
+
 Route::get('/inventory', [InventoryController::class, 'index']);
 Route::post('/products', [InventoryController::class, 'store']);
 Route::post('/inventory/transaction', [InventoryController::class, 'storeTransaction']);
@@ -67,3 +72,11 @@ Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::cl
 
 Route::get('/news', [NewsController::class, 'index']);
 Route::get('/crawl-news', [NewsController::class, 'crawl']); // testRoute để cào tin tức từ VnExpress
+
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+
+Route::get('/customer/hoso', [CustomerController::class, 'getHoSo']);
+
+Route::get('/customer/ho-so/{id}', [CustomerController::class, 'detail']);
+Route::get('/customer/ho-so', [CustomerController::class, 'list']);

@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Customer extends Model
 {
     // Khai báo các cột được phép thêm/sửa nhanh
-    protected $fillable = [
-        'customer_code',
-        'full_name',
-        'phone',
-        'address',
-        'status'
-    ];
+   protected $fillable = [
+    'customer_code',
+    'full_name',
+    'email',
+    'password',
+    'phone',
+    'address',
+];
 
     // Vì trong SQL của Nguyên chỉ có created_at, không có updated_at
     public $timestamps = false;
