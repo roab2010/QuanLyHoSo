@@ -67,3 +67,10 @@ Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::cl
 
 Route::get('/news', [NewsController::class, 'index']);
 Route::get('/crawl-news', [NewsController::class, 'crawl']); // testRoute để cào tin tức từ VnExpress
+
+use App\Models\Warehouse;
+
+// Route để React lấy danh sách kho
+Route::get('/warehouses', function() {
+    return response()->json(Warehouse::where('status', 1)->get());
+});
