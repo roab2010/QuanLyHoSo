@@ -18,4 +18,9 @@ class InventoryTransactionDetail extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function transaction()
+    {
+        return $this->belongsTo(InventoryTransaction::class, 'inventory_transaction_id');
+    }
 }

@@ -22,7 +22,9 @@ class Product extends Model
         'min_stock_level', 
         'current_stock',
         'warehouse_id',
-        'supplier_id'
+        'supplier_id',
+        'hsd',
+        'space_coefficient'
     ];
 
     // Ép kiểu dữ liệu để Laravel gửi xuống Database cho đúng định dạng số
@@ -33,6 +35,7 @@ class Product extends Model
         'status' => 'integer',
         'warehouse_id' => 'integer',
         'supplier_id' => 'integer',
+        'space_coefficient' => 'decimal:2',
     ];
 
     protected $appends = ['stock_status'];

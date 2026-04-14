@@ -24,7 +24,9 @@ Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 Route::put('/projects/{id}', [ProjectController::class, 'update']);
 Route::patch('/projects/{id}/status', [ProjectController::class, 'updateStatus']);
 
+
 // CÔNG VIỆC DỰ ÁN (PROJECT TASKS)
+
 Route::post('/projects/{projectId}/tasks', [ProjectController::class, 'storeTask']);
 Route::put('/projects/{projectId}/tasks/{taskId}', [ProjectController::class, 'updateTask']);
 Route::delete('/projects/{projectId}/tasks/{taskId}', [ProjectController::class, 'destroyTask']);
@@ -60,9 +62,14 @@ Route::get('/news', [NewsController::class, 'index']);
 use App\Http\Controllers\WarehouseController;
 Route::get('/warehouses', [WarehouseController::class, 'index']);
 Route::get('/inventory', [InventoryController::class, 'index']);
+Route::get('/products/{id}', [InventoryController::class, 'show']);
 Route::post('/products', [InventoryController::class, 'store']);
 Route::delete('/products/{id}', [InventoryController::class, 'destroy']);
+
 Route::get('/suppliers', [SupplierController::class, 'index']);
+Route::post('/suppliers', [SupplierController::class, 'store']);
+Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
+Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
 
 // KHÁCH HÀNG (PORTAL)
 Route::get('/customer/projects', [CustomerController::class, 'list']);

@@ -36,13 +36,6 @@ class SupplierController extends Controller
     // Cập nhật (Khóa mã, cho sửa Rating & Status)
     public function update(Request $request, $id)
     {
-        // SupplierController.php
-        if (isset($validated['rating_stars'])) {
-            $stars = $validated['rating_stars'];
-            if ($stars >= 5) $validated['evaluation_tag'] = "TIN_CAY";
-            elseif ($stars >= 3) $validated['evaluation_tag'] = "TIEM_NANG";
-            else $validated['evaluation_tag'] = "CAN_XEM_XET";
-        }
         $supplier = Supplier::findOrFail($id);
         
         $validated = $request->validate([
@@ -54,8 +47,15 @@ class SupplierController extends Controller
             'status'             => 'required|in:ACTIVE,SUSPENDED,PENDING',
             'is_strategic'       => 'boolean',
             'rating_stars'       => 'nullable|integer|min:1|max:5',
-            'evaluation_tag'     => 'nullable|in:TIN_CAY,TIEM_NANG,CAN_XEM_SET'
+            'evaluation_tag'     => 'nullable|string'
         ]);
+
+        if (isset($validated['rating_stars'])) {
+            $stars = $validated['rating_stars'];
+            if ($stars >= 5) $validated['evaluation_tag'] = "TIN_CAY";
+            elseif ($stars >= 3) $validated['evaluation_tag'] = "TIEM_NANG";
+            else $validated['evaluation_tag'] = "CAN_XEM_XET";
+        }
 
         // Tuyệt đối không cập nhật supplier_code
         unset($validated['supplier_code']);
