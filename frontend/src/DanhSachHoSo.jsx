@@ -56,10 +56,10 @@ export default function DanhSachHoSo() {
                     {cards.length > 0 ? cards.map((item) => (
                         <tr
                             key={item.id}
+                            data-status={item.trang_thai}
                             onClick={() => navigate(`/ho-so/${item.id}`)}
                             style={{
-                                cursor: 'pointer',
-                                transition: 'background-color 0.2s'
+                                cursor: 'pointer'
                             }}
                             className="hoverable-row"
                         >
