@@ -47,6 +47,7 @@ Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
 // QUY TRÌNH MẪU (TEMPLATE TASKS)
 use App\Http\Controllers\TemplateTaskController;
+
 Route::get('/template-tasks/category/{categoryId}', [TemplateTaskController::class, 'index']);
 Route::post('/template-tasks', [TemplateTaskController::class, 'store']);
 Route::put('/template-tasks/{id}', [TemplateTaskController::class, 'update']);
@@ -60,6 +61,7 @@ Route::get('/news', [NewsController::class, 'index']);
 
 // KHO & VẬT TƯ
 use App\Http\Controllers\WarehouseController;
+
 Route::get('/warehouses', [WarehouseController::class, 'index']);
 Route::get('/inventory', [InventoryController::class, 'index']);
 Route::get('/products/{id}', [InventoryController::class, 'show']);
