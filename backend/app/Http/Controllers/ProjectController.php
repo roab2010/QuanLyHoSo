@@ -22,6 +22,15 @@ class ProjectController extends Controller
         return response()->json($projects);
     }
 
+    public function getByCustomer($customerId)
+    {
+        $projects = Project::with(['category'])
+            ->where('customer_id', $customerId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return response()->json($projects);
+    }
+
     /**
      * Thêm hồ sơ mới
      */
@@ -99,18 +108,19 @@ class ProjectController extends Controller
             if ($categoryId) {
                 $templates = DB::table('category_task_templates')
                     ->where('category_id', $categoryId)
+                    ->orderBy('sort_order', 'asc')
                     ->get();
-
+                
                 if ($templates->isNotEmpty()) {
                     $tasksToInsert = [];
                     foreach ($templates as $template) {
                         $tasksToInsert[] = [
-                            'project_id' => $id,
-                            'task_name' => $template->task_name,
-                            'work_volume' => $template->work_volume,
-                            'status' => 'TODO',
-                            'sort_order' => $template->sort_order,
-                            'created_at' => now(),
+                            'project_id'    => $id,
+                            'task_name'     => $template->task_name,
+                            'work_volume'   => $template->work_volume,
+                            'status'        => 'TODO',
+                            'sort_order'    => $template->sort_order,
+                            'created_at'    => now(),
                         ];
                     }
                     DB::table('project_tasks')->insert($tasksToInsert);
@@ -167,11 +177,45 @@ class ProjectController extends Controller
         if ($request->has('name')) {
             $project->name = $request->name;
         }
-        if ($request->has('category_id')) {
-            $project->category_id = $request->category_id;
-        }
+        
         if ($request->has('address')) {
             $project->address = $request->address ?? '';
+        }
+
+        // 4. THÔNG MINH HÓA: Nếu đổi danh mục, tự động nạp quy trình mới
+        if ($request->has('category_id') && $request->category_id != $project->getOriginal('category_id')) {
+            // Kiểm tra xem có công việc nào đã bắt đầu làm (PROCESSING/DONE) chưa
+            $startedTasks = DB::table('project_tasks')
+                ->where('project_id', $project->id)
+                ->where('status', '!=', 'TODO')
+                ->count();
+
+            // Nếu CHƯA CÓ CÔNG VIỆC NÀO BẮT ĐẦU (hoặc hồ sơ trống), ta được phép nạp lại quy trình mới
+            if ($startedTasks === 0) {
+                // Xóa các công việc TODO cũ (nếu có) để tránh bị rác dữ liệu
+                DB::table('project_tasks')->where('project_id', $project->id)->delete();
+
+                $templates = DB::table('category_task_templates')
+                    ->where('category_id', $request->category_id)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+                
+                if ($templates->isNotEmpty()) {
+                    $tasksToInsert = [];
+                    foreach ($templates as $template) {
+                        $tasksToInsert[] = [
+                            'project_id'    => $project->id,
+                            'task_name'     => $template->task_name,
+                            'work_volume'   => $template->work_volume,
+                            'status'        => 'TODO',
+                            'sort_order'    => $template->sort_order,
+                            'created_at'    => now(),
+                        ];
+                    }
+                    DB::table('project_tasks')->insert($tasksToInsert);
+                }
+            }
+            $project->category_id = $request->category_id;
         }
 
         // Lưu xuống Database
@@ -236,17 +280,46 @@ class ProjectController extends Controller
             'category',
             'customer',
             'supervisor',
-            'members.employee',
-            'documents',
-            'equipments.product',
-            'histories',
             'tasks' => function ($q) {
                 $q->orderBy('sort_order');
             },
+            'documents' => function ($q) {
+                $q->orderBy('uploaded_at', 'desc');
+            },
+            'members.employee',
+            'histories' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            },
+            'equipments.product',
         ])->find($id);
 
         if (!$project) {
-            return response()->json(['message' => 'Không tìm thấy hồ sơ'], 404);
+            return response()->json(['message' => 'Hồ sơ không tồn tại'], 404);
+        }
+
+        // SELF-HEALING: Nếu hồ sơ trống quy trình nhưng danh mục có quy trình mẫu -> Tự động copy
+        if ($project->tasks->isEmpty() && $project->category_id) {
+            $templates = DB::table('category_task_templates')
+                ->where('category_id', $project->category_id)
+                ->orderBy('sort_order', 'asc')
+                ->get();
+
+            if ($templates->isNotEmpty()) {
+                $tasksToInsert = [];
+                foreach ($templates as $template) {
+                    $tasksToInsert[] = [
+                        'project_id'    => $id,
+                        'task_name'     => $template->task_name,
+                        'work_volume'   => $template->work_volume,
+                        'status'        => 'TODO',
+                        'sort_order'    => $template->sort_order,
+                        'created_at'    => now(),
+                    ];
+                }
+                DB::table('project_tasks')->insert($tasksToInsert);
+                // Load lại tasks sau khi copy để trả về cho UI
+                $project->load(['tasks' => function($q) { $q->orderBy('sort_order'); }]);
+            }
         }
 
         // Tính tiến độ dựa trên tasks

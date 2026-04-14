@@ -77,11 +77,11 @@ class InventoryController extends Controller
             return DB::transaction(function () use ($request) {
                 // 1. Kiểm tra sức chứa kho
                 $warehouse = Warehouse::findOrFail($request->warehouse_id);
-                $capacity = (float) $warehouse->capacity;
+                $capacity = (float) $warehouse->max_capacity;
                 $currentUsed = Product::where('warehouse_id', $request->warehouse_id)->sum('current_stock');
                 $newQuantity = (float) $request->current_stock;
 
-                if (($currentUsed + $newQuantity) > $capacity) {
+                if ($capacity > 0 && ($currentUsed + $newQuantity) > $capacity) {
                     throw new Exception("Kho đã đầy! Còn trống: " . ($capacity - $currentUsed));
                 }
 

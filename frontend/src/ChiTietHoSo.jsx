@@ -131,12 +131,18 @@ export default function ChiTietHoSo() {
             const newTasks = prev.tasks.map(t =>
                 t.id === task.id ? { ...t, status: targetStatus } : t
             );
-            return { ...prev, tasks: newTasks };
+            // Tính toán lại tiến độ ngay lập tức để người dùng thấy thanh progress chạy
+            const total = newTasks.length;
+            const done = newTasks.filter(t => t.status === "DONE").length;
+            const newProgress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+            return { ...prev, tasks: newTasks, progress: newProgress };
         });
 
         try {
             await updateTask(id, task.id, { status: targetStatus });
-            fetchData(false); // Cập nhật ngầm dữ liệu để lấy phần trăm tiến độ mới
+            // Cập nhật ngầm dữ liệu để đồng bộ hoàn toàn với Database (bao gồm History)
+            fetchData(false); 
         } catch (e) {
             toast.error(e.response?.data?.message || "Lỗi khi cập nhật trạng thái");
             fetchData(false); // Nếu lỗi, tự động tải lại (hoàn tác UI)
@@ -196,7 +202,7 @@ export default function ChiTietHoSo() {
         return (
             <div className="loading-screen">
                 <p>Không tìm thấy hồ sơ</p>
-                <button className="btn-back-main" onClick={() => navigate("/")}>
+                <button className="btn-back-main" onClick={() => navigate("/admin")}>
                     ← Quay lại
                 </button>
             </div>
@@ -252,7 +258,7 @@ export default function ChiTietHoSo() {
                             {activeTab === tab.key && <span className="tab-arrow">›</span>}
                         </button>
                     ))}
-                    <button className="btn-back" onClick={() => navigate("/")}>
+                    <button className="btn-back" onClick={() => navigate("/admin")}>
                         ← Quay lại bảng
                     </button>
                 </div>
@@ -266,7 +272,7 @@ export default function ChiTietHoSo() {
                                 <section className="info-section">
                                     <div className="section-header">
                                         <h3>Thông tin dự án</h3>
-                                        <button className="btn-edit" onClick={() => navigate(`/ho-so/${id}/edit`)}>✎ Sửa thông tin</button>
+                                        <button className="btn-edit" onClick={() => navigate(`/admin/ho-so/${id}/edit`)}>✎ Sửa thông tin</button>
                                     </div>
                                     <div className="info-grid big-grid">
                                         <div className="info-item">
@@ -276,6 +282,10 @@ export default function ChiTietHoSo() {
                                         <div className="info-item">
                                             <label>KỸ SƯ TRƯỞNG</label>
                                             <p>👤 {supervisorName}</p>
+                                        </div>
+                                        <div className="info-item">
+                                            <label>DANH MỤC DỰ ÁN</label>
+                                            <p>📂 {project.category?.name || "—"}</p>
                                         </div>
                                         <div className="info-item full">
                                             <label>ĐỊA CHỈ</label>

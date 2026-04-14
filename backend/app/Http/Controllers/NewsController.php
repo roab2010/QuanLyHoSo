@@ -27,11 +27,7 @@ class NewsController extends Controller
     public function crawl()
     {
         $categories = [
-            'Thời sự' => 'https://vnexpress.net/thoi-su',
-            'Thế giới' => 'https://vnexpress.net/the-gioi',
-            'Kinh doanh' => 'https://vnexpress.net/kinh-doanh',
-            'Thể thao' => 'https://vnexpress.net/the-thao',
-            'Giải trí' => 'https://vnexpress.net/giai-tri'
+            'Bất động sản' => 'https://vnexpress.net/bat-dong-san',
         ];
 
         foreach ($categories as $name => $url) {

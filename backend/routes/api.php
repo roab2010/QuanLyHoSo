@@ -2,82 +2,69 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProjectController;
-
-use Illuminate\Support\Facades\Cache;
-use GuzzleHttp\Client;
-use Symfony\Component\DomCrawler\Crawler;
-use App\Http\Controllers\TemplateTaskController;
-
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InventoryController;
-
 use App\Http\Controllers\SupplierController;
-
 use App\Http\Controllers\NewsController;
 
-use App\Http\Controllers\AuthController;
+// AUTH ROUTES
+Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)
+Route::post('/admin/login', [AuthController::class, 'loginAdmin']); // Admin/Staff đăng nhập (username)
+Route::post('/admin/profile/{id}', [AuthController::class, 'updateProfile']);
 
-use App\Http\Controllers\CustomerController;
+// CÁC ROUTE CỦA DỰ ÁN (HỒ SƠ)
+Route::get('/projects', [ProjectController::class, 'index']);
+Route::get('/customer/projects/{customerId}', [ProjectController::class, 'getByCustomer']);
+Route::get('/projects/{id}', [ProjectController::class, 'show']);
+Route::post('/projects', [ProjectController::class, 'store']);
+Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
+Route::put('/projects/{id}', [ProjectController::class, 'update']);
+Route::patch('/projects/{id}/status', [ProjectController::class, 'updateStatus']);
 
-
-Route::get('/inventory', [InventoryController::class, 'index']);
-Route::post('/products', [InventoryController::class, 'store']);
-Route::post('/inventory/transaction', [InventoryController::class, 'storeTransaction']);
-Route::delete('/products/{id}', [InventoryController::class, 'destroy']);
-
-Route::get('/suppliers/stats', [SupplierController::class, 'getStats']); // Cho các thẻ thống kê
-Route::apiResource('suppliers', SupplierController::class);
-
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-// Các route cho Category
-Route::apiResource('categories', CategoryController::class);
-
-// Lấy danh sách: GET http://localhost:8000/api/template-tasks/category/1
-Route::get('/template-tasks/category/{categoryId}', [TemplateTaskController::class, 'index']);
-
-// Thêm mới: POST http://localhost:8000/api/template-tasks
-Route::post('/template-tasks', [TemplateTaskController::class, 'store']);
-
-// Cập nhật: PUT http://localhost:8000/api/template-tasks/1
-Route::put('/template-tasks/{id}', [TemplateTaskController::class, 'update']);
-
-// Xóa: DELETE http://localhost:8000/api/template-tasks/1
-Route::delete('/template-tasks/{id}', [TemplateTaskController::class, 'destroy']);
-
-// Xử lý riêng cho Project (Viết Route PUT đè lên trước Resource)
-Route::put('projects/{id}', [ProjectController::class, 'update']);
-Route::apiResource('projects', ProjectController::class);
-
-//route xử lí customer
-Route::get('/customers', [ProjectController::class, 'getCustomers']);
-
-// Route cho nhân viên
-Route::get('/employees', [ProjectController::class, 'getEmployees']);
-
-// Route cho tasks (tiến độ thi công)
+// CÔNG VIỆC DỰ ÁN (PROJECT TASKS)
 Route::post('/projects/{projectId}/tasks', [ProjectController::class, 'storeTask']);
 Route::put('/projects/{projectId}/tasks/{taskId}', [ProjectController::class, 'updateTask']);
 Route::delete('/projects/{projectId}/tasks/{taskId}', [ProjectController::class, 'destroyTask']);
 
-// Route cho tài liệu
-Route::put('/projects/{projectId}/documents/{docId}', [ProjectController::class, 'updateDocument']);
-
-// Route cho thành viên
+// THÀNH VIÊN DỰ ÁN (PROJECT MEMBERS)
+Route::get('/employees', [ProjectController::class, 'getEmployees']);
 Route::post('/projects/{projectId}/members', [ProjectController::class, 'addMember']);
 Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::class, 'removeMember']);
 
+// TÀI LIỆU DỰ ÁN (PROJECT DOCUMENTS)
+Route::put('/projects/{projectId}/documents/{docId}', [ProjectController::class, 'updateDocument']);
+
+// DANH MỤC
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::post('/categories', [CategoryController::class, 'store']);
+Route::put('/categories/{id}', [CategoryController::class, 'update']);
+Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+
+// QUY TRÌNH MẪU (TEMPLATE TASKS)
+use App\Http\Controllers\TemplateTaskController;
+Route::get('/template-tasks/category/{categoryId}', [TemplateTaskController::class, 'index']);
+Route::post('/template-tasks', [TemplateTaskController::class, 'store']);
+Route::put('/template-tasks/{id}', [TemplateTaskController::class, 'update']);
+Route::delete('/template-tasks/{id}', [TemplateTaskController::class, 'destroy']);
+
+// KHÁCH HÀNG (Admin chọn khi thêm hồ sơ)
+Route::get('/customers', [CustomerController::class, 'index']);
+
+// TIN TỨC
 Route::get('/news', [NewsController::class, 'index']);
-Route::get('/crawl-news', [NewsController::class, 'crawl']); // testRoute để cào tin tức từ VnExpress
 
+// KHO & VẬT TƯ
+use App\Http\Controllers\WarehouseController;
+Route::get('/warehouses', [WarehouseController::class, 'index']);
+Route::get('/inventory', [InventoryController::class, 'index']);
+Route::post('/products', [InventoryController::class, 'store']);
+Route::delete('/products/{id}', [InventoryController::class, 'destroy']);
+Route::get('/suppliers', [SupplierController::class, 'index']);
 
-use App\Models\Warehouse;
-
-// Route để React lấy danh sách kho
-Route::get('/warehouses', function() {
-    return response()->json(Warehouse::where('status', 1)->get());
-});
-
+// KHÁCH HÀNG (PORTAL)
+Route::get('/customer/projects', [CustomerController::class, 'list']);
+Route::get('/customer/projects/{id}', [CustomerController::class, 'detail']);
+Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile']);

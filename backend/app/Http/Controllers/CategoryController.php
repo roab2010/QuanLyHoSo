@@ -12,7 +12,7 @@ class CategoryController extends Controller
     // 1. READ ALL: Lấy danh sách (Có kèm task mẫu)
     public function index()
     {
-        $categories = ProjectCategory::with('tasks')->get();
+        $categories = ProjectCategory::orderBy('name', 'asc')->get();
         return response()->json($categories, 200);
     }
 

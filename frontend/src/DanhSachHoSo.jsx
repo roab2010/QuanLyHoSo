@@ -1,10 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useHoSo from './HoSo';
 import { useToast } from './Toast';
 
-export default function DanhSachHoSo() {
-    const { cards, loading, error, xoaHoSo, fetchAll } = useHoSo();
+export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
     const navigate = useNavigate();
     const toast = useToast();
 
@@ -89,7 +87,7 @@ export default function DanhSachHoSo() {
                             <td style={{ textAlign: 'center' }}>
                                 <button
                                     className="btn-icon"
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/ho-so/${item.id}/edit`); }}
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/admin/ho-so/${item.id}/edit`); }}
                                     title="Sửa"
                                     style={{ marginRight: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
                                 >

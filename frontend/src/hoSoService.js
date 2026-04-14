@@ -41,16 +41,24 @@ export const deleteHoSo = async (id) => {
 /**
  * --- PHẦN LOẠI DỰ ÁN (CATEGORIES) ---
  */
+let categoryCache = null;
+let lastFetch = 0;
+
 export const getAllCategories = async () => {
-  try {
-    const res = await api.get("/categories");
-    // Xử lý để luôn lấy được mảng dữ liệu dù Laravel có bọc trong 'data' hay không
-    const data = res.data?.data ?? res.data;
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error("Lỗi lấy danh mục:", error);
-    return [];
-  }
+    const now = Date.now();
+    if (categoryCache && (now - lastFetch < 30000)) {
+        return categoryCache;
+    }
+    try {
+        const res = await api.get("/categories");
+        const data = res.data?.data ?? res.data;
+        categoryCache = Array.isArray(data) ? data : [];
+        lastFetch = now;
+        return categoryCache;
+    } catch (error) {
+        console.error("Lỗi lấy danh mục:", error);
+        return [];
+    }
 };
 
 export const createCategory = async (payload) => {

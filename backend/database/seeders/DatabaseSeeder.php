@@ -21,5 +21,17 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        \App\Models\Customer::updateOrCreate(
+            ['email' => 'quocbao2010@gmail.com'],
+            [
+                'customer_code' => 'KH1776183244',
+                'full_name' => 'Lâm Quốc Bảo',
+                'password' => \Illuminate\Support\Facades\Hash::make('123456'),
+                'phone' => '0397789902',
+                'address' => '20, đường nguyễn khoái, phường vĩnh hội, quận 4, tphcm',
+                'status' => 1,
+            ]
+        );
     }
 }

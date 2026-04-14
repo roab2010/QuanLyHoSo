@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // THÊM DÒNG NÀY
+import { useNavigate } from "react-router-dom"; 
+import { useToast } from "./Toast";
 
 /* Icons giữ nguyên */
 const CalendarIcon = () => (
@@ -76,6 +77,8 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
 export default function KanbanBoard({ COLUMNS, cardsByCol, onDelete, onMoveCard, onShowModal }) {
     const [dragOverCol, setDragOverCol] = useState(null);
 
+    const toast = useToast();
+
     const handleDrop = (e, targetColId) => {
         e.preventDefault();
         setDragOverCol(null);
@@ -87,7 +90,7 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, onDelete, onMoveCard,
         if (fromColId === 'new' && targetColId === 'processing') {
             onMoveCard(cardId, targetColId);
         } else if (fromColId !== targetColId) {
-            alert("Không thể chuyển trạng thái!");
+            toast.warning("Quy trình bắt buộc: Hồ sơ mới phải được chuyển sang 'Đang xử lý' trước!");
         }
     };
 
