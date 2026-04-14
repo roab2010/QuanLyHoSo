@@ -3,16 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import useHoSo from './HoSo';
 import { useToast } from './Toast';
 
-export default function DanhSachHoSo({ search }) {
+export default function DanhSachHoSo() {
     const { cards, loading, error, xoaHoSo, fetchAll } = useHoSo();
     const navigate = useNavigate();
     const toast = useToast();
-
-    // Lọc theo search (giống KanbanBoard)
-    const filteredCards = cards.filter(c =>
-        (c.ma_ho_so && c.ma_ho_so.toLowerCase().includes(search.toLowerCase())) ||
-        (c.title && c.title.toLowerCase().includes(search.toLowerCase()))
-    );
 
     const STATUS_LABELS = {
         'DRAFT': 'Chờ duyệt',
@@ -59,7 +53,7 @@ export default function DanhSachHoSo({ search }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredCards.length > 0 ? filteredCards.map((item) => (
+                    {cards.length > 0 ? cards.map((item) => (
                         <tr
                             key={item.id}
                             onClick={() => navigate(`/ho-so/${item.id}`)}
