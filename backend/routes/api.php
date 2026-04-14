@@ -23,6 +23,7 @@ use App\Http\Controllers\CustomerController;
 
 Route::get('/inventory', [InventoryController::class, 'index']);
 Route::post('/products', [InventoryController::class, 'store']);
+Route::get('/products/{id}', [InventoryController::class, 'show']);
 Route::post('/inventory/transaction', [InventoryController::class, 'storeTransaction']);
 Route::delete('/products/{id}', [InventoryController::class, 'destroy']);
 

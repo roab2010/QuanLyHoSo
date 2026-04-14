@@ -24,11 +24,16 @@ export default function QuanLyVatTu() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterWarehouse, setFilterWarehouse] = useState("ALL");
     const [errors, setErrors] = useState({});
+    
+    // States cho Chi tiết vật tư
+    const [selectedProductDetails, setSelectedProductDetails] = useState(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     const initialFormState = {
         name: '', sku: '', unit: 'Cái', type: 'CONSUMABLE', category_name: 'Vật tư tiêu hao',
         price: '', current_stock: '', min_stock_level: '10', warehouse_id: '', supplier_id: '',
-        status: 1, received_at: new Date().toISOString().split('T')[0]
+        status: 1, received_at: new Date().toISOString().split('T')[0],
+        hsd: '', space_coefficient: '1'
     };
     const [formData, setFormData] = useState(initialFormState);
 
@@ -68,10 +73,10 @@ export default function QuanLyVatTu() {
         const warehouse = warehouses.find(w => Number(w.id) === Number(warehouseId));
         const total = Number(warehouse?.capacity || 1000); 
 
-        // SỬA DÒNG NÀY: Ép về Number để filter không bị sót
+        // SỬA DÒNG NÀY: Ép về Number để filter không bị sót. Tính toán sức chứa bằng cách nhân số lượng với hệ số chiếm dụng (space)
         const used = inventory
             .filter(item => Number(item.warehouse_id) === Number(warehouseId))
-            .reduce((sum, item) => sum + Number(item.current_stock || item.stock || 0), 0);
+            .reduce((sum, item) => sum + (Number(item.current_stock || item.stock || 0) * (item.space_coefficient ? Number(item.space_coefficient) : 1)), 0);
             
         const remaining = total - used;
         return {
@@ -114,18 +119,20 @@ export default function QuanLyVatTu() {
         // 1. ĐỊNH NGHĨA BIẾN (Đây là chỗ ông đang thiếu)
         const selectedWhId = Number(formData.warehouse_id);
         const inputQty = Number(formData.current_stock);
+        const inputSpace = formData.space_coefficient ? Number(formData.space_coefficient) : 1;
+        const inputTotalSpace = inputQty * inputSpace;
 
         // 2. LẤY THÔNG TIN KHO & CHẶN NGAY LẬP TỨC
         const info = getWarehouseInfo(selectedWhId);
 
-        if (inputQty > info.remaining) {
+        if (inputTotalSpace > info.remaining) {
             alert(
                 `❌ KHO KHÔNG ĐỦ CHỖ!\n` +
                 `--------------------------\n` +
-                `Hiện tại chỉ còn trống: ${info.remaining} cái\n` +
-                `Số lượng ông muốn nhập: ${inputQty} cái\n` +
+                `Hiện tại chỉ còn trống: ${info.remaining.toFixed(2)} (diện tích/thể tích)\n` +
+                `Vật tư muốn nhập sẽ chiếm thêm: ${inputTotalSpace.toFixed(2)}\n` +
                 `--------------------------\n` +
-                `Vui lòng nhập ít hơn hoặc chọn kho khác!`
+                `Vui lòng nhập ít hơn, tăng dung lượng kho, hoặc giảm hệ số thể tích (space)!`
             );
             return; // Dừng tại đây, không cho chạy xuống API bên dưới
         }
@@ -140,7 +147,9 @@ export default function QuanLyVatTu() {
                 current_stock: inputQty,
                 min_stock_level: Number(formData.min_stock_level),
                 warehouse_id: selectedWhId,
-                supplier_id: Number(formData.supplier_id)
+                supplier_id: Number(formData.supplier_id),
+                space_coefficient: inputSpace,
+                hsd: formData.hsd || null
             };
 
             const response = await api.post("/products", dataToSend);
@@ -178,6 +187,20 @@ export default function QuanLyVatTu() {
         alert("❌ LỖI: " + serverMessage);
         }
     };
+
+    const handleViewDetails = async (id) => {
+        try {
+            const res = await api.get(`/products/${id}`);
+            if (res.data.success) {
+                setSelectedProductDetails(res.data);
+                setIsDetailModalOpen(true);
+            }
+        } catch (err) {
+            console.error("Lỗi lấy chi tiết:", err);
+            alert("Không thể tải chi tiết vật tư!");
+        }
+    };
+
     const filteredInventory = useMemo(() => {
         return inventory.filter(item => {
             const matchesSearch = (item.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || (item.sku?.toLowerCase() || "").includes(searchTerm.toLowerCase());
@@ -258,7 +281,10 @@ export default function QuanLyVatTu() {
                             else if (stockVal <= minVal) { sttText = "SẮP HẾT"; sttColor = "#FFB547"; sttBg = "#fff8ed"; }
 
                             return (
-                                <tr key={item.id} style={{borderTop: '1px solid #f4f7fe'}}>
+                                <tr key={item.id} style={{borderTop: '1px solid #f4f7fe', cursor: 'pointer', transition: 'background 0.2s'}} 
+                                    onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                    onClick={() => handleViewDetails(item.id)}>
                                     <td style={{padding: '15px'}}>
                                         <div style={{fontWeight: 'bold', color: '#2b3674'}}>{item.name}</div>
                                         <div style={{fontSize: '12px', color: '#a3aed0'}}>{item.sku}</div>
@@ -277,7 +303,7 @@ export default function QuanLyVatTu() {
                                     </td>
                                     <td style={{padding: '15px', textAlign: 'center'}}>
                                         <button 
-                                            onClick={() => handleDelete(item.id)}
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                                             style={{
                                                 padding: '6px 12px',
                                                 background: '#fff',
@@ -377,7 +403,20 @@ export default function QuanLyVatTu() {
                                     <input className="form-input" value={formData.unit}
                                         onChange={e => setFormData({...formData, unit: e.target.value})} />
                                 </div>
-                                {/* Hàng 5: Loại vật tư (Enum) & Danh mục */}
+
+                                {/* Hàng 5: Hạn sử dụng và Thể tích chiếm (Space) */}
+                                <div className="form-group">
+                                    <label>Hạn sử dụng (HSD)</label>
+                                    <input type="date" className="form-input" value={formData.hsd}
+                                        onChange={e => setFormData({...formData, hsd: e.target.value})} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Thể tích chiếm/SP (Space)</label>
+                                    <input type="number" step="0.01" className="form-input" value={formData.space_coefficient}
+                                        onChange={e => setFormData({...formData, space_coefficient: e.target.value})} />
+                                </div>
+                                
+                                {/* Hàng 6: Loại vật tư (Enum) & Danh mục */}
                                 <div className="form-group">
                                     <label>Loại hình vật tư</label>
                                     <select 
@@ -408,21 +447,95 @@ export default function QuanLyVatTu() {
                                 
                                 <button 
                                     type="submit" 
-                                    disabled={Number(formData.current_stock) > getWarehouseInfo(formData.warehouse_id).remaining}
+                                    disabled={(Number(formData.current_stock) * (formData.space_coefficient ? Number(formData.space_coefficient) : 1)) > getWarehouseInfo(formData.warehouse_id).remaining}
                                     style={{
                                         padding: '10px 25px', 
-                                        background: Number(formData.current_stock) > getWarehouseInfo(formData.warehouse_id).remaining ? '#ccc' : '#4318FF', 
+                                        background: (Number(formData.current_stock) * (formData.space_coefficient ? Number(formData.space_coefficient) : 1)) > getWarehouseInfo(formData.warehouse_id).remaining ? '#ccc' : '#4318FF', 
                                         color: '#fff', 
                                         border: 'none', 
                                         borderRadius: '10px', 
                                         fontWeight: 'bold',
-                                        cursor: Number(formData.current_stock) > getWarehouseInfo(formData.warehouse_id).remaining ? 'not-allowed' : 'pointer'
+                                        cursor: (Number(formData.current_stock) * (formData.space_coefficient ? Number(formData.space_coefficient) : 1)) > getWarehouseInfo(formData.warehouse_id).remaining ? 'not-allowed' : 'pointer'
                                     }}
                                 >
-                                    {Number(formData.current_stock) > getWarehouseInfo(formData.warehouse_id).remaining ? 'Kho không đủ chỗ' : 'Xác nhận nhập'}
+                                    {(Number(formData.current_stock) * (formData.space_coefficient ? Number(formData.space_coefficient) : 1)) > getWarehouseInfo(formData.warehouse_id).remaining ? 'Kho không đủ chỗ' : 'Xác nhận nhập'}
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Chi tiết Vật Tư hiện với History */}
+            {isDetailModalOpen && selectedProductDetails && (
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+                     onClick={() => setIsDetailModalOpen(false)}>
+                    <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '24px', width: '700px', maxHeight: '90vh', overflowY: 'auto' }}
+                         onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h2 style={{ color: '#2b3674', margin: 0 }}>📋 Chi tiết Vật tư</h2>
+                            <button onClick={() => setIsDetailModalOpen(false)} style={{ background: 'transparent', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✖</button>
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', background: '#f8f9fa', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
+                            <div>
+                                <p style={{ margin: '5px 0' }}><strong>Tên vật tư:</strong> {selectedProductDetails.product.name}</p>
+                                <p style={{ margin: '5px 0' }}><strong>Mã SKU:</strong> {selectedProductDetails.product.sku}</p>
+                                <p style={{ margin: '5px 0' }}><strong>Loại hình:</strong> {selectedProductDetails.product.type === 'CONSUMABLE' ? 'Tiêu hao' : 'Thu hồi'}</p>
+                                <p style={{ margin: '5px 0' }}><strong>Kho:</strong> {selectedProductDetails.product.warehouse_name || 'N/A'}</p>
+                                {selectedProductDetails.product.hsd && (
+                                    <p style={{ margin: '5px 0', color: '#e53e3e' }}><strong>Hạn sử dụng (HSD):</strong> {new Date(selectedProductDetails.product.hsd).toLocaleDateString('vi-VN')}</p>
+                                )}
+                            </div>
+                            <div>
+                                <p style={{ margin: '5px 0' }}><strong>Tồn kho:</strong> {selectedProductDetails.product.current_stock} {selectedProductDetails.product.unit || 'Cái'}</p>
+                                <p style={{ margin: '5px 0' }}><strong>Giá nhập:</strong> {new Intl.NumberFormat('vi-VN').format(Number(selectedProductDetails.product.price || 0))}đ</p>
+                                <p style={{ margin: '5px 0' }}><strong>Min Stock:</strong> {selectedProductDetails.product.min_stock_level}</p>
+                                <p style={{ margin: '5px 0' }}><strong>Danh mục:</strong> {selectedProductDetails.product.category_name}</p>
+                            </div>
+                        </div>
+
+                        <h3 style={{ color: '#2b3674', marginBottom: '15px' }}>⏳ Lịch sử nhập/xuất kho</h3>
+                        {selectedProductDetails.history.length === 0 ? (
+                            <p style={{ color: '#a3aed0', textAlign: 'center', fontStyle: 'italic' }}>Chưa có lịch sử giao dịch nào.</p>
+                        ) : (
+                            <div style={{ border: '1px solid #e0e5f2', borderRadius: '12px', overflow: 'hidden' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead style={{ background: '#f4f7fe' }}>
+                                        <tr>
+                                            <th style={{ padding: '12px', textAlign: 'left', color: '#a3aed0', fontSize: '12px' }}>THỜI GIAN</th>
+                                            <th style={{ padding: '12px', textAlign: 'center', color: '#a3aed0', fontSize: '12px' }}>LOẠI</th>
+                                            <th style={{ padding: '12px', textAlign: 'right', color: '#a3aed0', fontSize: '12px' }}>SỐ LƯỢNG</th>
+                                            <th style={{ padding: '12px', textAlign: 'left', color: '#a3aed0', fontSize: '12px' }}>NHÀ CUNG CẤP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedProductDetails.history.map((h, idx) => (
+                                            <tr key={idx} style={{ borderTop: '1px solid #e0e5f2' }}>
+                                                <td style={{ padding: '12px', fontSize: '13px' }}>
+                                                    {h.date ? new Date(h.date).toLocaleString('vi-VN') : 'N/A'}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                    <span style={{ 
+                                                        padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold',
+                                                        background: h.type === 'IN' ? '#e6fff1' : '#fff1f0',
+                                                        color: h.type === 'IN' ? '#05CD99' : '#EE5D50'
+                                                    }}>
+                                                        {h.type === 'IN' ? 'NHẬP' : (h.type === 'OUT' ? 'XUẤT' : h.type)}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold', color: '#2b3674' }}>
+                                                    {h.type === 'IN' ? '+' : '-'}{h.quantity}
+                                                </td>
+                                                <td style={{ padding: '12px', fontSize: '13px', color: '#a3aed0' }}>
+                                                    {h.supplier_name}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
