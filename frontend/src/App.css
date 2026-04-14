@@ -18,122 +18,135 @@ body {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 200px;
-  background: #1a3a6b;
+  width: 260px;
+  background: #ffffff; /* Nền trắng hiện đại */
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  padding: 32px 20px;
+  gap: 10px;
+  border-right: 1px solid #e5e7eb; /* Đường kẻ phân tách tinh tế */
+  transition: all 0.3s ease;
 }
 
 .sidebar-header {
-  padding: 20px 16px 14px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+  padding: 0 12px 40px;
+  border-bottom: none;
 }
 
 .sidebar-header h2 {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.3;
+  color: #2563eb; /* Tone xanh sáng hơn (Royal Blue) */
+  font-size: 22px; 
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .sidebar-header span {
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 10px;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1.2px;
   display: block;
-  margin-top: 2px;
+  margin-top: 6px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 16px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
+  gap: 14px;
+  padding: 16px 18px;
+  color: #4b5563; 
+  font-size: 16px; 
+  font-weight: 700; 
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   background: transparent;
   width: 100%;
   text-align: left;
+  border-radius: 16px;
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
+  background: #f3f4f6;
+  color: #2563eb; /* Tone xanh sáng hơn khi hover */
+  transform: translateX(6px);
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.13);
-  color: #fff;
+  background: #eff6ff;
+  color: #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
 }
 
 .add-new-btn {
-  margin: 12px 14px;
-  height: 36px;
-  background: #2563eb;
+  margin: 30px 0 15px;
+  height: 56px;
+  background: #2563eb; /* Nút cũng dùng tone xanh sáng */
   border: none;
-  border-radius: 8px;
+  border-radius: 18px;
   color: #fff;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 16px; /* Đồng bộ kích thước với nav-item */
+  font-weight: 800; /* Béo và đẹp hơn */
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  transition: background 0.15s;
+  gap: 10px;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.2);
+  font-family: inherit; /* Đảm bảo dùng chung font hệ thống */
 }
 
 .add-new-btn:hover {
   background: #1d4ed8;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
 }
 
 .sidebar-bottom {
   margin-top: auto;
-  padding: 14px 16px;
-  border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+  padding: 24px 12px 0;
+  border-top: 1px solid #f3f4f6;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #4a7fcb;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #eff6ff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  color: #1a3a6b;
   flex-shrink: 0;
+  border: 1px solid #dbeafe;
 }
 
 .user-info {
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-name {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .user-email {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 /* ── Main ── */
@@ -283,35 +296,40 @@ body {
 .board {
   flex: 1;
   display: flex;
-  gap: 14px;
-  padding: 16px 20px;
+  gap: 24px; /* Giãn cách các cột rộng hơn */
+  padding: 30px;
   overflow-x: auto;
   align-items: flex-start;
+  background: #ffffff; /* Nền trắng toàn trang */
 }
 
 /* ── Column ── */
 .col {
   flex: 1;
-  min-width: 240px;
-  max-width: 280px;
+  min-width: 350px; /* Tăng chiều ngang tối thiểu */
+  max-width: 450px; /* Tăng chiều ngang tối đa để bớt trống */
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: background 0.15s;
-  border-radius: 10px;
-  padding: 4px;
+  gap: 12px;
+  transition: all 0.3s ease;
+  border-radius: 20px; /* Bo góc hiện đại hơn */
+  padding: 20px; /* Tạo khoảng đệm bên trong khối màu xám */
+  background: #f3f4f6; /* Màu xám cho khối chứa hồ sơ */
+  min-height: calc(100vh - 150px); /* Kéo dài cột xuống dưới */
 }
 
 .col.col-drag-over {
-  background: #eff6ff;
-  outline: 2px dashed #93c5fd;
+  background: #e5e7eb;
+  outline: 2px dashed #2563eb;
 }
 
 .col-header {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 2px 4px;
+  gap: 10px;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  margin-bottom: 8px;
 }
 
 .col-dot {
@@ -353,27 +371,107 @@ body {
 /* ── Card ── */
 .card {
   background: #fff;
-  border: 0.5px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px 14px;
+  border: 1px solid #e5e7eb !important; /* Ghi đè mọi viền màu mặc định */
+  border-radius: 16px;
+  padding: 16px 18px;
   cursor: grab;
-  transition:
-    box-shadow 0.15s,
-    transform 0.15s;
+  position: relative;
+  overflow: hidden;
+  
+  /* CHỐNG MỜ CHỮ CẤP ĐỘ CAO NHẤT */
+  -webkit-font-smoothing: antialiased;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  filter: blur(0); /* Ép trình duyệt render sắc nét */
+  
+  will-change: transform, box-shadow;
+  transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1), 
+              box-shadow 0.4s cubic-bezier(0.2, 1, 0.3, 1),
+              border-color 0.3s ease;
+  z-index: 1;
 }
 
-.card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+/* Thanh màu cong lõm bám chết mép trái */
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 100%;
+  z-index: 2;
+  opacity: 0;
+  
+  /* Hình dáng ) */
+  border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+  
+  /* Trượt bám sát mép */
+  transform: translateX(-100%);
+  transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1), 
+              opacity 0.3s ease;
 }
+
+/* ÉP BUỘC MẤT VIỀN MÀU KHI HOVER (Độ ưu tiên cao nhất) */
+.board .col .cards .card:hover {
+  border-color: #d1d5db !important; /* Viền xám nhạt trung tính */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12) !important;
+  /* Zoom cực nhẹ 1.01 và nhích phải để chữ nét căng */
+  transform: translateZ(0) scale(1.015) translateX(6px) !important;
+}
+
+.card:hover::before {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Màu sắc cho dải màu ) */
+.col[data-col-id="new"] .card::before { background: #ef4444; }
+.col[data-col-id="processing"] .card::before { background: #f59e0b; }
+.col[data-col-id="done"] .card::before { background: #10b981; }
+
+/* Vô hiệu hóa các thiết lập border cũ gây mờ/xung đột */
+.board .col[data-col-id="new"] .cards .card,
+.board .col[data-col-id="processing"] .cards .card,
+.board .col[data-col-id="done"] .cards .card {
+  /* Giữ viền màu lúc bình thường, sẽ bị !important ở trên đè khi hover */
+  transition: all 0.3s ease;
+}
+
+/* Màu sắc thanh màu theo trạng thái */
+.col[data-col-id="new"] .card::before { background: #ef4444; }
+.col[data-col-id="processing"] .card::before { background: #f59e0b; }
+.col[data-col-id="done"] .card::before { background: #10b981; }
 
 .card:active {
   cursor: grabbing;
+  transform: perspective(1px) translateZ(0) scale(0.98);
+  transition: transform 0.1s ease;
 }
 
-.card.processing {
-  border-left: 3px solid #f59e0b;
-  border-radius: 0 12px 12px 0;
+/* --- Xóa bỏ các hiệu ứng vòng màu cũ để tránh xung đột --- */
+.board .col .cards .card {
+  /* Để trống để ghi đè style cũ */
+  border-color: #e5e7eb; 
+  box-shadow: none;
+}
+
+.board .col[data-col-id="new"] .cards .card,
+.board .col[data-col-id="processing"] .cards .card,
+.board .col[data-col-id="done"] .cards .card {
+  border-color: #e5e7eb;
+  box-shadow: none;
+}
+
+.board .col[data-col-id="new"] .cards .card:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.board .col[data-col-id="processing"] .cards .card:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.board .col[data-col-id="done"] .cards .card:hover {
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .card-top {
@@ -602,6 +700,10 @@ body {
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.hoverable-row:hover {
+  background-color: #f1f5f9;
 }
 
 .form-row {
@@ -1045,25 +1147,111 @@ body {
   line-height: 1.5;
 }
 
-/* --- TAB 2: BẢNG TÀI LIỆU --- */
+/* ── Table (Danh sách hồ sơ) ── */
+.list-wrapper {
+  padding: 32px !important;
+  background: #ffffff;
+  flex: 1;
+  overflow-y: auto;
+}
+
 .doc-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 8px; /* Khoảng cách giữa các dòng */
+  font-family: inherit;
 }
 
 .doc-table th {
   text-align: left;
-  font-size: 12px;
-  color: #a3aed0;
-  padding: 15px;
-  border-bottom: 1px solid #f4f7fe;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 12px 20px;
+  border-bottom: none;
 }
 
-.doc-table td {
-  padding: 25px 15px;
-  border-bottom: 1px solid #f4f7fe;
-  font-weight: 700;
+.doc-table tbody tr {
+  background: #ffffff;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  cursor: pointer;
+  will-change: transform, box-shadow;
+}
+
+.doc-table tbody tr td {
+  padding: 18px 20px;
+  border-top: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
   font-size: 15px;
+  color: #4b5563;
+  font-weight: 500;
+  transition: all 0.4s ease;
+}
+
+/* Bo góc cho td đầu và cuối để dòng tr nhìn như một khối */
+.doc-table tbody tr td:first-child {
+  border-left: 1px solid #f3f4f6;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.doc-table tbody tr td:last-child {
+  border-right: 1px solid #f3f4f6;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.doc-table tbody tr:hover {
+  background: #ffffff;
+  transform: scale(1.015) translateY(-2px); /* Zoom mượt mà */
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  position: relative;
+}
+
+/* Tên hồ sơ trong bảng */
+.doc-table td strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a3a6b;
+  margin-bottom: 4px;
+  transition: color 0.3s ease;
+}
+
+/* Đổi màu tên hồ sơ trùng màu trạng thái khi Hover */
+.doc-table tbody tr:hover[data-status="new"] td strong,
+.doc-table tbody tr:hover[data-status="DRAFT"] td strong,
+.doc-table tbody tr:hover[data-status="PENDING"] td strong,
+.doc-table tbody tr:hover[data-status="REVISION"] td strong {
+  color: #dc2626; /* Màu đỏ của Chờ duyệt */
+}
+
+.doc-table tbody tr:hover[data-status="processing"] td strong,
+.doc-table tbody tr:hover[data-status="PROCESSING"] td strong {
+  color: #ea580c; /* Màu cam của Đang xử lý */
+}
+
+.doc-table tbody tr:hover[data-status="done"] td strong,
+.doc-table tbody tr:hover[data-status="COMPLETED"] td strong {
+  color: #16a34a; /* Màu xanh lá của Hoàn thành */
+}
+
+/* Badge trạng thái trong bảng */
+.status-pill {
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-block;
+  text-align: center;
+  min-width: 100px;
 }
 
 .st-done {
@@ -2140,6 +2328,7 @@ body {
 
 .search-box {
   flex: 1;
+  
 }
 
 .search-supplier {
@@ -2195,7 +2384,7 @@ body {
   .filter-select {
 
     padding: 10px;
-    border-radius: 12px;
+    border-radius: 120px;
     border: 1px solid #E0E5F2;
     color: #1B2559;
     font-weight: 600;

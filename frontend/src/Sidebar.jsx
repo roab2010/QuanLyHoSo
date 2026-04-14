@@ -4,7 +4,7 @@ export default function Sidebar({ activeNav, setActiveNav, NAV_ITEMS, onShowModa
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
-                <h2>Hệ thống Hồ sơ</h2>
+                <h2>Hệ thống Quản Lý Hồ sơ</h2>
                 <span>Quản trị viên</span>
             </div>
 

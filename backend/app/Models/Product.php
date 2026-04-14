@@ -3,24 +3,44 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    public $timestamps = false;
+    use SoftDeletes;
+    // Tắt timestamps vì dữ liệu mẫu của ông không thấy có cột thời gian ở cuối
+    public $timestamps = false; 
+
     protected $fillable = [
-        'sku', 'name', 'unit', 'type', 'category_name', 
-        'price', 'status', 'min_stock_level', 'current_stock'
+        'sku', 
+        'name', 
+        'unit', 
+        'type', 
+        'category_name', 
+        'price', 
+        'status', 
+        'min_stock_level', 
+        'current_stock',
+        'warehouse_id',
+        'supplier_id'
     ];
 
-    // CỰC KỲ QUAN TRỌNG: Thêm dòng này để status xuất hiện trong JSON API
+    // Ép kiểu dữ liệu để Laravel gửi xuống Database cho đúng định dạng số
+    protected $casts = [
+        'price' => 'decimal:2',
+        'min_stock_level' => 'decimal:2',
+        'current_stock' => 'decimal:2',
+        'status' => 'integer',
+        'warehouse_id' => 'integer',
+        'supplier_id' => 'integer',
+    ];
+
     protected $appends = ['stock_status'];
 
-    // Accessor: Tính toán trạng thái vật tư
     public function getStockStatusAttribute()
     {
-        // Ép kiểu về số để so sánh chính xác tuyệt đối
-        $current = (float) $this->current_stock;
-        $min = (float) $this->min_stock_level;
+        $current = (float) ($this->current_stock ?? 0);
+        $min = (float) ($this->min_stock_level ?? 0);
 
         if ($current <= 0) return 'Hết hàng';
         if ($current <= $min) return 'Sắp hết';

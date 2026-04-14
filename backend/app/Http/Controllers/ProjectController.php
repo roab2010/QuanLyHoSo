@@ -27,19 +27,65 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
-        // Bật khiên bảo vệ Transaction: Lỗi 1 nhịp là hủy toàn bộ, không tạo ra hồ sơ "rỗng ruột"
+        // 1. VALIDATION: Bắt buộc tất cả các trường quan trọng
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'category_id' => 'required',
+            'customer_id' => 'required',
+            'start_date' => 'required|date',
+            'address' => 'required|string',
+            'priority' => 'required|string',
+            'max_warehouse_capacity' => 'required|numeric',
+        ], [
+            'required' => ':attribute không được để trống.',
+            'date' => ':attribute không đúng định dạng ngày.',
+            'numeric' => ':attribute phải là con số.',
+        ], [
+            'name' => 'Tên hồ sơ',
+            'category_id' => 'Loại dự án',
+            'customer_id' => 'Khách hàng',
+            'start_date' => 'Ngày bắt đầu',
+            'address' => 'Địa chỉ',
+            'priority' => 'Độ ưu tiên',
+            'max_warehouse_capacity' => 'Công suất kho',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first()], 422);
+        }
+
+        // Bật khiên bảo vệ Transaction
         DB::beginTransaction();
 
         try {
             $categoryId = $request->category_id;
 
-            // 1. TẠO HỒ SƠ (Dùng chính xác đoạn code siêu chuẩn của bạn)
+            // 2. TỰ ĐỘNG TẠO MÃ HỒ SƠ (HS001, HS002...)
+            $latestProject = DB::table('projects')->orderBy('id', 'desc')->first();
+            $nextNumber = 1;
+            if ($latestProject && preg_match('/HS(\d+)/', $latestProject->project_code, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            }
+            $projectCode = 'HS' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+            // Đảm bảo supervisor_id tồn tại để không dính lỗi foreign key
+            $supervisorId = $request->supervisor_id ?? 1;
+            if (!DB::table('employees')->where('id', $supervisorId)->exists()) {
+                $supervisorId = DB::table('employees')->insertGetId([
+                    'employee_code' => 'EMP-' . time(),
+                    'full_name' => 'Người quản lý hệ thống',
+                    'created_at' => now(),
+                    'status' => 'WORKING'
+                ]);
+            }
+
+            // 3. TẠO HỒ SƠ
             $id = DB::table('projects')->insertGetId([
-                'project_code' => $request->project_code,
+                'project_code' => $projectCode, // Sử dụng mã tự sinh
                 'category_id' => $categoryId,
                 'name' => $request->name,
                 'customer_id' => $request->customer_id,
-                'supervisor_id' => $request->supervisor_id ?? 1,
+                'supervisor_id' => $supervisorId,
                 'address' => $request->address,
                 'start_date' => $request->start_date,
                 'status' => $request->status ?? 'DRAFT',
@@ -49,52 +95,47 @@ class ProjectController extends Controller
                 'status_updated_at' => now(),
             ]);
 
-            // 2. TỰ ĐỘNG HÓA: LẤY VÀ COPY QUY TRÌNH MẪU
+            // 4. TỰ ĐỘNG HÓA: COPY QUY TRÌNH MẪU
             if ($categoryId) {
-                // Quét xem Danh mục này có cấu hình sẵn công việc mẫu nào không
                 $templates = DB::table('category_task_templates')
                     ->where('category_id', $categoryId)
                     ->get();
 
                 if ($templates->isNotEmpty()) {
                     $tasksToInsert = [];
-
-                    // Gom tất cả các đầu việc lại
                     foreach ($templates as $template) {
                         $tasksToInsert[] = [
-                            'project_id' => $id, // Gắn vào ID của dự án vừa đẻ ra ở bước 1
+                            'project_id' => $id,
                             'task_name' => $template->task_name,
                             'work_volume' => $template->work_volume,
-                            'status' => 'TODO', // Mặc định là chưa làm
+                            'status' => 'TODO',
                             'sort_order' => $template->sort_order,
                             'created_at' => now(),
                         ];
                     }
-
-                    // Bơm 1 phát toàn bộ danh sách công việc vào DB cho nhanh
                     DB::table('project_tasks')->insert($tasksToInsert);
                 }
             }
 
-            // 3. LOG LỊCH SỬ
+            // 5. LOG LỊCH SỬ
             DB::table('project_histories')->insert([
                 'project_id' => $id,
                 'action' => 'Khởi tạo hồ sơ mới',
                 'created_at' => now(),
             ]);
 
-            DB::commit(); // Mọi thứ hoàn hảo, chốt lưu vào DB!
+            DB::commit();
 
-            // Lấy lại data để Frontend hiển thị thẻ Kanban mới
             $newProject = DB::table('projects')->where('id', $id)->first();
 
             return response()->json([
-                'message' => 'Tạo hồ sơ và tự động thêm quy trình thành công!',
+                'message' => 'Tạo hồ sơ thành công!',
                 'data' => $newProject
             ], 201);
         } catch (\Exception $e) {
-            DB::rollBack(); // Lỗi (do vướng khóa ngoại, thiếu trường...) thì lập tức "quay xe"
-            return response()->json(['error' => $e->getMessage()], 500);
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Lỗi tạo hồ sơ: ' . $e->getMessage());
+            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
         }
     }
 
@@ -123,12 +164,15 @@ class ProjectController extends Controller
         }
 
         // Cập nhật các trường nếu có
-        if ($request->has('name'))
+        if ($request->has('name')) {
             $project->name = $request->name;
-        if ($request->has('category_id'))
+        }
+        if ($request->has('category_id')) {
             $project->category_id = $request->category_id;
-        if ($request->has('address'))
-            $project->address = $request->address;
+        }
+        if ($request->has('address')) {
+            $project->address = $request->address ?? '';
+        }
 
         // Lưu xuống Database
         $project->save();

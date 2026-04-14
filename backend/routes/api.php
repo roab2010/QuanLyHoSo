@@ -73,10 +73,11 @@ Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::cl
 Route::get('/news', [NewsController::class, 'index']);
 Route::get('/crawl-news', [NewsController::class, 'crawl']); // testRoute để cào tin tức từ VnExpress
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
 
-Route::get('/customer/hoso', [CustomerController::class, 'getHoSo']);
+use App\Models\Warehouse;
 
-Route::get('/customer/ho-so/{id}', [CustomerController::class, 'detail']);
-Route::get('/customer/ho-so', [CustomerController::class, 'list']);
+// Route để React lấy danh sách kho
+Route::get('/warehouses', function() {
+    return response()->json(Warehouse::where('status', 1)->get());
+});
+

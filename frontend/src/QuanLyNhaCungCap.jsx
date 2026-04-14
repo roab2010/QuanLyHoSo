@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import ModalAddSupplier from "./ModalAddSupplier";
 
+
 export default function QuanLyNhaCungCap() {
     // 1. Khai báo tất cả States ở đây (Chỉ khai báo 1 lần)
     const [suppliers, setSuppliers] = useState([]);
@@ -116,13 +117,20 @@ export default function QuanLyNhaCungCap() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                </div>
-                <select className="filter-select" onChange={(e) => setFilterType(e.target.value)}>
+            </div>
+                <select className="filter-select" onChange={(e) => setFilterType(e.target.value)}
+                    style={ {
+                        padding: '10px 40px 10px 15px',
+                        borderRadius: '12px',
+                        border: '1px solid #E0E5F2',
+                        color: '#1B2559',
+                        fontWeight: '600',
+                    }}>
                     <option value="Tất cả">Tất cả loại vật tư</option>
                     {[...new Set(suppliers.map(s => s.main_material_type))].filter(Boolean).map(t => (
-                        <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>{t}</option>
                     ))}
-                </select>
+                 </select>
             </div>
 
             {/* Table */}
@@ -165,9 +173,9 @@ export default function QuanLyNhaCungCap() {
                                         {(() => {
                                             // Định nghĩa màu sắc cho từng loại nhãn
                                             const tagStyles = {
-                                                'Tin cậy': { class: 'reliable', icon: '✅' },
-                                                'Tiềm năng': { class: 'potential', icon: '📈' },
-                                                'Cần xem xét': { class: 'review', icon: '⚠️' }
+                                                'TIN_CAY': { class: 'reliable', icon: '✅' },
+                                                'TIEM_NANG': { class: 'potential', icon: '📈' },
+                                                'CAN_XEM_SET': { class: 'review', icon: '⚠️' }
                                             };
 
                                             const currentTag = tagStyles[sup.evaluation_tag] || { class: '', icon: '' };

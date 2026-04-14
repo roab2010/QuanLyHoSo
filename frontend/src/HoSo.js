@@ -32,25 +32,31 @@ const COL_TO_TRANG_THAI = {
     done:       'COMPLETED',  // Kéo vào "Hoàn thành" gửi COMPLETED
 };
 
-const normalize = (item) => ({
-    id: item.id,
-    ma_ho_so: item.project_code ?? `HS-${item.id}`,
-    title: item.name ?? '(Không có tên)',
-    sub: item.address ?? '',
-    badge: (item.priority ?? 'MEDIUM').toUpperCase(),
-    badgeClass: `badge-${(item.priority ?? 'medium').toLowerCase()}`,
-    trang_thai: item.status,
-    colId: TRANG_THAI_MAP[item.status] ?? 'new',
-    date: item.start_date ?? '',
-    created_at: item.created_at ?? item.start_date ?? '',
-    category_name: item.category?.name ?? 'Không phân loại',
-    avatar: item.name?.charAt(0).toUpperCase() ?? 'P',
-    avatarBg: '#e0e7ff',
-    avatarColor: '#3730a3',
-    processing: item.status === 'PROCESSING' || item.status === 'REVISION',
-    done: item.status === 'COMPLETED',
-    waitText: '',
-});
+const normalize = (item) => {
+    const priority = item?.priority || 'MEDIUM';
+    const status = item?.status || 'DRAFT';
+    const name = item?.name || '(Không có tên)';
+
+    return {
+        id: item?.id,
+        ma_ho_so: item?.project_code ?? `HS-${item?.id}`,
+        title: name,
+        sub: item?.address ?? '',
+        badge: priority.toUpperCase(),
+        badgeClass: `badge-${priority.toLowerCase()}`,
+        trang_thai: status,
+        colId: TRANG_THAI_MAP[status] ?? 'new',
+        date: item?.start_date ?? '',
+        created_at: item?.created_at ?? item?.start_date ?? '',
+        category_name: item?.category?.name ?? 'Không phân loại',
+        avatar: name !== '(Không có tên)' ? name.charAt(0).toUpperCase() : 'P',
+        avatarBg: '#e0e7ff',
+        avatarColor: '#3730a3',
+        processing: status === 'PROCESSING' || status === 'REVISION',
+        done: status === 'COMPLETED',
+        waitText: '',
+    };
+};
 /**
  * Ánh xạ muc_do (Priority) → class CSS
  */
@@ -107,8 +113,9 @@ export default function useHoSo() {
         return { ok: true };
     } catch (err) {
         // Log lỗi chi tiết ra console để dễ debug
-        console.error("Lỗi tạo hồ sơ:", err.response?.data);
-        return { ok: false, message: 'Lỗi tạo hồ sơ' };
+        console.error("Lỗi tạo hồ sơ chi tiết:", err);
+        const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || "Lỗi tạo hồ sơ";
+        return { ok: false, message: 'Lỗi: ' + errorMsg };
     }
 };
 
