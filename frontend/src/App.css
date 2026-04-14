@@ -604,6 +604,10 @@ body {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
+.hoverable-row:hover {
+  background-color: #f1f5f9;
+}
+
 .form-row {
   display: flex;
   gap: 15px;

@@ -9,7 +9,7 @@ export default function DanhSachHoSo({ search }) {
     const toast = useToast();
 
     // Lọc theo search (giống KanbanBoard)
-    const filteredCards = cards.filter(c => 
+    const filteredCards = cards.filter(c =>
         (c.ma_ho_so && c.ma_ho_so.toLowerCase().includes(search.toLowerCase())) ||
         (c.title && c.title.toLowerCase().includes(search.toLowerCase()))
     );
@@ -60,7 +60,15 @@ export default function DanhSachHoSo({ search }) {
                 </thead>
                 <tbody>
                     {filteredCards.length > 0 ? filteredCards.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                            key={item.id}
+                            onClick={() => navigate(`/ho-so/${item.id}`)}
+                            style={{
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s'
+                            }}
+                            className="hoverable-row"
+                        >
                             <td>
                                 <strong>{item.title}</strong>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Mã: {item.ma_ho_so}</div>
@@ -70,9 +78,9 @@ export default function DanhSachHoSo({ search }) {
                                 {item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : '—'}
                             </td>
                             <td style={{ textAlign: 'center' }}>
-                                <span style={{ 
-                                    display: 'inline-block', 
-                                    minWidth: '100px', 
+                                <span style={{
+                                    display: 'inline-block',
+                                    minWidth: '100px',
                                     textAlign: 'center',
                                     padding: '4px 10px',
                                     borderRadius: '20px',
@@ -85,8 +93,22 @@ export default function DanhSachHoSo({ search }) {
                                 </span>
                             </td>
                             <td style={{ textAlign: 'center' }}>
-                                <button className="btn-icon" onClick={() => navigate(`/ho-so/${item.id}/edit`)} title="Sửa" style={{ marginRight: '10px', background: 'none', border: 'none', cursor: 'pointer' }}>✎</button>
-                                <button className="btn-icon" onClick={() => handleDelete(item)} title="Xóa" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'red' }}>🗑</button>
+                                <button
+                                    className="btn-icon"
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/ho-so/${item.id}/edit`); }}
+                                    title="Sửa"
+                                    style={{ marginRight: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                >
+                                    ✎
+                                </button>
+                                <button
+                                    className="btn-icon"
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
+                                    title="Xóa"
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff0000ff' }}
+                                >
+                                    🗑
+                                </button>
                             </td>
                         </tr>
                     )) : (

@@ -181,12 +181,12 @@ export default function EditHoSo({ setActiveAppNav }) {
                                         </div>
                                         <div style={{ flex: 1, minHeight: '200px', borderRadius: '12px', position: 'relative', overflow: 'hidden', border: '1px solid #e5e7eb', background: '#f8fafc' }}>
                                             {debouncedAddress ? (
-                                                <iframe 
-                                                    width="100%" 
-                                                    height="100%" 
-                                                    frameBorder="0" 
-                                                    style={{ border: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} 
-                                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(debouncedAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`} 
+                                                <iframe
+                                                    width="100%"
+                                                    height="100%"
+                                                    frameBorder="0"
+                                                    style={{ border: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(debouncedAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                                                     allowFullScreen
                                                     title="Bản đồ vị trí dự án"
                                                 ></iframe>
