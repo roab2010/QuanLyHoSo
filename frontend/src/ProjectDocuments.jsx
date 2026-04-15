@@ -20,6 +20,8 @@ export default function ProjectDocuments() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editDocId, setEditDocId] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [previewScale, setPreviewScale] = useState(1);
     const [newDoc, setNewDoc] = useState({ 
         name: '', 
         project_id: '', 
@@ -156,7 +158,7 @@ export default function ProjectDocuments() {
         <div className="category-container" style={{ fontFamily: "'Inter', sans-serif" }}>
             <style>{`
                 .header-search { 
-                    width: 300px; 
+                    width: 200px; 
                     background: #f8fafc; 
                     border: 1px solid #e2e8f0; 
                     transition: all 0.3s;
@@ -183,6 +185,8 @@ export default function ProjectDocuments() {
                     font-size: 14px;
                     cursor: pointer;
                     margin-left: 10px;
+                    max-width: 150px;
+                    text-overflow: ellipsis;
                 }
                 .action-cell {
                     text-align: center;
@@ -190,9 +194,9 @@ export default function ProjectDocuments() {
             `}</style>
             
             {/* Header & Thanh công cụ */}
-            <div className="category-header">
-                <h2 style={{margin: 0}}>Tủ hồ sơ điện tử</h2>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="category-header" style={{ display: 'flex', flexWrap: 'nowrap', gap: '15px', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ margin: 0, whiteSpace: 'nowrap', minWidth: 'fit-content' }}>Quản lý tài liệu</h2>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'nowrap', flex: 1, justifyContent: 'flex-end' }}>
                     <div className="header-search">
                         <span className="material-symbols-outlined" style={{color: '#a3aed0', marginRight: '5px', fontSize: '18px'}}>search</span>
                         <input 
@@ -221,7 +225,7 @@ export default function ProjectDocuments() {
                         {docTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                     </select>
 
-                    <button className="btn-add-cat" onClick={() => setShowUploadModal(true)} style={{marginLeft: '10px'}}>
+                    <button className="btn-add-cat" onClick={() => setShowUploadModal(true)} style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>
                         + Tải tài liệu
                     </button>
                 </div>
@@ -263,16 +267,39 @@ export default function ProjectDocuments() {
                                         {doc.status === 'COMPLETED' ? "Hoàn thành" : doc.status === 'PENDING' ? "Chờ duyệt" : doc.status === 'PROCESSING' ? "Đang xử lý" : "Cần sửa"}
                                     </span>
                                 </td>
-                                <td className="action-cell">
-                                    <button className="btn-edit" title="Sửa" onClick={() => handleEditClick(doc)}>
-                                        <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="20" alt="Edit" />
-                                    </button>
-                                    <button className="btn-edit" style={{margin: '0 10px'}} title="Tải xuống" onClick={() => handleDownload(doc.file_url)}>
-                                        <img src="https://cdn-icons-png.flaticon.com/512/7268/7268609.png" width="20" alt="Download" />
-                                    </button>
-                                    <button className="btn-delete-small" title="Xóa" onClick={() => handleDelete(doc.id)}>
-                                        <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="20" alt="Delete" />
-                                    </button>
+                                <td className="action-cell" style={{ verticalAlign: 'middle' }}>
+                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                        {doc.file_url && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewUrl(`http://127.0.0.1:8000${doc.file_url}`)}
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
+                                                title="Xem"
+                                                onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}
+                                                onMouseOut={(e) => e.currentTarget.style.background = '#e0f2fe'}
+                                            >
+                                                <img src="https://cdn-icons-png.flaticon.com/512/159/159604.png" width="18" alt="View" style={{ filter: "opacity(0.8)" }} />
+                                            </button>
+                                        )}
+                                        <button
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                            title="Sửa"
+                                            onClick={() => handleEditClick(doc)}
+                                            onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
+                                            onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
+                                        >
+                                            <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
+                                        </button>
+                                        <button
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                            title="Xóa"
+                                            onClick={() => handleDelete(doc.id)}
+                                            onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
+                                            onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
+                                        >
+                                            <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))
@@ -367,6 +394,47 @@ export default function ProjectDocuments() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Preview Document */}
+            {previewUrl && (
+                <div className="modal-overlay" style={{ zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'relative', width: '80%', height: '85%', background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                        <button 
+                            onClick={() => { setPreviewUrl(null); setPreviewScale(1); }} 
+                            style={{ position: 'absolute', top: '15px', right: '20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '18px', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        >
+                            ✕
+                        </button>
+                        
+                        {previewUrl.match(/\.(jpeg|jpg|gif|png|webp)(\?|#|$)/i) ? (
+                            <>
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', background: '#e2e8f0' }}>
+                                    <img 
+                                        src={previewUrl} 
+                                        alt="Preview" 
+                                        style={{ 
+                                            maxWidth: '100%', 
+                                            maxHeight: '100%', 
+                                            objectFit: 'contain', 
+                                            transform: `scale(${previewScale})`,
+                                            transition: 'transform 0.2s ease-in-out',
+                                            transformOrigin: 'center center'
+                                        }} 
+                                    />
+                                </div>
+                                <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', background: 'rgba(15, 23, 42, 0.8)', padding: '10px 20px', borderRadius: '30px', zIndex: 1001, alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' }}>
+                                    <button onClick={() => setPreviewScale(s => Math.max(s - 0.25, 0.25))} style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '24px', cursor: 'pointer', outline: 'none', padding: '0 5px' }}>-</button>
+                                    <span style={{ color: 'white', display: 'flex', alignItems: 'center', fontWeight: 'bold', minWidth: '45px', justifyContent: 'center' }}>{Math.round(previewScale * 100)}%</span>
+                                    <button onClick={() => setPreviewScale(1)} style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', outline: 'none', padding: '0 5px' }}>↻</button>
+                                    <button onClick={() => setPreviewScale(s => Math.min(s + 0.25, 5))} style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '24px', cursor: 'pointer', outline: 'none', padding: '0 5px' }}>+</button>
+                                </div>
+                            </>
+                        ) : (
+                            <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', background: '#f8fafc' }} title="Document Preview" />
+                        )}
                     </div>
                 </div>
             )}

@@ -120,6 +120,25 @@ export const deleteTask = async (projectId, taskId) => {
 /**
  * --- PHẦN TÀI LIỆU ---
  */
+export const uploadProjectDocument = async (payload) => {
+  const res = await api.post("/documents/upload", payload, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+
+export const deleteProjectDocument = async (docId) => {
+  const res = await api.delete(`/documents/${docId}`);
+  return res.data;
+};
+
+export const updateProjectDocumentNew = async (docId, payload) => {
+  const res = await api.post(`/documents/${docId}`, payload, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+
 export const updateDocument = async (projectId, docId, payload) => {
   const res = await api.put(
     `/projects/${projectId}/documents/${docId}`,
@@ -127,6 +146,17 @@ export const updateDocument = async (projectId, docId, payload) => {
   );
   return res.data?.data ?? res.data;
 };
+
+export const getDocumentsMetadata = async () => {
+  try {
+    const res = await api.get("/documents-metadata");
+    return res.data;
+  } catch (error) {
+    console.error("Lỗi lấy metadata tài liệu:", error);
+    return { projects: [], types: [] };
+  }
+};
+
 
 /**
  * --- PHẦN THÀNH VIÊN ---

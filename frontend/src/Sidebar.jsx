@@ -77,7 +77,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             if (label === "Danh sách hồ sơ" || label === "Danh mục dự án") return hasPermission("projects");
             if (label === "Quản lý khách hàng" || label === "Quản lý nhân viên") return hasPermission("hr");
             if (label === "Quản lý kho") return hasPermission("inventory");
-            if (label === "Báo cáo") return hasPermission("documents");
+            if (label === "Báo cáo" || label === "Quản lý tài liệu") return hasPermission("documents");
             return true;
         });
     };
