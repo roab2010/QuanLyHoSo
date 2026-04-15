@@ -306,6 +306,18 @@ export default function ChiTietHoSo() {
                                             <label>NGÀY KHỞI CÔNG</label>
                                             <p>{startDateFormatted}</p>
                                         </div>
+                                        <div className="info-item">
+                                            <label>CHI PHÍ DỰ KIẾN</label>
+                                            <p style={{ color: '#2563eb', fontWeight: '700' }}>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(project.estimated_budget || 0)}
+                                            </p>
+                                        </div>
+                                        <div className="info-item">
+                                            <label>GIÁ TRỊ HỢP ĐỒNG</label>
+                                            <p style={{ color: '#16a34a', fontWeight: '700' }}>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(project.contract_value || 0)}
+                                            </p>
+                                        </div>
                                     </div>
                                 </section>
 

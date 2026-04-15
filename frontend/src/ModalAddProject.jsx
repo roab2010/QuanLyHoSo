@@ -19,7 +19,9 @@ export default function ModalAddProject({ onClose, onSubmit }) {
         priority: "MEDIUM",
         max_warehouse_capacity: 0,
         supervisor_id: 1,
-        status: "DRAFT"
+        status: "DRAFT",
+        estimated_budget: 0,
+        contract_value: 0
     });
 
     useEffect(() => {
@@ -274,7 +276,29 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             />
                         </div>
 
-                        {/* Hàng 5: Địa chỉ */}
+                        {/* Hàng 5: Chi phí và Giá trị */}
+                        <div style={modernStyles.formGroup}>
+                            <label style={modernStyles.label}>Chi phí dự kiến (VNĐ)</label>
+                            <input
+                                style={modernStyles.input}
+                                type="number" step="1000"
+                                placeholder="Nhập chi phí..."
+                                value={formData.estimated_budget}
+                                onChange={e => setFormData({ ...formData, estimated_budget: e.target.value })}
+                            />
+                        </div>
+                        <div style={modernStyles.formGroup}>
+                            <label style={modernStyles.label}>Giá trị hợp đồng (VNĐ)</label>
+                            <input
+                                style={modernStyles.input}
+                                type="number" step="1000"
+                                placeholder="Nhập giá trị..."
+                                value={formData.contract_value}
+                                onChange={e => setFormData({ ...formData, contract_value: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Hàng 6: Địa chỉ */}
                         <div style={{ ...modernStyles.formGroup, ...modernStyles.fullWidth }}>
                             <label style={modernStyles.label}>Địa chỉ triển khai công trình *</label>
                             <textarea
