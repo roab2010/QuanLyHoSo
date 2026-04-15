@@ -54,7 +54,14 @@ Route::put('/template-tasks/{id}', [TemplateTaskController::class, 'update']);
 Route::delete('/template-tasks/{id}', [TemplateTaskController::class, 'destroy']);
 
 // KHÁCH HÀNG (Admin chọn khi thêm hồ sơ)
+// Cấu trúc chuẩn cho nhóm Route khách hàng
+// File: routes/api.php
+
+// 📌 Route lấy danh sách (GET)
 Route::get('/customers', [CustomerController::class, 'index']);
+Route::post('/customers', [CustomerController::class, 'store']);
+Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile']);
+
 
 // TIN TỨC
 Route::get('/news', [NewsController::class, 'index']);

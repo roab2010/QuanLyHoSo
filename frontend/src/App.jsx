@@ -16,6 +16,7 @@ import EditHoSo from "./EditHoSo";
 import LoginPage from "./LoginPage";
 import HomePortal from "./HomePortal";
 import CustomerDashboard from "./CustomerDashboard";
+import QuanLyKhachHang from "./QuanLyKhachHang";
 
 const COLUMNS = [
     { id: "new", title: "Mới tạo", color: "#6b7280" },
@@ -23,7 +24,7 @@ const COLUMNS = [
     { id: "done", title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Báo cáo", "Quản lý kho"];
+const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án","Quản lý khách hàng", "Báo cáo", "Quản lý kho"];
 
 const styles = {
     logoutBtn: {
@@ -82,7 +83,9 @@ const AdminLayout = ({
                             onMoveCard={moveCard}
                             onShowModal={() => setShowModal(true)}
                         />
-                    ) : activeNav === "Chi Tiết" ? (
+                    ):activeNav === "Quản lý khách hàng" ? (
+                        <QuanLyKhachHang />
+                    ): activeNav === "Chi Tiết" ? (
                          <ChiTietHoSo />
                     ) : activeNav === "Chỉnh sửa" ? (
                          <EditHoSo setActiveAppNav={setActiveNav} refreshData={fetchAll} />
