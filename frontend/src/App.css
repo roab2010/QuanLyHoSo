@@ -4013,3 +4013,98 @@ Toast Container */ .toast-container {
   box-shadow: 0 8px 24px rgba(238, 93, 80, 0.4);
   transform: translateY(-1px);
 }
+
+/* --- QUẢN LÝ KHÁCH HÀNG (CUSTOM CSS) --- */
+
+.customer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+.header-title { font-size: 24px; font-weight: 800; margin: 0; }
+.header-actions { display: flex; gap: 12px; }
+.header-search { width: 350px; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 12px; border-radius: 12px; }
+.btn-add-customer { background: #2563eb; color: #fff; padding: 10px 20px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; }
+.customer-table-container { background: #ffffff; border-radius: 24px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04); overflow: hidden; }
+.v3-table-clean { width: 100%; border-collapse: separate; border-spacing: 0; }
+.v3-table-clean th:last-child {
+    text-align: center !important;
+    padding-right: 40px; /* Giữ padding để cân bằng với cột đầu */
+}
+.action-group-v3 {
+    display: flex;
+    justify-content: center; /* Đưa icon ra chính giữa ô */
+    align-items: center;
+    gap: 8px;
+}
+.btn-action-v3 {
+    border: none;
+    background: #f1f5f9;
+    width: 36px;  /* Cho nút thành hình vuông hoặc tròn */
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.btn-action-v3:hover {
+    background: #dbeafe;
+    color: #2563eb;
+    transform: translateY(-2px); /* Hiệu ứng nổi lên nhẹ khi hover */
+}
+.v3-table-clean td { padding: 16px 24px; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+.customer-avatar-v3 { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.v3-st-active { background: #ecfdf5; color: #10b981; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: #fff; padding: 32px; border-radius: 24px; width: 400px; }
+.form-control { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; margin-top: 5px; }
+/* Tách biệt màu sắc cho 2 cột mới */
+.customer-mail-v3 {
+    color: #1e293b;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.customer-phone-v3 {
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* Đảm bảo bảng không bị xô lệch */
+.v3-table-clean th, .v3-table-clean td {
+    text-align: left;
+    padding: 16px 12px;
+}
+
+.v3-table-clean th:first-child, .v3-table-clean td:first-child {
+    padding-left: 40px;
+}
+/* Tách biệt màu sắc và kích thước cho từng cột */
+.customer-mail-v3 {
+    color: #2563eb; /* Màu xanh nhẹ cho email */
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.customer-phone-v3 {
+    color: #475569;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Tối ưu cột địa chỉ */
+.customer-address-v3 {
+    color: #64748b;
+    font-size: 13px;
+    display: inline-block;
+    max-width: 180px; /* Giới hạn độ rộng để không đẩy các cột khác */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Hiện dấu ... khi quá dài */
+}
+
+/* Đảm bảo hàng trong bảng có độ cao đều nhau */
+.customer-row-v3 td {
+    padding: 16px 12px;
+    vertical-align: middle;
+}
