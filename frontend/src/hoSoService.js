@@ -153,6 +153,17 @@ export const getAllEmployees = async () => {
     return [];
   }
 };
+
+export const getAllProjectPositions = async () => {
+  try {
+    const res = await api.get("/project-positions");
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Lỗi API Project Positions:", e);
+    return [];
+  }
+};
 export const getTemplatesByCategoryId = async (categoryId) => {
   try {
     const response = await axios.get(

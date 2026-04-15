@@ -7,8 +7,8 @@ import {
     deleteTask,
     updateDocument,
     addMember,
-    removeMember,
     getAllEmployees,
+    getAllProjectPositions,
 } from "./hoSoService";
 import { useToast } from "./Toast";
 
@@ -56,7 +56,9 @@ export default function ChiTietHoSo() {
     // Member modal
     const [showMemberModal, setShowMemberModal] = useState(false);
     const [employees, setEmployees] = useState([]);
+    const [positions, setPositions] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState("");
+    const [selectedPosition, setSelectedPosition] = useState("");
 
     // Drag state
     const dragItem = useRef(null);
@@ -171,14 +173,20 @@ export default function ChiTietHoSo() {
     /* ─── MEMBER HANDLERS ─── */
     const handleOpenAddMember = async () => {
         const emps = await getAllEmployees();
+        const pos = await getAllProjectPositions();
         setEmployees(emps);
+        setPositions(pos);
         setSelectedEmployee("");
+        setSelectedPosition("");
         setShowMemberModal(true);
     };
     const handleAddMember = async () => {
         if (!selectedEmployee) return toast.warning("Vui lòng chọn nhân viên");
         try {
-            await addMember(id, { employee_id: selectedEmployee });
+            await addMember(id, { 
+                employee_id: selectedEmployee,
+                project_position_id: selectedPosition || null
+            });
             setShowMemberModal(false);
             fetchData();
             toast.success("Đã phân công thành viên mới vào dự án");
@@ -543,7 +551,7 @@ export default function ChiTietHoSo() {
                                         <div className="member-card" key={m.id}>
                                             <div className="member-avatar">{initials}</div>
                                             <span className="member-role-badge">
-                                                {emp.job_title || "Nhân viên"}
+                                                {m.title_name || emp.job_title || "Nhân viên"}
                                             </span>
                                             <h4 className="member-name">{emp.full_name || "—"}</h4>
                                             <p className="member-email">{emp.email || "—"}</p>
@@ -802,7 +810,22 @@ export default function ChiTietHoSo() {
                                 <option value="">— Chọn nhân viên —</option>
                                 {employees.map((emp) => (
                                     <option key={emp.id} value={emp.id}>
-                                        {emp.full_name} - {emp.job_title || "N/A"}
+                                        {emp.full_name} - {emp.role_name || "N/A"}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group" style={{ marginTop: '15px' }}>
+                            <label>Vai trò trong dự án (Tùy chọn)</label>
+                            <select
+                                className="form-input"
+                                value={selectedPosition}
+                                onChange={(e) => setSelectedPosition(e.target.value)}
+                            >
+                                <option value="">— Mặc định —</option>
+                                {positions.map((pos) => (
+                                    <option key={pos.id} value={pos.id}>
+                                        {pos.title_name}
                                     </option>
                                 ))}
                             </select>

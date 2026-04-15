@@ -287,6 +287,7 @@ class ProjectController extends Controller
                 $q->orderBy('uploaded_at', 'desc');
             },
             'members.employee',
+            'members.projectPositionTitle',
             'histories' => function ($q) {
                 $q->orderBy('created_at', 'desc');
             },
@@ -458,12 +459,23 @@ class ProjectController extends Controller
             $id = DB::table('project_members')->insertGetId([
                 'project_id' => $projectId,
                 'employee_id' => $request->employee_id,
+                'project_position_id' => $request->project_position_id ?? null,
             ]);
 
             $member = DB::table('project_members')
                 ->join('employees', 'project_members.employee_id', '=', 'employees.id')
+                ->leftJoin('project_position_titles', 'project_members.project_position_id', '=', 'project_position_titles.id')
                 ->where('project_members.id', $id)
-                ->select('project_members.*', 'employees.full_name', 'employees.email', 'employees.job_title', 'employees.phone', 'employees.avatar', 'employees.status')
+                ->select(
+                    'project_members.*', 
+                    'employees.full_name', 
+                    'employees.email', 
+                    'employees.job_title', 
+                    'employees.phone', 
+                    'employees.avatar', 
+                    'employees.status',
+                    'project_position_titles.title_name'
+                )
                 ->first();
 
             return response()->json(['data' => $member], 201);
@@ -495,11 +507,68 @@ class ProjectController extends Controller
     public function getEmployees()
     {
         $employees = DB::table('employees')
-            ->where('status', 'WORKING')
-            ->select('id', 'full_name', 'email', 'job_title', 'phone')
+            ->leftJoin('users', 'employees.user_id', '=', 'users.id')
+            ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
+            ->where('employees.status', 'WORKING')
+            ->select(
+                'employees.id', 
+                'employees.full_name', 
+                \DB::raw('IFNULL(employees.email, users.email) as email'), 
+                \DB::raw('IFNULL(employees.phone, users.phone) as phone'),
+                'roles.name as role_name', 
+                'roles.color as role_color'
+            )
             ->get();
 
         return response()->json($employees);
+    }
+
+    /**
+     * Lấy danh sách chức danh dự án
+     */
+    public function getProjectPositions()
+    {
+        $positions = \App\Models\ProjectPositionTitle::orderBy('id', 'asc')->get();
+        return response()->json($positions);
+    }
+    /**
+     * Khách hàng tự upload tài liệu/ảnh lên hồ sơ
+     */
+    public function customerUploadDocument(Request $request, $projectId)
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240', // 10MB limit
+            'name' => 'required|string|max:255',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = public_path('uploads/documents');
+            if (!file_exists($path)) {
+                mkdir($path, 0777, true);
+            }
+            $file->move($path, $filename);
+
+            $docId = DB::table('project_documents')->insertGetId([
+                'project_id'    => $projectId,
+                'document_name' => $request->name,
+                'file_url'      => url('uploads/documents/' . $filename),
+                'uploaded_at'   => now(),
+                'status'        => 'PENDING',
+                'category_name' => 'Khách hàng gửi',
+                'note'          => 'Tài liệu do khách hàng cung cấp'
+            ]);
+
+            $doc = DB::table('project_documents')->where('id', $docId)->first();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $doc
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }
 

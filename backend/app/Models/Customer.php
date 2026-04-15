@@ -15,6 +15,7 @@ class Customer extends Model
     'password',
     'phone',
     'address',
+    'image',
 ];
 
     // Vì trong SQL của Nguyên chỉ có created_at, không có updated_at

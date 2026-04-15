@@ -17,6 +17,7 @@ import LoginPage from "./LoginPage";
 import HomePortal from "./HomePortal";
 import CustomerDashboard from "./CustomerDashboard";
 import QuanLyKhachHang from "./QuanLyKhachHang";
+import QuanLyNhanVien from "./QuanLyNhanVien";
 
 const COLUMNS = [
     { id: "new", title: "Mới tạo", color: "#6b7280" },
@@ -24,7 +25,7 @@ const COLUMNS = [
     { id: "done", title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án","Quản lý khách hàng", "Báo cáo", "Quản lý kho"];
+const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án","Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho"];
 
 const styles = {
     logoutBtn: {
@@ -48,6 +49,31 @@ const AdminLayout = ({
 }) => {
     if (!admin) return <Navigate to="/admin/login" />;
 
+    // Safety check: Reset navigation if user doesn't have permission for current tab
+    useEffect(() => {
+        const hasPermission = (module) => {
+            if (admin.role === 'admin') return true;
+            try {
+                const perms = JSON.parse(admin.permissions || '[]');
+                return perms.includes(module);
+            } catch (e) { return false; }
+        };
+
+        const checkAuth = () => {
+            if (activeNav === "Quản lý nhân viên" || activeNav === "Quản lý khách hàng") {
+                if (!hasPermission("hr")) setActiveNav("Bảng điều khiển");
+            }
+            if (activeNav === "Danh sách hồ sơ" || activeNav === "Danh mục dự án") {
+                if (!hasPermission("projects")) setActiveNav("Bảng điều khiển");
+            }
+            if (activeNav === "Quản lý kho") {
+                if (!hasPermission("inventory")) setActiveNav("Bảng điều khiển");
+            }
+        };
+
+        checkAuth();
+    }, [activeNav, admin]);
+
     return (
         <div className="app">
             <Sidebar
@@ -61,7 +87,11 @@ const AdminLayout = ({
                 }}
                 NAV_ITEMS={NAV_ITEMS}
                 onShowModal={() => setShowModal(true)}
-                onLogout={() => { localStorage.removeItem("admin_user"); navigate("/admin/login"); }}
+                onLogout={() => { 
+                    localStorage.removeItem("admin_user"); 
+                    setActiveNav("Bảng điều khiển");
+                    navigate("/admin/login"); 
+                }}
             />
 
             <div className="main">
@@ -85,6 +115,8 @@ const AdminLayout = ({
                         />
                     ):activeNav === "Quản lý khách hàng" ? (
                         <QuanLyKhachHang />
+                    ): activeNav === "Quản lý nhân viên" ? (
+                        <QuanLyNhanVien admin={admin} />
                     ): activeNav === "Chi Tiết" ? (
                          <ChiTietHoSo />
                     ) : activeNav === "Chỉnh sửa" ? (
@@ -98,8 +130,6 @@ const AdminLayout = ({
                         />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
-                    ) : activeNav === "Tin tức" ? (
-                        <News />
                     ) : activeNav === "Quản lý kho" ? (
                         inventoryView === "selection" ? (
                             <InventoryDashboard onSelect={setInventoryView} />

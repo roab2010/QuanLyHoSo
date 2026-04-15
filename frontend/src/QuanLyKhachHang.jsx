@@ -122,7 +122,11 @@ export default function QuanLyKhachHang() {
                                     <td style={{ paddingLeft: '40px' }}>
                                         <div className="customer-cell">
                                             <div className="customer-avatar-v3">
-                                                {customer.full_name?.charAt(0).toUpperCase()}
+                                                {customer.image ? (
+                                                    <img src={customer.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    customer.full_name?.charAt(0).toUpperCase()
+                                                )}
                                             </div>
                                             <div>
                                                 <span className="customer-name-v3">{customer.full_name}</span>

@@ -8,7 +8,6 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierController;
-use App\Http\Controllers\NewsController;
 
 // AUTH ROUTES
 Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)
@@ -33,6 +32,7 @@ Route::delete('/projects/{projectId}/tasks/{taskId}', [ProjectController::class,
 
 // THÀNH VIÊN DỰ ÁN (PROJECT MEMBERS)
 Route::get('/employees', [ProjectController::class, 'getEmployees']);
+Route::get('/project-positions', [ProjectController::class, 'getProjectPositions']);
 Route::post('/projects/{projectId}/members', [ProjectController::class, 'addMember']);
 Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::class, 'removeMember']);
 
@@ -63,8 +63,14 @@ Route::post('/customers', [CustomerController::class, 'store']);
 Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile']);
 
 
-// TIN TỨC
-Route::get('/news', [NewsController::class, 'index']);
+// QUẢN LÝ NHÂN VIÊN & VAI TRÒ (Cấp phát tài khoản)
+use App\Http\Controllers\EmployeeController;
+    Route::get('/manage/employees', [EmployeeController::class, 'index']);
+    Route::post('/manage/employees', [EmployeeController::class, 'store']);
+    Route::delete('/manage/employees/{id}', [EmployeeController::class, 'destroy']);
+    Route::get('/roles', [EmployeeController::class, 'getRoles']);
+Route::post('/roles', [EmployeeController::class, 'storeRole']);
+Route::put('/roles/{id}', [EmployeeController::class, 'updateRole']);
 
 // KHO & VẬT TƯ
 use App\Http\Controllers\WarehouseController;
@@ -87,3 +93,4 @@ Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
 Route::get('/customer/projects', [CustomerController::class, 'list']);
 Route::get('/customer/projects/{id}', [CustomerController::class, 'detail']);
 Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile']);
+Route::post('/customer/projects/{projectId}/upload', [ProjectController::class, 'customerUploadDocument']);

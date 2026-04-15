@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useToast } from "./Toast";
 
 export default function CustomerDashboard() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [user, setUser] = useState(JSON.parse(localStorage.getItem("customer_user") || "null"));
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -33,9 +35,23 @@ export default function CustomerDashboard() {
     const [profileData, setProfileData] = useState({
         full_name: user?.full_name || "",
         email: user?.email || "",
-        phone: user?.phone || ""
+        phone: user?.phone || "",
+        image: user?.image || ""
     });
     const [updating, setUpdating] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+    // Update profileData when user state changes (e.g. after login/refresh)
+    useEffect(() => {
+        if (user) {
+            setProfileData({
+                full_name: user.full_name || "",
+                email: user.email || "",
+                phone: user.phone || "",
+                image: user.image || ""
+            });
+        }
+    }, [user]);
 
     useEffect(() => {
         if (!user) {
@@ -64,6 +80,36 @@ export default function CustomerDashboard() {
         navigate("/");
     };
 
+    const handleAvatarChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploadingAvatar(true);
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('full_name', profileData.full_name);
+        formData.append('email', profileData.email);
+        formData.append('phone', profileData.phone);
+        if (profileData.address) formData.append('address', profileData.address);
+
+        try {
+            const res = await axios.post(`http://127.0.0.1:8000/api/customer/profile/${user.id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (res.data.status === "success") {
+                const updatedUser = { ...user, ...res.data.user };
+                localStorage.setItem("customer_user", JSON.stringify(updatedUser));
+                setUser(updatedUser);
+                toast.success("Đã cập nhật ảnh đại diện");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Lỗi upload ảnh đại diện: " + (err.response?.data?.message || "Lỗi hệ thống"));
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         setUpdating(true);
@@ -74,10 +120,10 @@ export default function CustomerDashboard() {
                 localStorage.setItem("customer_user", JSON.stringify(updatedUser));
                 setUser(updatedUser);
                 setShowProfileModal(false);
-                alert("Cập nhật hồ sơ thành công!");
+                toast.success("Cập nhật hồ sơ thành công!");
             }
         } catch (err) {
-            alert(err.response?.data?.message || "Lỗi cập nhật hồ sơ");
+            toast.error(err.response?.data?.message || "Lỗi cập nhật hồ sơ");
         } finally {
             setUpdating(false);
         }
@@ -112,6 +158,24 @@ export default function CustomerDashboard() {
             msg: t.status === 'DONE' || t.status === 'COMPLETED' ? 'Công việc đã hoàn thành.' : 'Đang triển khai thực tế.'
         }))
         : dummyActivities;
+
+    const handleProjectFileUpload = async (projectId, file) => {
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('name', file.name);
+
+        try {
+            const res = await axios.post(`http://127.0.0.1:8000/api/customer/projects/${projectId}/upload`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (res.data.status === "success") {
+                toast.success("Đã gửi hồ sơ/ảnh thành công! Hồ sơ này sẽ được kĩ sư duyệt.");
+            }
+        } catch (err) {
+            toast.error("Lỗi khi gửi hồ sơ: " + (err.response?.data?.error || "Lỗi hệ thống"));
+        }
+    };
 
     return (
         <div className="dash-root-v3">
@@ -171,7 +235,13 @@ export default function CustomerDashboard() {
                             <strong>{user.full_name || user.username}</strong>
                             <p>Premium Customer</p>
                         </div>
-                        <div className="user-icon-v3" onClick={() => setShowProfileModal(true)}>{user.full_name?.charAt(0) || "U"}</div>
+                        <div className="user-icon-v3" onClick={() => setShowProfileModal(true)}>
+                            {user.image ? (
+                                <img src={user.image} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                                user.full_name?.charAt(0) || "U"
+                            )}
+                        </div>
                     </div>
                 </header>
 
@@ -250,6 +320,18 @@ export default function CustomerDashboard() {
                                                     <div className="item-v3-prog">
                                                         <div className="v3-bar"><div className="v3-fill" style={{ width: prog + '%' }}></div></div>
                                                     </div>
+
+                                                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px' }}>
+                                                        <label className="btn-v3-upload">
+                                                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
+                                                            Gửi ảnh/Hồ sơ
+                                                            <input 
+                                                                type="file" 
+                                                                hidden 
+                                                                onChange={(e) => handleProjectFileUpload(proj.id, e.target.files[0])} 
+                                                            />
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -297,6 +379,25 @@ export default function CustomerDashboard() {
                             <h3>Cài đặt tài khoản</h3>
                             <button onClick={() => setShowProfileModal(false)}><span className="material-symbols-outlined">close</span></button>
                         </div>
+
+                        {/* Avatar Section */}
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', fontWeight: '800', color: '#2563eb', overflow: 'hidden', border: '4px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    {user.image ? (
+                                        <img src={user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        user.full_name?.charAt(0) || "U"
+                                    )}
+                                </div>
+                                <label style={{ position: 'absolute', bottom: '0', right: '0', background: '#2563eb', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #fff' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>camera_alt</span>
+                                    <input type="file" hidden accept="image/*" onChange={handleAvatarChange} disabled={uploadingAvatar} />
+                                </label>
+                                {uploadingAvatar && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#2563eb', fontWeight: '800' }}>...</div>}
+                            </div>
+                        </div>
+
                         <form onSubmit={handleUpdateProfile} className="modal-v3-form">
                             <div className="v3-group">
                                 <label>Họ và tên</label>
@@ -517,6 +618,26 @@ export default function CustomerDashboard() {
                 }
                 .v3-no:hover { background: #f8fafc; border-color: var(--dim); }
                 .v3-yes:hover { transform: translateY(-2px); background: #1d4ed8; }
+
+                .btn-v3-upload {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 16px;
+                    background: #f8fafc;
+                    border: 1.5px solid #e2e8f0;
+                    border-radius: 10px;
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: #475569;
+                    cursor: pointer;
+                    transition: 0.2s;
+                }
+                .btn-v3-upload:hover {
+                    background: #eff6ff;
+                    border-color: #2563eb;
+                    color: #2563eb;
+                }
             `}</style>
         </div>
     );

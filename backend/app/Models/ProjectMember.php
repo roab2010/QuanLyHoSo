@@ -9,7 +9,12 @@ class ProjectMember extends Model
     protected $table = 'project_members';
     public $timestamps = false;
 
-    protected $fillable = ['project_id', 'employee_id'];
+    protected $fillable = ['project_id', 'employee_id', 'project_position_id'];
+
+    public function projectPositionTitle()
+    {
+        return $this->belongsTo(ProjectPositionTitle::class, 'project_position_id');
+    }
 
     public function project()
     {

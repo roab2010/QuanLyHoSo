@@ -8,17 +8,20 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
+// Font constant
+const FONT_PREMIUM = "'Be Vietnam Pro', sans-serif";
+
 /* ─── Confirm Dialog ─── */
 function ConfirmDialog({ message, onConfirm, onCancel }) {
   return (
-    <div className="toast-overlay" onClick={onCancel}>
-      <div className="confirm-box" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-icon">⚠️</div>
-        <h4 className="confirm-title">Xác nhận</h4>
-        <p className="confirm-message">{message}</p>
-        <div className="confirm-actions">
-          <button className="confirm-btn confirm-cancel" onClick={onCancel}>Hủy bỏ</button>
-          <button className="confirm-btn confirm-ok" onClick={onConfirm}>Đồng ý</button>
+    <div className="toast-overlay" onClick={onCancel} style={{ zIndex: 3000 }}>
+      <div className="confirm-box" onClick={(e) => e.stopPropagation()} style={{ fontFamily: FONT_PREMIUM, borderRadius: '24px', padding: '32px' }}>
+        <div className="confirm-icon" style={{ fontSize: '40px', marginBottom: '16px' }}>⚠️</div>
+        <h4 className="confirm-title" style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', marginBottom: '12px' }}>Xác nhận hành động</h4>
+        <p className="confirm-message" style={{ fontSize: '15px', color: '#64748b', fontWeight: '500', lineHeight: '1.6', marginBottom: '32px' }}>{message}</p>
+        <div className="confirm-actions" style={{ display: 'flex', gap: '12px' }}>
+          <button className="confirm-btn confirm-cancel" onClick={onCancel} style={{ flex: 1, padding: '12px', borderRadius: '12px', fontWeight: '800', background: '#f1f5f9', color: '#64748b', border: 'none', cursor: 'pointer', fontFamily: FONT_PREMIUM }}>HUỶ BỎ</button>
+          <button className="confirm-btn confirm-ok" onClick={onConfirm} style={{ flex: 1, padding: '12px', borderRadius: '12px', fontWeight: '900', background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: FONT_PREMIUM }}>ĐỒNG Ý</button>
         </div>
       </div>
     </div>

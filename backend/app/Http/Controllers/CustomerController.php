@@ -85,23 +85,35 @@ class CustomerController extends Controller
             'password'  => 'nullable|string|min:6', // Không bắt buộc khi sửa
         ]);
 
-        $updateData = [
-            'full_name' => $request->full_name,
-            'phone'     => $request->phone,
-            'email'     => $request->email,
-            'address'   => $request->address, // Cập nhật địa chỉ
-        ];
+        $updateData = [];
+        if ($request->has('full_name')) $updateData['full_name'] = $request->full_name;
+        if ($request->has('phone')) $updateData['phone'] = $request->phone;
+        if ($request->has('email')) $updateData['email'] = $request->email;
+        if ($request->has('address')) $updateData['address'] = $request->address;
 
         // Kiểm tra nếu admin có điền mật khẩu mới vào ô nhập
         if ($request->filled('password')) {
             $updateData['password'] = bcrypt($request->password);
         }
 
+        // Xử lý upload ảnh đại diện
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = public_path('uploads/avatars');
+            if (!file_exists($path)) {
+                mkdir($path, 0777, true);
+            }
+            $file->move($path, $filename);
+            $updateData['image'] = url('uploads/avatars/' . $filename);
+        }
+
         $customer->update($updateData);
 
         return response()->json([
             'status' => 'success', 
-            'message' => 'Cập nhật thành công'
+            'message' => 'Cập nhật thành công',
+            'user' => $customer
         ]);
     }
 }

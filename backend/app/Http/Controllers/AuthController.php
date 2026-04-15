@@ -30,6 +30,8 @@ class AuthController extends Controller
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,
                 'email' => $customer->email,
+                'phone' => $customer->phone,
+                'image' => $customer->image,
                 'role' => 'customer'
             ]
         ]);
@@ -43,7 +45,10 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::with('role')->where('username', $request->username)->first();
+        $user = User::with('role')
+            ->where('username', $request->username)
+            ->orWhere('email', $request->username)
+            ->first();
 
         // Kiểm tra mật khẩu (Sử dụng password_hash từ model User)
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
@@ -57,8 +62,11 @@ class AuthController extends Controller
                 'username' => $user->username,
                 'full_name' => $user->full_name,
                 'email' => $user->email,
+                'phone' => $user->phone,
                 'image' => $user->image,
-                'role' => $user->role->name ?? 'staff'
+                'role' => $user->role->name ?? 'staff',
+                'role_color' => $user->role->color ?? '#3b82f6',
+                'permissions' => $user->role->permissions ?? '[]'
             ]
         ]);
     }
@@ -69,7 +77,13 @@ class AuthController extends Controller
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('uploads/avatars'), $filename);
+            
+            $path = public_path('uploads/avatars');
+            if (!file_exists($path)) {
+                mkdir($path, 0777, true);
+            }
+            
+            $file->move($path, $filename);
             $user->image = url('uploads/avatars/' . $filename);
         }
 
@@ -81,7 +95,21 @@ class AuthController extends Controller
             $user->email = $request->email;
         }
 
+        if ($request->has('phone')) {
+            $user->phone = $request->phone;
+        }
+
         $user->save();
+
+        // Đồng bộ sang bảng employees nếu có liên kết
+        $employeeUpdate = [];
+        if ($user->full_name) $employeeUpdate['full_name'] = $user->full_name;
+        if ($user->email) $employeeUpdate['email'] = $user->email;
+        if ($user->phone) $employeeUpdate['phone'] = $user->phone;
+
+        if (!empty($employeeUpdate)) {
+            \DB::table('employees')->where('user_id', $user->id)->update($employeeUpdate);
+        }
 
         return response()->json([
             'message' => 'Cập nhật trang cá nhân thành công',
