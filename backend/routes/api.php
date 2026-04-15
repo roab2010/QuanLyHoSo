@@ -9,6 +9,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\ProjectDocumentController;
 
 // AUTH ROUTES
 Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)
@@ -38,6 +39,11 @@ Route::post('/projects/{projectId}/members', [ProjectController::class, 'addMemb
 Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::class, 'removeMember']);
 
 // TÀI LIỆU DỰ ÁN (PROJECT DOCUMENTS)
+Route::get('/all-documents', [ProjectDocumentController::class, 'index']);
+Route::get('/documents-metadata', [ProjectDocumentController::class, 'getMetadata']);
+Route::post('/documents/upload', [ProjectDocumentController::class, 'store']);
+Route::post('/documents/{id}', [ProjectDocumentController::class, 'update']);
+Route::delete('/documents/{id}', [ProjectDocumentController::class, 'destroy']);
 Route::put('/projects/{projectId}/documents/{docId}', [ProjectController::class, 'updateDocument']);
 
 // DANH MỤC

@@ -111,11 +111,13 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                             {label === "Bảng điều khiển" ? <LayoutDashboard size={20} color="#6366f1" /> :
                                 label === "Danh sách hồ sơ" ? <FolderOpen size={20} color="#eab308" /> :
                                     label === "Danh mục dự án" ? <Settings size={20} color="#9ca3af" /> :
-                                        label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
-                                            label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
-                                                label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
-                                                    label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
-                                                        <FolderOpen size={20} />}
+                                        label === "Quản lý tài liệu" ? <FileSpreadsheet size={20} color="#3b82f6" /> :
+                                            label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
+                                                label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
+                                                    label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
+                                                        label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
+                                                            label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
+                                                                <FolderOpen size={20} />}
                         </span>
                         {label}
                     </button>
