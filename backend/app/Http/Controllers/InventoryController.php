@@ -396,6 +396,7 @@ class InventoryController extends Controller
                     'product_name' => $product ? $product->name : 'N/A',
                     'sku'          => $product ? $product->sku : 'N/A',
                     'unit'         => $product ? $product->unit : '',
+                    'type'         => $product ? $product->type : 'CONSUMABLE',
                     'price'        => $product ? (float) $product->price : 0,
                     'space_coefficient' => $product ? (float) ($product->space_coefficient ?? 1) : 1,
                     'qty_at_project'    => round($remaining, 2),

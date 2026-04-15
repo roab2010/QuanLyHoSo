@@ -141,6 +141,45 @@ export const removeMember = async (projectId, memberId) => {
 };
 
 /**
+ * --- PHẦN VẬT TƯ DỰ ÁN (PROJECT MATERIALS) ---
+ */
+
+/**
+ * Lấy danh sách vật tư đã xuất kho cho dự án (chưa hoàn trả đủ)
+ */
+export const getProjectExportedItems = async (projectId) => {
+  try {
+    const res = await api.get(`/inventory/project-items/${projectId}`);
+    return res.data;
+  } catch (e) {
+    console.error("Lỗi lấy vật tư dự án:", e);
+    return { success: false, items: [] };
+  }
+};
+
+/**
+ * Hoàn trả vật tư thừa từ dự án về kho
+ */
+export const returnItemsToWarehouse = async (payload) => {
+  const res = await api.post(`/inventory/import-from-project`, payload);
+  return res.data;
+};
+
+/**
+ * Lấy danh sách kho
+ */
+export const getAllWarehouses = async () => {
+  try {
+    const res = await api.get("/warehouses");
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Lỗi lấy kho:", e);
+    return [];
+  }
+};
+
+/**
  * --- PHẦN NHÂN VIÊN ---
  */
 export const getAllEmployees = async () => {

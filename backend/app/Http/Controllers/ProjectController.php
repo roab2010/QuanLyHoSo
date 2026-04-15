@@ -45,6 +45,8 @@ class ProjectController extends Controller
             'address' => 'required|string',
             'priority' => 'required|string',
             'max_warehouse_capacity' => 'required|numeric',
+            'estimated_budget' => 'nullable|numeric',
+            'contract_value' => 'nullable|numeric',
         ], [
             'required' => ':attribute không được để trống.',
             'date' => ':attribute không đúng định dạng ngày.',
@@ -57,6 +59,8 @@ class ProjectController extends Controller
             'address' => 'Địa chỉ',
             'priority' => 'Độ ưu tiên',
             'max_warehouse_capacity' => 'Công suất kho',
+            'estimated_budget' => 'Chi phí dự kiến',
+            'contract_value' => 'Giá trị hợp đồng',
         ]);
 
         if ($validator->fails()) {
@@ -101,6 +105,8 @@ class ProjectController extends Controller
                 'priority' => $request->priority ?? 'MEDIUM',
                 'created_at' => now(),
                 'max_warehouse_capacity' => $request->max_warehouse_capacity ?? 0,
+                'estimated_budget' => $request->estimated_budget ?? 0,
+                'contract_value' => $request->contract_value ?? 0,
                 'status_updated_at' => now(),
             ]);
 
@@ -180,6 +186,18 @@ class ProjectController extends Controller
         
         if ($request->has('address')) {
             $project->address = $request->address ?? '';
+        }
+
+        if ($request->has('estimated_budget')) {
+            $project->estimated_budget = $request->estimated_budget;
+        }
+
+        if ($request->has('contract_value')) {
+            $project->contract_value = $request->contract_value;
+        }
+
+        if ($request->has('max_warehouse_capacity')) {
+            $project->max_warehouse_capacity = $request->max_warehouse_capacity;
         }
 
         // 4. THÔNG MINH HÓA: Nếu đổi danh mục, tự động nạp quy trình mới

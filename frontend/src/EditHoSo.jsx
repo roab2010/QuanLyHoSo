@@ -38,7 +38,9 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
     const [formData, setFormData] = useState({
         name: "",
         category_id: "",
-        address: ""
+        address: "",
+        estimated_budget: 0,
+        contract_value: 0
     });
 
     const [debouncedAddress, setDebouncedAddress] = useState("");
@@ -63,7 +65,9 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                 setFormData({
                     name: projData.name || "",
                     category_id: projData.category_id || "",
-                    address: projData.address || ""
+                    address: projData.address || "",
+                    estimated_budget: projData.estimated_budget || 0,
+                    contract_value: projData.contract_value || 0
                 });
 
                 if (projData.status_updated_at) {
@@ -194,6 +198,30 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                                     </select>
                                 </div>
                             </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                <div style={modernStyles.inputGroup}>
+                                    <label style={modernStyles.label}>Chi phí dự kiến (VNĐ)</label>
+                                    <input 
+                                        style={modernStyles.input} 
+                                        type="number" 
+                                        name="estimated_budget" 
+                                        value={formData.estimated_budget} 
+                                        onChange={handleFormChange} 
+                                    />
+                                </div>
+                                <div style={modernStyles.inputGroup}>
+                                    <label style={modernStyles.label}>Giá trị hợp đồng (VNĐ)</label>
+                                    <input 
+                                        style={modernStyles.input} 
+                                        type="number" 
+                                        name="contract_value" 
+                                        value={formData.contract_value} 
+                                        onChange={handleFormChange} 
+                                    />
+                                </div>
+                            </div>
+
                             <div style={modernStyles.inputGroup}>
                                 <label style={modernStyles.label}>Địa điểm thi công (Địa chỉ đầy đủ)</label>
                                 <input style={modernStyles.input} name="address" value={formData.address} onChange={handleFormChange} />

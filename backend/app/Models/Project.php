@@ -21,7 +21,10 @@ public $timestamps = false;
     'address', 
     'start_date',
     'category_id',
-    'customer_id'
+    'customer_id',
+    'estimated_budget',
+    'contract_value',
+    'max_warehouse_capacity'
 ];
 
     /**
