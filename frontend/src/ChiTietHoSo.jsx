@@ -67,6 +67,13 @@ export default function ChiTietHoSo() {
         if (data) setProject(data);
         if (showLoading) setLoading(false);
     };
+    const getActionTheme = (action) => {
+    const text = action.toLowerCase();
+    if (text.includes("khởi tạo")) return "#16a34a";
+    if (text.includes("trạng thái")) return "#ea580c";
+    if (text.includes("cập nhật") || text.includes("thay đổi")) return "#2563eb";
+    return "#64748b";
+};
 
     useEffect(() => {
         fetchData();

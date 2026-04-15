@@ -89,10 +89,9 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
     const handleSave = async () => {
         try {
             await updateHoSo(id, formData);
-            if (refreshData) refreshData(); // Cập nhật lại state global ở App.jsx
+            if (refreshData) refreshData();
             toast.success("Cập nhật hồ sơ thành công!");
 
-            // Lấy lại data để có History và Status mới nhất
             const projData = await getChiTietHoSo(id);
             if (projData) {
                 setProject(projData);
@@ -107,158 +106,65 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
         }
     };
 
+    // Hàm lấy màu sắc (Colorful) - Từ code mới của cưng
+    const getActionTheme = (action) => {
+        const text = (action || "").toLowerCase();
+        if (text.includes("khởi tạo")) return "#16a34a"; // Xanh lá
+        if (text.includes("trạng thái")) return "#ea580c"; // Cam
+        if (text.includes("cập nhật") || text.includes("thay đổi")) return "#2563eb"; // Xanh dương
+        return "#64748b"; // Mặc định
+    };
+
     const modernStyles = {
-        container: {
-            padding: '40px',
-            maxWidth: '1400px',
-            margin: '0 auto',
-            width: '100%',
-            animation: 'fadeIn 0.6s ease-out',
-        },
-        header: {
-            marginBottom: '32px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-        },
-        title: {
-            fontSize: '32px',
-            fontWeight: '800',
-            color: '#0f172a',
-            letterSpacing: '-1px',
-            margin: '0 0 8px 0',
-        },
-        subtitle: {
-            fontSize: '16px',
-            color: '#64748b',
-            margin: 0,
-        },
-        mainGrid: {
-            display: 'grid',
-            gridTemplateColumns: '1.8fr 1fr',
-            gap: '32px',
-            alignItems: 'start',
-        },
-        card: {
-            background: '#ffffff',
-            borderRadius: '24px',
-            padding: '32px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
-            border: '1px solid #f1f5f9',
-            marginBottom: '32px',
-        },
-        sectionTitle: {
-            fontSize: '18px',
-            fontWeight: '700',
-            color: '#1e293b',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-        },
-        inputGroup: {
-            marginBottom: '24px',
-        },
-        label: {
-            display: 'block',
-            fontSize: '12px',
-            fontWeight: '700',
-            color: '#94a3b8',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            marginBottom: '8px',
-        },
-        input: {
-            width: '100%',
-            padding: '14px 18px',
-            borderRadius: '14px',
-            border: '2px solid #f1f5f9',
-            fontSize: '15px',
-            color: '#0f172a',
-            transition: 'all 0.2s',
-            outline: 'none',
-            background: '#f8fafc',
-        },
-        buttonPrimary: {
-            background: '#2563eb',
-            color: 'white',
-            padding: '14px 28px',
-            borderRadius: '14px',
-            border: 'none',
-            fontWeight: '700',
-            fontSize: '15px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
-        },
-        buttonSecondary: {
-            background: 'white',
-            color: '#64748b',
-            padding: '14px 24px',
-            borderRadius: '14px',
-            border: '2px solid #f1f5f9',
-            fontWeight: '700',
-            fontSize: '15px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            marginRight: '12px',
-        },
+        container: { padding: '40px', maxWidth: '1400px', margin: '0 auto', width: '100%', animation: 'fadeIn 0.6s ease-out' },
+        header: { marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' },
+        title: { fontSize: '32px', fontWeight: '800', color: '#0f172a', letterSpacing: '-1px', margin: '0 0 8px 0' },
+        subtitle: { fontSize: '16px', color: '#64748b', margin: 0 },
+        mainGrid: { display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '32px', alignItems: 'start' },
+        card: { background: '#ffffff', borderRadius: '24px', padding: '32px', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)', border: '1px solid #f1f5f9', marginBottom: '32px' },
+        sectionTitle: { fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' },
+        inputGroup: { marginBottom: '24px' },
+        label: { display: 'block', fontSize: '12px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' },
+        input: { width: '100%', padding: '14px 18px', borderRadius: '14px', border: '2px solid #f1f5f9', fontSize: '15px', color: '#0f172a', transition: 'all 0.2s', outline: 'none', background: '#f8fafc' },
+        buttonPrimary: { background: '#2563eb', color: 'white', padding: '14px 28px', borderRadius: '14px', border: 'none', fontWeight: '700', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' },
+        buttonSecondary: { background: 'white', color: '#64748b', padding: '14px 24px', borderRadius: '14px', border: '2px solid #f1f5f9', fontWeight: '700', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', marginRight: '12px' },
         statusBadge: (status) => ({
-            padding: '8px 16px',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '700',
+            padding: '8px 16px', borderRadius: '12px', fontSize: '14px', fontWeight: '700',
             backgroundColor: STATUS_COLORS[STATUS_LABELS[status]]?.bg || '#f1f5f9',
             color: STATUS_COLORS[STATUS_LABELS[status]]?.color || '#64748b',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
+            display: 'inline-flex', alignItems: 'center', gap: '8px'
         }),
         historyItem: {
-            padding: '16px',
-            borderLeft: '3px solid #e2e8f0',
-            marginBottom: '16px',
-            position: 'relative',
-            background: '#f8fafc',
-            borderRadius: '0 12px 12px 0',
+            padding: '16px', borderLeft: '4px solid #e2e8f0', marginBottom: '16px', position: 'relative',
+            background: '#f8fafc', borderRadius: '0 12px 12px 0', transition: 'all 0.3s ease', cursor: 'pointer'
         },
-        historyDot: (active) => ({
-            position: 'absolute',
-            left: '-6px',
-            top: '20px',
-            width: '9px',
-            height: '9px',
-            borderRadius: '50%',
-            background: active ? '#2563eb' : '#cbd5e1',
-            border: '2px solid white',
+        // Sửa hàm historyDot để nhận màu trực tiếp
+        historyDot: (color) => ({
+            position: 'absolute', left: '-7px', top: '20px', width: '11px', height: '11px',
+            borderRadius: '50%', background: color || '#2563eb', border: '2px solid white', zIndex: 2, transition: 'all 0.3s ease'
         })
     };
 
-    if (loading)
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
-                <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                <p style={{ marginTop: '16px', fontWeight: '600', color: '#64748b' }}>Đang tối ưu dữ liệu...</p>
-            </div>
-        );
+    if (loading) return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
+            <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            <p style={{ marginTop: '16px', fontWeight: '600', color: '#64748b' }}>Đang tối ưu dữ liệu...</p>
+        </div>
+    );
 
-    if (!project)
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
-                <h3 style={{ color: '#1e293b' }}>Hồ sơ không tồn tại hoặc đã bị xóa.</h3>
-                <button onClick={() => navigate(-1)} style={modernStyles.buttonSecondary}>← Quay lại trang chủ</button>
-            </div>
-        );
+    if (!project) return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
+            <h3 style={{ color: '#1e293b' }}>Hồ sơ không tồn tại hoặc đã bị xóa.</h3>
+            <button onClick={() => navigate(-1)} style={modernStyles.buttonSecondary}>← Quay lại trang chủ</button>
+        </div>
+    );
 
     return (
         <div style={{ background: '#f8fafc', minHeight: '100vh', width: '100%', overflowY: 'auto' }}>
             <div style={modernStyles.container}>
-                {/* Header Section */}
                 <header style={modernStyles.header}>
                     <div>
-                        <p style={{ fontSize: '13px', color: '#2563eb', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-                            QUẢN LÝ DỰ ÁN › CHỈNH SỬA
-                        </p>
+                        <p style={{ fontSize: '13px', color: '#2563eb', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>QUẢN LÝ DỰ ÁN › CHỈNH SỬA</p>
                         <h1 style={modernStyles.title}>Hồ sơ thi công #{project.project_code}</h1>
                         <p style={modernStyles.subtitle}>Mã hệ thống: <span style={{ color: '#0f172a', fontWeight: '600' }}>{project.id}</span> • Khởi tạo: {createdAt}</p>
                     </div>
@@ -269,7 +175,6 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                 </header>
 
                 <div style={modernStyles.mainGrid}>
-                    {/* Left Column: Editor */}
                     <main>
                         <div style={modernStyles.card}>
                             <h3 style={modernStyles.sectionTitle}>
@@ -279,22 +184,11 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                 <div style={modernStyles.inputGroup}>
                                     <label style={modernStyles.label}>Tên gọi dự án</label>
-                                    <input 
-                                        style={modernStyles.input} 
-                                        name="name" 
-                                        value={formData.name} 
-                                        onChange={handleFormChange} 
-                                        placeholder="VD: Căn hộ cao cấp Saigon Centre..."
-                                    />
+                                    <input style={modernStyles.input} name="name" value={formData.name} onChange={handleFormChange} />
                                 </div>
                                 <div style={modernStyles.inputGroup}>
                                     <label style={modernStyles.label}>Loại hình công trình</label>
-                                    <select 
-                                        style={modernStyles.input} 
-                                        name="category_id" 
-                                        value={formData.category_id} 
-                                        onChange={handleFormChange}
-                                    >
+                                    <select style={modernStyles.input} name="category_id" value={formData.category_id} onChange={handleFormChange}>
                                         <option value="">— Chưa phân loại —</option>
                                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
@@ -302,16 +196,11 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                             </div>
                             <div style={modernStyles.inputGroup}>
                                 <label style={modernStyles.label}>Địa điểm thi công (Địa chỉ đầy đủ)</label>
-                                <input 
-                                    style={modernStyles.input} 
-                                    name="address" 
-                                    value={formData.address} 
-                                    onChange={handleFormChange}
-                                    placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố..."
-                                />
+                                <input style={modernStyles.input} name="address" value={formData.address} onChange={handleFormChange} />
                             </div>
                         </div>
 
+                        {/* GIỮ NGUYÊN CODE ĐỊNH VỊ KHÔNG GIAN (MAPS) */}
                         <div style={modernStyles.card}>
                             <h3 style={modernStyles.sectionTitle}>
                                 <span style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '10px' }}>📍</span>
@@ -334,7 +223,6 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                         </div>
                     </main>
 
-                    {/* Right Column: Status & Stats */}
                     <aside>
                         <div style={modernStyles.card}>
                             <label style={modernStyles.label}>Trạng thái hiện tại</label>
@@ -356,27 +244,39 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                             </div>
                         </div>
 
+                        {/* NHẬT KÝ HỒ SƠ - ÁP DỤNG CODE THỨ 2 (COLORFUL & NO i===0) */}
                         <div style={modernStyles.card}>
                             <h3 style={modernStyles.sectionTitle}>Nhật ký hồ sơ</h3>
                             <div style={{ maxHeight: '430px', overflowY: 'auto', paddingRight: '8px' }}>
                                 {project.histories && project.histories.length > 0 ? (
-                                    project.histories.map((h, i) => (
-                                        <div key={i} style={modernStyles.historyItem}>
-                                            <div style={modernStyles.historyDot(i === 0)}></div>
-                                            <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b', marginBottom: '4px' }}>
-                                                {h.action.includes('Thay đổi trạng thái sang') 
-                                                    ? `Đổi trạng thái › ${STATUS_LABELS[h.action.split('"')[1]] || 'Mới'}`
-                                                    : h.action}
+                                    project.histories.map((h, i) => {
+                                        const themeColor = getActionTheme(h.action);
+                                        return (
+                                            <div 
+                                                key={i} 
+                                                className="timeline-item-hoverable"
+                                                style={{ 
+                                                    ...modernStyles.historyItem,
+                                                    borderLeftColor: themeColor // Đổi màu cho MỌI dòng
+                                                }}
+                                            >
+                                                <div style={modernStyles.historyDot(themeColor)}></div>
+                                                <div style={{ 
+                                                    fontWeight: '700', fontSize: '14px', color: themeColor, 
+                                                    marginBottom: '4px', transition: 'color 0.3s ease' 
+                                                }}>
+                                                    {h.action.includes('Thay đổi trạng thái sang') 
+                                                        ? `Đổi trạng thái › ${STATUS_LABELS[h.action.split('"')[1]] || 'Mới'}`
+                                                        : h.action}
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>👤 {h.actor}</span>
+                                                    <span>{new Date(h.created_at).toLocaleDateString('vi-VN')}</span>
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>👤 {h.actor}</span>
-                                                <span>{new Date(h.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • {new Date(h.created_at).toLocaleDateString('vi-VN')}</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>Chưa có thay đổi nào được ghi lại.</p>
-                                )}
+                                        );
+                                    })
+                                ) : <p style={{ textAlign: 'center', color: '#94a3b8' }}>Chưa có thay đổi.</p>}
                             </div>
                         </div>
                     </aside>
@@ -384,14 +284,21 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
             </div>
             
             <style>{`
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes spin { to { transform: rotate(360deg); } }
                 ::-webkit-scrollbar { width: 6px; }
-                ::-webkit-scrollbar-track { background: transparent; }
                 ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-                ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+                /* HIỆU ỨNG HOVER SÁNG LÊN VÀ ĐỔI MÀU CHO TOÀN BỘ DÒNG */
+                .timeline-item-hoverable:hover {
+                    background: #ffffff !important;
+                    transform: translateX(10px);
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+                    border-left-width: 7px !important;
+                }
+                .timeline-item-hoverable:hover div[style*="border-radius: 50%"] {
+                    transform: scale(1.5);
+                }
             `}</style>
         </div>
     );
