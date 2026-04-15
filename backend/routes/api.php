@@ -8,6 +8,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\NewsController;
 
 // AUTH ROUTES
 Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)
@@ -94,3 +95,5 @@ Route::get('/customer/projects', [CustomerController::class, 'list']);
 Route::get('/customer/projects/{id}', [CustomerController::class, 'detail']);
 Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile']);
 Route::post('/customer/projects/{projectId}/upload', [ProjectController::class, 'customerUploadDocument']);
+Route::get('/news', [NewsController::class, 'index']);
+Route::get('/crawl-news', [NewsController::class, 'crawl']);

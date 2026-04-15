@@ -246,6 +246,7 @@ export default function App() {
         <Routes>
             <Route path="/" element={<HomePortal />} />
             <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+            <Route path="/news" element={<News />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminLayout {...adminProps} />} />
             <Route path="/admin/login" element={<LoginPage />} />
