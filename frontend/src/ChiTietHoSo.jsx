@@ -9,6 +9,9 @@ import {
     addMember,
     removeMember,
     getAllEmployees,
+    getProjectExportedItems,
+    returnItemsToWarehouse,
+    getAllWarehouses,
 } from "./hoSoService";
 import { useToast } from "./Toast";
 
@@ -58,8 +61,21 @@ export default function ChiTietHoSo() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState("");
 
+    // Vat tu & thiet bi state
+    const [vatTuItems, setVatTuItems] = useState([]);
+    const [vatTuLoading, setVatTuLoading] = useState(false);
+    const [showReturnModal, setShowReturnModal] = useState(false);
+    const [warehouses, setWarehouses] = useState([]);
+    const [returnWarehouseId, setReturnWarehouseId] = useState("");
+    const [returnQuantities, setReturnQuantities] = useState({});
+    const [returning, setReturning] = useState(false);
+    // Track which single item is being returned (null = return all)
+    const [singleReturnItem, setSingleReturnItem] = useState(null);
+
     // Drag state
     const dragItem = useRef(null);
+
+    const isProjectCompleted = project?.status === 'COMPLETED' || project?.status === 'done' || project?.progress === 100;
 
     const fetchData = async (showLoading = true) => {
         if (showLoading) setLoading(true);
@@ -67,17 +83,51 @@ export default function ChiTietHoSo() {
         if (data) setProject(data);
         if (showLoading) setLoading(false);
     };
+
+    const fetchVatTu = async () => {
+        setVatTuLoading(true);
+        const res = await getProjectExportedItems(id);
+        if (res?.success) setVatTuItems(res.items || []);
+        setVatTuLoading(false);
+    };
+
     const getActionTheme = (action) => {
-    const text = action.toLowerCase();
-    if (text.includes("khởi tạo")) return "#16a34a";
-    if (text.includes("trạng thái")) return "#ea580c";
-    if (text.includes("cập nhật") || text.includes("thay đổi")) return "#2563eb";
-    return "#64748b";
-};
+        const text = action.toLowerCase();
+        if (text.includes("khởi tạo")) return "#16a34a";
+        if (text.includes("trạng thái")) return "#ea580c";
+        if (text.includes("cập nhật") || text.includes("thay đổi")) return "#2563eb";
+        return "#64748b";
+    };
 
     useEffect(() => {
         fetchData();
     }, [id]);
+
+    useEffect(() => {
+        if (activeTab === "vat-tu") {
+            fetchVatTu();
+        }
+    }, [activeTab]);
+
+    /* ─── Mở modal hoàn trả ─── */
+    const openReturnModal = async (filterItem = null) => {
+        const whs = await getAllWarehouses();
+        setWarehouses(whs);
+        setSingleReturnItem(filterItem);
+
+        const initQty = {};
+        const listToUse = filterItem ? [filterItem] : vatTuItems;
+        listToUse.forEach(item => { 
+            if (item.type === 'RETURNABLE' || item.type === 'EQUIPMENT') {
+                initQty[item.product_id] = item.qty_at_project;
+            } else {
+                initQty[item.product_id] = 0; 
+            }
+        });
+        setReturnQuantities(initQty);
+        setReturnWarehouseId("");
+        setShowReturnModal(true);
+    };
 
     /* ─── TASK HANDLERS ─── */
     const handleAddTask = () => {
@@ -133,26 +183,22 @@ export default function ChiTietHoSo() {
         if (newOrd > curOrd + 1)
             return toast.warning("Chỉ được chuyển sang trạng thái kế tiếp!");
 
-        // Optimistic UI: Cập nhật giao diện ngay lập tức mà không cần chờ API
         setProject(prev => {
             const newTasks = prev.tasks.map(t =>
                 t.id === task.id ? { ...t, status: targetStatus } : t
             );
-            // Tính toán lại tiến độ ngay lập tức để người dùng thấy thanh progress chạy
             const total = newTasks.length;
             const done = newTasks.filter(t => t.status === "DONE").length;
             const newProgress = total > 0 ? Math.round((done / total) * 100) : 0;
-
             return { ...prev, tasks: newTasks, progress: newProgress };
         });
 
         try {
             await updateTask(id, task.id, { status: targetStatus });
-            // Cập nhật ngầm dữ liệu để đồng bộ hoàn toàn với Database (bao gồm History)
-            fetchData(false); 
+            fetchData(false);
         } catch (e) {
             toast.error(e.response?.data?.message || "Lỗi khi cập nhật trạng thái");
-            fetchData(false); // Nếu lỗi, tự động tải lại (hoàn tác UI)
+            fetchData(false);
         }
         dragItem.current = null;
     };
@@ -198,6 +244,50 @@ export default function ChiTietHoSo() {
         }
     };
 
+    /* ─── RETURN HANDLER ─── */
+    const handleConfirmReturn = async () => {
+        if (!returnWarehouseId) return toast.warning("Vui lòng chọn kho nhập!");
+
+        const listToCheck = singleReturnItem ? [singleReturnItem] : vatTuItems;
+        const items = listToCheck
+            .filter(item => (returnQuantities[item.product_id] || 0) > 0)
+            .map(item => ({
+                product_id: item.product_id,
+                quantity: returnQuantities[item.product_id]
+            }));
+
+        if (items.length === 0) return toast.warning("Vui lòng nhập số lượng cần trả!");
+
+        for (const orig of listToCheck) {
+            const retQty = returnQuantities[orig.product_id] || 0;
+            if (retQty > orig.qty_at_project) {
+                return toast.warning(
+                    `Số lượng trả "${orig.product_name}" vượt quá số lượng tại dự án!`
+                );
+            }
+        }
+
+        setReturning(true);
+        try {
+            const res = await returnItemsToWarehouse({
+                project_id: id,
+                warehouse_id: returnWarehouseId,
+                items
+            });
+            if (res?.success) {
+                toast.success("Đã hoàn trả vật tư về kho thành công!");
+                setShowReturnModal(false);
+                fetchVatTu();
+            } else {
+                toast.error(res?.message || "Lỗi khi hoàn trả!");
+            }
+        } catch (e) {
+            toast.error(e?.response?.data?.message || "Lỗi khi hoàn trả vật tư");
+        } finally {
+            setReturning(false);
+        }
+    };
+
     if (loading)
         return (
             <div className="loading-screen">
@@ -218,7 +308,6 @@ export default function ChiTietHoSo() {
     const tasks = project.tasks || [];
     const documents = project.documents || [];
     const members = project.members || [];
-    const equipments = project.equipments || [];
     const supervisorName = project.supervisor?.full_name || "—";
     const customerName =
         project.customer?.full_name || project.customer?.name || "—";
@@ -230,6 +319,9 @@ export default function ChiTietHoSo() {
         })
         : "—";
 
+    // Items shown in return modal
+    const returnModalItems = singleReturnItem ? [singleReturnItem] : vatTuItems;
+
     return (
         <div className="detail-container">
             {/* Header */}
@@ -239,7 +331,6 @@ export default function ChiTietHoSo() {
                     <h2>
                         Chi tiết hồ sơ #{project.project_code}: {project.name}
                     </h2>
-
                 </div>
                 <p className="sub-text">
                     Hệ thống quản lý hồ sơ kỹ thuật và vận hành thi công.
@@ -272,6 +363,7 @@ export default function ChiTietHoSo() {
 
                 {/* Nội dung chính */}
                 <div className="detail-main">
+
                     {/* ═══ TAB: THÔNG TIN CHUNG (DASHBOARD) ═══ */}
                     {activeTab === "thong-tin" && (
                         <div className="dashboard-layout animate-fade-in">
@@ -589,66 +681,178 @@ export default function ChiTietHoSo() {
                     {/* ═══ TAB: VẬT TƯ & THIẾT BỊ ═══ */}
                     {activeTab === "vat-tu" && (
                         <section className="equipment-section animate-fade-in">
+                            {/* Header section */}
                             <div className="section-header">
                                 <h3>Quản lý Vật tư & Thiết bị</h3>
+                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                    <button
+                                        className="btn-add-member"
+                                        onClick={fetchVatTu}
+                                        disabled={vatTuLoading}
+                                        style={{ background: "#475569" }}
+                                    >
+                                        🔄 Làm mới
+                                    </button>
+                                    {vatTuItems.length > 0 && !isProjectCompleted && (
+                                        <button
+                                            className="btn-add-member"
+                                            disabled
+                                            style={{ background: "#9ca3af", cursor: "not-allowed" }}
+                                            title="Chỉ có thể hoàn trả vật tư khi dự án đã hoàn thành"
+                                        >
+                                            🔒 Hoàn trả vật tư (Chờ hoàn thành)
+                                        </button>
+                                    )}
+                                    {vatTuItems.length > 0 && isProjectCompleted && (
+                                        <button
+                                            className="btn-add-member"
+                                            onClick={() => openReturnModal(null)}
+                                            style={{ background: "linear-gradient(135deg,#16a34a,#15803d)" }}
+                                        >
+                                            📦 Hoàn trả vật tư
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            {equipments.length > 0 ? (
-                                <div className="equipment-grid">
-                                    {equipments.map((eq) => {
-                                        const prod = eq.product || {};
-                                        const statusClass =
-                                            eq.status === "IN_USE"
-                                                ? "eq-in-use"
-                                                : eq.status === "FULLY_RETURNED"
-                                                    ? "eq-returned"
-                                                    : "eq-partial";
-                                        const statusLabel =
-                                            eq.status === "IN_USE"
-                                                ? "Đang sử dụng"
-                                                : eq.status === "FULLY_RETURNED"
-                                                    ? "Đã trả"
-                                                    : "Trả 1 phần";
-                                        return (
-                                            <div className="equipment-card" key={eq.id}>
-                                                <div className="eq-header">
-                                                    <span className="eq-icon">
-                                                        {prod.type === "RETURNABLE" ? "🏗️" : "🧱"}
-                                                    </span>
-                                                    <span className={`eq-status ${statusClass}`}>
-                                                        {statusLabel}
-                                                    </span>
-                                                </div>
-                                                <h4 className="eq-name">{prod.name || "—"}</h4>
-                                                <div className="eq-details">
-                                                    <div className="eq-detail">
-                                                        <label>Số lượng xuất</label>
-                                                        <span>{eq.quantity_dispatched}</span>
-                                                    </div>
-                                                    <div className="eq-detail">
-                                                        <label>Đã trả</label>
-                                                        <span>{eq.quantity_returned}</span>
-                                                    </div>
-                                                    <div className="eq-detail">
-                                                        <label>Đơn vị</label>
-                                                        <span>{prod.unit || "—"}</span>
-                                                    </div>
-                                                    <div className="eq-detail">
-                                                        <label>Ngày xuất</label>
-                                                        <span>
-                                                            {eq.dispatched_date
-                                                                ? new Date(
-                                                                    eq.dispatched_date,
-                                                                ).toLocaleDateString("vi-VN")
-                                                                : "—"}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+
+                            {/* Summary cards */}
+                            {vatTuItems.length > 0 && (
+                                <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+                                    <div style={{
+                                        background: "linear-gradient(135deg,#3b82f6,#1d4ed8)",
+                                        borderRadius: 12, padding: "14px 22px", color: "#fff",
+                                        minWidth: 130, boxShadow: "0 4px 15px rgba(59,130,246,0.3)"
+                                    }}>
+                                        <div style={{ fontSize: 26, fontWeight: 700 }}>{vatTuItems.length}</div>
+                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Loại vật tư</div>
+                                    </div>
+                                    <div style={{
+                                        background: "linear-gradient(135deg,#f59e0b,#d97706)",
+                                        borderRadius: 12, padding: "14px 22px", color: "#fff",
+                                        minWidth: 130, boxShadow: "0 4px 15px rgba(245,158,11,0.3)"
+                                    }}>
+                                        <div style={{ fontSize: 26, fontWeight: 700 }}>
+                                            {vatTuItems.reduce((s, i) => s + i.qty_at_project, 0).toFixed(1)}
+                                        </div>
+                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Tổng số lượng</div>
+                                    </div>
+                                    <div style={{
+                                        background: "linear-gradient(135deg,#10b981,#059669)",
+                                        borderRadius: 12, padding: "14px 22px", color: "#fff",
+                                        minWidth: 160, boxShadow: "0 4px 15px rgba(16,185,129,0.3)"
+                                    }}>
+                                        <div style={{ fontSize: 15, fontWeight: 700 }}>
+                                            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" })
+                                                .format(vatTuItems.reduce((s, i) => s + i.qty_at_project * i.price, 0))}
+                                        </div>
+                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Tổng giá trị</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Content */}
+                            {vatTuLoading ? (
+                                <div style={{ textAlign: "center", padding: "50px 20px", color: "#64748b" }}>
+                                    <div className="spinner" style={{ margin: "0 auto 14px" }}></div>
+                                    <p>Đang tải dữ liệu vật tư...</p>
+                                </div>
+                            ) : vatTuItems.length === 0 ? (
+                                <div style={{
+                                    textAlign: "center", padding: "60px 20px",
+                                    background: "#f8fafc", borderRadius: 16,
+                                    border: "2px dashed #e2e8f0"
+                                }}>
+                                    <div style={{ fontSize: 52, marginBottom: 14 }}>📦</div>
+                                    <p style={{ color: "#64748b", fontSize: 15, fontWeight: 500 }}>
+                                        Chưa có vật tư / thiết bị nào được xuất cho dự án này.
+                                    </p>
+                                    <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 8 }}>
+                                        Vật tư sẽ hiển thị tại đây khi có phiếu xuất kho (TO_PROJECT) cho dự án.
+                                    </p>
                                 </div>
                             ) : (
-                                <p className="empty-text">Chưa có vật tư / thiết bị nào.</p>
+                                <div style={{ overflowX: "auto", borderRadius: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.07)" }}>
+                                    <table className="doc-table" style={{ minWidth: 720 }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: 40, textAlign: "center" }}>#</th>
+                                                <th>TÊN VẬT TƯ</th>
+                                                <th>MÃ SKU</th>
+                                                <th style={{ textAlign: "center" }}>SL TẠI DỰ ÁN</th>
+                                                <th style={{ textAlign: "center" }}>ĐƠN VỊ</th>
+                                                <th style={{ textAlign: "right" }}>ĐƠN GIÁ</th>
+                                                <th style={{ textAlign: "right" }}>GIÁ TRỊ</th>
+                                                <th style={{ textAlign: "center" }}>HÀNH ĐỘNG</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {vatTuItems.map((item, idx) => (
+                                                <tr key={item.product_id}>
+                                                    <td style={{ textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                                                        {idx + 1}
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 14 }}>
+                                                            📦 {item.product_name}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span style={{
+                                                            background: "#f1f5f9", padding: "2px 8px",
+                                                            borderRadius: 6, fontSize: 12,
+                                                            fontFamily: "monospace", color: "#475569"
+                                                        }}>
+                                                            {item.sku}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        <span style={{
+                                                            background: "#fef3c7", color: "#92400e",
+                                                            padding: "3px 12px", borderRadius: 20,
+                                                            fontWeight: 700, fontSize: 14
+                                                        }}>
+                                                            {item.qty_at_project}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ textAlign: "center", color: "#64748b" }}>
+                                                        {item.unit || "—"}
+                                                    </td>
+                                                    <td style={{ textAlign: "right", color: "#475569", fontSize: 13 }}>
+                                                        {new Intl.NumberFormat("vi-VN").format(item.price)} ₫
+                                                    </td>
+                                                    <td style={{ textAlign: "right", fontWeight: 600, color: "#1e293b", fontSize: 13 }}>
+                                                        {new Intl.NumberFormat("vi-VN").format(
+                                                            item.qty_at_project * item.price
+                                                        )} ₫
+                                                    </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        {isProjectCompleted ? (
+                                                            <button
+                                                                onClick={() => openReturnModal(item)}
+                                                                style={{
+                                                                    background: "linear-gradient(135deg,#f59e0b,#d97706)",
+                                                                    color: "#fff", border: "none",
+                                                                    borderRadius: 8, padding: "6px 14px",
+                                                                    cursor: "pointer", fontSize: 12,
+                                                                    fontWeight: 600, whiteSpace: "nowrap",
+                                                                    transition: "opacity .15s"
+                                                                }}
+                                                                onMouseOver={e => e.currentTarget.style.opacity = ".85"}
+                                                                onMouseOut={e => e.currentTarget.style.opacity = "1"}
+                                                            >
+                                                                🔄 Hoàn trả
+                                                            </button>
+                                                        ) : (
+                                                            <span style={{ fontSize: 12, color: "#94a3b8" }} title="Chỉ được hoàn trả khi dự án hoàn thành">
+                                                                Chờ hoàn thành
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )}
                         </section>
                     )}
@@ -828,6 +1032,157 @@ export default function ChiTietHoSo() {
                             </button>
                             <button className="btn-submit" onClick={handleAddMember}>
                                 Thêm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Hoàn trả vật tư về kho */}
+            {showReturnModal && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget && !returning) setShowReturnModal(false);
+                    }}
+                >
+                    <div className="modal-box" style={{ maxWidth: 660, width: "95vw" }}>
+                        {/* Modal header */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                            <span style={{ fontSize: 26 }}>📦</span>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: 18 }}>Hoàn trả vật tư về kho</h3>
+                                <p style={{ margin: 0, fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                                    {singleReturnItem
+                                        ? `Hoàn trả: ${singleReturnItem.product_name}`
+                                        : `Hoàn trả ${vatTuItems.length} loại vật tư`}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Chọn kho nhập */}
+                        <div className="form-group">
+                            <label style={{ fontWeight: 600 }}>
+                                Kho nhập về <span style={{ color: "#ef4444" }}>*</span>
+                            </label>
+                            <select
+                                className="form-input"
+                                value={returnWarehouseId}
+                                onChange={(e) => setReturnWarehouseId(e.target.value)}
+                            >
+                                <option value="">— Chọn kho —</option>
+                                {warehouses.map((w) => (
+                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Bảng vật tư cần trả */}
+                        <div style={{
+                            border: "1px solid #e2e8f0", borderRadius: 10,
+                            overflow: "hidden", marginBottom: 12
+                        }}>
+                            <div style={{
+                                background: "#f8fafc", padding: "10px 14px",
+                                borderBottom: "1px solid #e2e8f0",
+                                fontSize: 12, fontWeight: 600, color: "#64748b",
+                                display: "grid",
+                                gridTemplateColumns: "1fr 110px 130px",
+                                gap: 8
+                            }}>
+                                <span>TÊN VẬT TƯ</span>
+                                <span style={{ textAlign: "center" }}>CÒN TẠI DỰ ÁN</span>
+                                <span style={{ textAlign: "center" }}>SỐ LƯỢNG TRẢ</span>
+                            </div>
+                            <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                                {returnModalItems.map((item, idx) => (
+                                    <div
+                                        key={item.product_id}
+                                        style={{
+                                            display: "grid",
+                                            gridTemplateColumns: "1fr 110px 130px",
+                                            gap: 8,
+                                            padding: "12px 14px",
+                                            alignItems: "center",
+                                            borderBottom: idx < returnModalItems.length - 1 ? "1px solid #f1f5f9" : "none",
+                                            background: idx % 2 === 0 ? "#fff" : "#fafafa"
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 13 }}>
+                                                {item.product_name}
+                                            </div>
+                                            <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 2 }}>
+                                                {item.sku} • {item.unit}
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: "center" }}>
+                                            <span style={{
+                                                background: "#fef3c7", color: "#92400e",
+                                                padding: "3px 10px", borderRadius: 20,
+                                                fontWeight: 700, fontSize: 13
+                                            }}>
+                                                {item.qty_at_project}
+                                            </span>
+                                        </div>
+                                        <div style={{ textAlign: "center" }}>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={item.qty_at_project}
+                                                step={0.01}
+                                                readOnly={item.type === 'RETURNABLE' || item.type === 'EQUIPMENT'}
+                                                value={returnQuantities[item.product_id] ?? 0}
+                                                onChange={(e) =>
+                                                    setReturnQuantities(prev => ({
+                                                        ...prev,
+                                                        [item.product_id]: parseFloat(e.target.value) || 0
+                                                    }))
+                                                }
+                                                style={{
+                                                    width: 90, padding: "6px 8px",
+                                                    textAlign: "center",
+                                                    border: "1.5px solid #e2e8f0",
+                                                    borderRadius: 8, fontSize: 14,
+                                                    outline: "none", fontWeight: 600,
+                                                    backgroundColor: (item.type === 'RETURNABLE' || item.type === 'EQUIPMENT') ? '#f1f5f9' : '#fff',
+                                                    cursor: (item.type === 'RETURNABLE' || item.type === 'EQUIPMENT') ? 'not-allowed' : 'text'
+                                                }}
+                                                onFocus={e => { if (item.type !== 'RETURNABLE' && item.type !== 'EQUIPMENT') e.target.style.borderColor = "#3b82f6" }}
+                                                onBlur={e => { if (item.type !== 'RETURNABLE' && item.type !== 'EQUIPMENT') e.target.style.borderColor = "#e2e8f0" }}
+                                            />
+                                        </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                        {/* Hint */}
+                        <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 18 }}>
+                            ⚠️ Thiết bị bắt buộc phải hoàn trả toàn bộ. Vật tư chỉ hoàn trả số dư thừa.
+                            Sau khi xác nhận, số lượng sẽ được cộng về kho đã chọn.
+                        </p>
+
+                        <div className="modal-footer">
+                            <button
+                                className="btn-cancel"
+                                onClick={() => setShowReturnModal(false)}
+                                disabled={returning}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                className="btn-submit"
+                                disabled={returning}
+                                style={{
+                                    background: returning
+                                        ? "#9ca3af"
+                                        : "linear-gradient(135deg,#16a34a,#15803d)",
+                                    cursor: returning ? "not-allowed" : "pointer"
+                                }}
+                                onClick={handleConfirmReturn}
+                            >
+                                {returning ? "⏳ Đang xử lý..." : "✔ Xác nhận hoàn trả"}
                             </button>
                         </div>
                     </div>
