@@ -74,6 +74,9 @@ Route::get('/inventory', [InventoryController::class, 'index']);
 Route::get('/products/{id}', [InventoryController::class, 'show']);
 Route::post('/products', [InventoryController::class, 'store']);
 Route::delete('/products/{id}', [InventoryController::class, 'destroy']);
+Route::post('/inventory/export', [InventoryController::class, 'export']);
+Route::post('/inventory/import-from-project', [InventoryController::class, 'importFromProject']);
+Route::get('/inventory/project-items/{projectId}', [InventoryController::class, 'getProjectExportedItems']);
 
 Route::get('/suppliers', [SupplierController::class, 'index']);
 Route::post('/suppliers', [SupplierController::class, 'store']);

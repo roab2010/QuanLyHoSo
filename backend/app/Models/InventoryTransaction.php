@@ -11,10 +11,12 @@ class InventoryTransaction extends Model
         'transaction_code', 
         'type',             // 'IN' hoặc 'OUT'
         'supplier_id',      // Nhà cung cấp
+        'project_id',       // Dự án (nếu xuất/nhập liên quan đến dự án)
         'warehouse_id',     // Kho lưu trữ
         'transaction_date', // Ngày nhập ông chọn từ React
         'created_by', 
-        'status'
+        'status',
+        'note',
     ];
 
     // Liên kết với chi tiết các món hàng trong phiếu
