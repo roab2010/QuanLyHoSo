@@ -40,6 +40,43 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Lấy các dự án mà nhân viên đang tham gia
+     */
+    public function getEmployeeProjects($id)
+    {
+        // Xét dự án nhân viên tham gia thông qua project_members
+        $memberProjects = DB::table('project_members')
+            ->join('projects', 'project_members.project_id', '=', 'projects.id')
+            ->leftJoin('project_position_titles', 'project_members.project_position_id', '=', 'project_position_titles.id')
+            ->where('project_members.employee_id', $id)
+            ->select(
+                'projects.id',
+                'projects.project_code',
+                'projects.name as project_name',
+                'projects.status',
+                \DB::raw("IFNULL(project_position_titles.name, 'Thành viên') as position_in_project")
+            )
+            ->get();
+
+        // Xét dự án nhân viên tham gia dưới vai trò chỉ huy trưởng (supervisor_id)
+        $supervisorProjects = DB::table('projects')
+            ->where('supervisor_id', $id)
+            ->select(
+                'projects.id',
+                'projects.project_code',
+                'projects.name as project_name',
+                'projects.status',
+                \DB::raw("'Chỉ huy trưởng' as position_in_project")
+            )
+            ->get();
+
+        // Gộp hai danh sách lại và loại bỏ cái trùng (dựa vào id dự án)
+        $mergedProjects = collect($memberProjects)->merge($supervisorProjects)->unique('id')->values()->all();
+
+        return response()->json($mergedProjects);
+    }
+
+    /**
      * Lấy danh sách Roles để đổ vào form thêm nhân sự
      */
     public function getRoles()

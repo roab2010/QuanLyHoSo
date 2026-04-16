@@ -21,6 +21,12 @@ export default function QuanLyNhanVien({ admin }) {
     const [memberFormData, setMemberFormData] = useState({ full_name: "", email: "", phone: "", role_id: "" });
     const [submitting, setSubmitting] = useState(false);
 
+    // Modal State for Employee Details
+    const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [employeeProjects, setEmployeeProjects] = useState([]);
+    const [loadingProjects, setLoadingProjects] = useState(false);
+
     // Permission Check
     const userPermissions = React.useMemo(() => {
         try {
@@ -210,7 +216,8 @@ export default function QuanLyNhanVien({ admin }) {
         setSubmitting(false);
     };
 
-    const handleDeleteEmployee = async (id, name) => {
+    const handleDeleteEmployee = async (id, name, e) => {
+        if (e) e.stopPropagation();
         const confirmed = await toast.showConfirm(`Bạn có chắc chắn muốn xóa nhân viên "${name}"? Thao tác này sẽ xóa cả tài khoản đăng nhập và không thể hoàn tác.`);
         if (!confirmed) return;
 
@@ -223,6 +230,30 @@ export default function QuanLyNhanVien({ admin }) {
         } catch (error) {
             toast.error(error.response?.data?.message || "Lỗi khi xóa nhân viên");
         }
+    };
+
+    const handleOpenEmployeeDetails = async (emp) => {
+        setSelectedEmployee(emp);
+        setShowEmployeeModal(true);
+        setLoadingProjects(true);
+        try {
+            const { data } = await api.get(`/manage/employees/${emp.id}/projects`);
+            setEmployeeProjects(data || []);
+        } catch (error) {
+            toast.error("Lỗi khi tải thông tin dự án của nhân viên");
+            setEmployeeProjects([]);
+        } finally {
+            setLoadingProjects(false);
+        }
+    };
+
+    const STATUS_COLORS = {
+        'Chờ duyệt': { bg: '#fee2e2', color: '#dc2626' },
+        'Đang xử lý': { bg: '#ffedd5', color: '#ea580c' },
+        'Hoàn thành': { bg: '#dcfce7', color: '#16a34a' },
+        'DRAFT': { bg: '#fee2e2', color: '#dc2626' },
+        'PROCESSING': { bg: '#ffedd5', color: '#ea580c' },
+        'DONE': { bg: '#dcfce7', color: '#16a34a' }
     };
 
     const Switch = ({ checked, onChange, disabled }) => (
@@ -269,7 +300,7 @@ export default function QuanLyNhanVien({ admin }) {
                     <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '24px' }}>
                             {employees.map(emp => (
-                                <div key={emp.id} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #f1f5f9', transition: 'all 0.3s ease', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', position: 'relative' }}>
+                                <div key={emp.id} onClick={() => handleOpenEmployeeDetails(emp)} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #f1f5f9', cursor: 'pointer', transition: 'all 0.3s ease', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', position: 'relative' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                             <div style={{ width: '64px', height: '64px', borderRadius: '18px', background: emp.role_color || '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '24px', overflow: 'hidden' }}>
@@ -290,8 +321,8 @@ export default function QuanLyNhanVien({ admin }) {
                                             </div>
                                             {emp.role_name !== 'admin' && (
                                                 <button 
-                                                    onClick={() => handleDeleteEmployee(emp.id, emp.full_name)}
-                                                    style={{ background: '#fee2e2', color: '#ef4444', border: 'none', width: '30px', height: '30px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
+                                                    onClick={(e) => handleDeleteEmployee(emp.id, emp.full_name, e)}
+                                                    style={{ background: '#fee2e2', color: '#ef4444', border: 'none', width: '30px', height: '30px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', zIndex: 10 }}
                                                     title="Xóa nhân viên"
                                                 >
                                                     <Trash2 size={16} />
@@ -436,6 +467,78 @@ export default function QuanLyNhanVien({ admin }) {
                         <div style={{ display: 'flex', gap: '20px', marginTop: '48px' }}>
                             <button className="btn-cancel" style={{ flex: 1, padding: '18px', borderRadius: '18px', fontWeight: '800', color: '#94a3b8' }} onClick={() => setShowMemberModal(false)}>HỦY</button>
                             <button className="btn-submit" style={{ flex: 1, padding: '18px', borderRadius: '18px', fontWeight: '900', boxShadow: '0 10px 20px rgba(37, 99, 235, 0.2)' }} onClick={handleSaveMember} disabled={submitting}>XÁC NHẬN</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Employee Details Modal */}
+            {showEmployeeModal && selectedEmployee && (
+                <div className="modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(10px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={(e) => { if (e.target === e.currentTarget) setShowEmployeeModal(false); }}>
+                    <div className="modal-box" style={{ width: '600px', maxWidth: '90%', maxHeight: '90vh', backgroundColor: '#fff', borderRadius: '32px', border: 'none', boxShadow: '0 40px 80px rgba(0,0,0,0.4)', fontFamily: FONT_PREMIUM, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        {/* Header Details */}
+                        <div style={{ padding: '40px', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '24px', alignItems: 'center', position: 'relative' }}>
+                            <button onClick={() => setShowEmployeeModal(false)} style={{ position: 'absolute', top: '24px', right: '24px', background: '#e2e8f0', border: 'none', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569' }}><Check size={18} style={{ transform: 'rotate(45deg)' }} /></button>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: selectedEmployee.role_color || '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '32px', overflow: 'hidden', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' }}>
+                                {selectedEmployee.image ? (
+                                    <img src={selectedEmployee.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    selectedEmployee.full_name.substring(0, 1).toUpperCase()
+                                )}
+                            </div>
+                            <div>
+                                <h3 style={{ margin: '0 0 4px', fontSize: '24px', fontWeight: '900', color: '#0f172a' }}>{selectedEmployee.full_name}</h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>#{selectedEmployee.employee_code}</span>
+                                    <span style={{ background: (selectedEmployee.role_color || '#94a3b8') + '20', color: selectedEmployee.role_color || '#64748b', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>{selectedEmployee.role_name || 'KHÔNG CÓ QUYỀN'}</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px', color: '#475569', fontWeight: '500' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} color="#94a3b8" /> {selectedEmployee.email || 'Chưa cập nhật'}</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Phone size={14} color="#94a3b8" /> {selectedEmployee.phone || 'Chưa cập nhật'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Projects List */}
+                        <div style={{ padding: '40px', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
+                            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}><Briefcase size={20} color="#2563eb" /> DỰ ÁN ĐANG THAM GIA</h4>
+                                <span style={{ background: '#f1f5f9', color: '#475569', padding: '4px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '800' }}>{employeeProjects.length} dự án</span>
+                            </div>
+
+                            {loadingProjects ? (
+                                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontWeight: '600' }}>Đang tải danh sách dự án...</div>
+                            ) : employeeProjects.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '60px 40px', background: '#f8fafc', borderRadius: '24px', border: '2px dashed #e2e8f0' }}>
+                                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fff', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}><Briefcase size={28} /></div>
+                                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#475569', marginBottom: '4px' }}>Chưa tham gia dự án</div>
+                                    <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '500' }}>Nhân viên này hiện chưa được phân công vào dự án nào.</div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {employeeProjects.map((proj) => {
+                                        const statusLabel = proj.status === 'DONE' || proj.status === 'COMPLETED' ? 'Hoàn thành' : 
+                                                            proj.status === 'PROCESSING' ? 'Đang xử lý' : 
+                                                            proj.status === 'DRAFT' || proj.status === 'PENDING' ? 'Chờ duyệt' : proj.status;
+                                        const colorObj = STATUS_COLORS[statusLabel] || STATUS_COLORS[proj.status] || { bg: '#f1f5f9', color: '#64748b' };
+                                        
+                                        return (
+                                            <div key={proj.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderRadius: '16px', border: '1px solid #f1f5f9', background: '#f8fafc', transition: 'all 0.2s' }}>
+                                                <div>
+                                                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>{proj.project_name}</div>
+                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#2563eb', background: '#eff6ff', padding: '4px 10px', borderRadius: '6px' }}>#{proj.project_code}</span>
+                                                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}><UserCheck size={14} /> Chức danh: <strong>{proj.position_in_project}</strong></span>
+                                                    </div>
+                                                </div>
+                                                <div style={{ fontWeight: '800', fontSize: '11px', textTransform: 'uppercase', padding: '6px 12px', borderRadius: '100px', background: colorObj.bg, color: colorObj.color }}>
+                                                    {statusLabel}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -10,6 +10,9 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
         email: admin?.email || "",
         phone: admin?.phone || ""
     });
+    const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [isEditingPassword, setIsEditingPassword] = useState(false);
 
     const getInitials = () => {
         if (admin?.full_name) {
@@ -60,6 +63,31 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
         }
     };
 
+    const handleChangePassword = async () => {
+        if (passwordData.new_password !== passwordData.new_password_confirmation) {
+            alert("Mật khẩu xác nhận không khớp!");
+            return;
+        }
+        if (passwordData.new_password.length < 6) {
+            alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            const res = await api.post(`/admin/change-password/${admin.id}`, passwordData);
+            if (res.status === 200) {
+                alert("Đổi mật khẩu thành công!");
+                setIsEditingPassword(false);
+                setPasswordData({ current_password: "", new_password: "", new_password_confirmation: "" });
+            }
+        } catch (err) {
+            alert(err.response?.data?.message || "Lỗi đổi mật khẩu");
+        } finally {
+            setChangingPassword(false);
+        }
+    };
+
     const hasPermission = (module) => {
         if (!admin) return false;
         if (admin.role === 'admin') return true;
@@ -77,7 +105,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             if (label === "Danh sách hồ sơ" || label === "Danh mục dự án") return hasPermission("projects");
             if (label === "Quản lý khách hàng" || label === "Quản lý nhân viên") return hasPermission("hr");
             if (label === "Quản lý kho") return hasPermission("inventory");
-            if (label === "Báo cáo") return hasPermission("documents");
+            if (label === "Báo cáo" || label === "Quản lý tài liệu") return hasPermission("documents");
             return true;
         });
     };
@@ -111,11 +139,13 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                             {label === "Bảng điều khiển" ? <LayoutDashboard size={20} color="#6366f1" /> :
                                 label === "Danh sách hồ sơ" ? <FolderOpen size={20} color="#eab308" /> :
                                     label === "Danh mục dự án" ? <Settings size={20} color="#9ca3af" /> :
-                                        label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
-                                            label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
-                                                label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
-                                                    label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
-                                                        <FolderOpen size={20} />}
+                                        label === "Quản lý tài liệu" ? <FileSpreadsheet size={20} color="#3b82f6" /> :
+                                            label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
+                                                label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
+                                                    label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
+                                                        label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
+                                                            label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
+                                                                <FolderOpen size={20} />}
                         </span>
                         {label}
                     </button>
@@ -210,37 +240,85 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                         <p style={{ color: '#6b7280', fontSize: '14px' }}>Cập nhật thông tin cá nhân của bạn</p>
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                        <label>Họ và Tên</label>
-                        <input 
-                            className="form-input" 
-                            value={profileData.full_name} 
-                            onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
-                        />
+                    <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', marginBottom: '24px' }}>
+                        <button
+                            style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: !isEditingPassword ? '2px solid #3b82f6' : '2px solid transparent', color: !isEditingPassword ? '#3b82f6' : '#6b7280', fontWeight: '600', cursor: 'pointer' }}
+                            onClick={() => setIsEditingPassword(false)}
+                        >Thông tin</button>
+                        <button
+                            style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: isEditingPassword ? '2px solid #3b82f6' : '2px solid transparent', color: isEditingPassword ? '#3b82f6' : '#6b7280', fontWeight: '600', cursor: 'pointer' }}
+                            onClick={() => setIsEditingPassword(true)}
+                        >Mật khẩu</button>
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                        <label>Email</label>
-                        <input 
-                            className="form-input" 
-                            value={profileData.email} 
-                            onChange={(e) => setProfileData({...profileData, email: e.target.value})}
-                        />
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '24px' }}>
-                        <label>Số điện thoại</label>
-                        <input 
-                            className="form-input" 
-                            value={profileData.phone} 
-                            onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setShowProfileModal(false)}>Hủy</button>
-                        <button className="btn-submit" style={{ flex: 1 }} onClick={handleUpdateProfile}>Lưu thay đổi</button>
-                    </div>
+                    {!isEditingPassword ? (
+                        <>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Họ và Tên</label>
+                                <input 
+                                    className="form-input" 
+                                    value={profileData.full_name} 
+                                    onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Email</label>
+                                <input 
+                                    className="form-input" 
+                                    value={profileData.email} 
+                                    onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '24px' }}>
+                                <label>Số điện thoại</label>
+                                <input 
+                                    className="form-input" 
+                                    value={profileData.phone} 
+                                    onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setShowProfileModal(false)}>Hủy</button>
+                                <button className="btn-submit" style={{ flex: 1 }} onClick={handleUpdateProfile}>Lưu thay đổi</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Mật khẩu hiện tại</label>
+                                <input 
+                                    type="password"
+                                    className="form-input" 
+                                    value={passwordData.current_password} 
+                                    onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Mật khẩu mới</label>
+                                <input 
+                                    type="password"
+                                    className="form-input" 
+                                    value={passwordData.new_password} 
+                                    onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '24px' }}>
+                                <label>Xác nhận mật khẩu mới</label>
+                                <input 
+                                    type="password"
+                                    className="form-input" 
+                                    value={passwordData.new_password_confirmation} 
+                                    onChange={(e) => setPasswordData({...passwordData, new_password_confirmation: e.target.value})}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setIsEditingPassword(false)}>Hủy</button>
+                                <button className="btn-submit" style={{ flex: 1 }} disabled={changingPassword} onClick={handleChangePassword}>
+                                    {changingPassword ? "Đang xử lý..." : "Cập nhật mật khẩu"}
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         )}

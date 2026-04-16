@@ -132,7 +132,7 @@ export default function HomePortal() {
                                 <h2>Tin tức Bất động sản</h2>
                                 <p>Cập nhật thị trường và pháp lý mới nhất từ VnExpress</p>
                             </div>
-                            <button className="p-btn-more">
+                            <button className="p-btn-more" onClick={() => navigate("/news")}>
                                 Xem tất cả <span className="material-symbols-outlined">arrow_right_alt</span>
                             </button>
                         </div>
@@ -141,7 +141,12 @@ export default function HomePortal() {
                             {loadingNews ? (
                                 Array(3).fill(0).map((_, i) => <div key={i} className="p-news-skeleton"></div>)
                             ) : news.map((item, idx) => (
-                                <article key={idx} className="p-news-card">
+                                <article 
+                                    key={idx} 
+                                    className="p-news-card" 
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => window.open(item.link, "_blank")}
+                                >
                                     <div className="p-news-thumb">
                                         <img src={item.image} alt={item.title} />
                                         <span className="p-news-cat">{item.category}</span>

@@ -116,4 +116,23 @@ class CustomerController extends Controller
             'user' => $customer
         ]);
     }
+
+    public function changePassword(Request $request, $id)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:6|confirmed',
+        ]);
+
+        $customer = Customer::findOrFail($id);
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->current_password, $customer->password)) {
+            return response()->json(['message' => 'Mật khẩu hiện tại không đúng'], 400);
+        }
+
+        $customer->password = bcrypt($request->new_password);
+        $customer->save();
+
+        return response()->json(['status' => 'success', 'message' => 'Đổi mật khẩu thành công']);
+    }
 }

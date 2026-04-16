@@ -64,6 +64,7 @@ export default function QuanLyVatTu() {
     const [importProjectSelections, setImportProjectSelections] = useState({}); // {product_id: qty}
     const [importWarehouseId, setImportWarehouseId] = useState('');
     const [loadingProjectItems, setLoadingProjectItems] = useState(false);
+    const [isFinalReturn, setIsFinalReturn] = useState(false);
 
     // --- EXPORT STATE ---
     const [exportType, setExportType] = useState("TO_PROJECT"); // TO_WAREHOUSE | TO_PROJECT
@@ -255,6 +256,7 @@ export default function QuanLyVatTu() {
                 project_id: importProjectId,
                 warehouse_id: importWarehouseId,
                 items,
+                is_final_return: isFinalReturn,
             });
             if (res.data.success) {
                 alert("✅ " + res.data.message);
@@ -262,6 +264,7 @@ export default function QuanLyVatTu() {
                 setImportProjectId('');
                 setProjectItems([]);
                 setImportProjectSelections({});
+                setIsFinalReturn(false);
                 loadData();
             }
         } catch (err) {
@@ -521,7 +524,7 @@ export default function QuanLyVatTu() {
                                     <div style={{ fontSize: '12px', color: '#a3aed0' }}>Nhập hàng mới hoặc bổ sung</div>
                                 </div>
                             </div>
-                            <div className={`radio-card ${importSource === 'PROJECT' ? 'active' : ''}`} style={{ flex: 1 }} onClick={() => { setImportSource('PROJECT'); setImportProjectId(''); setProjectItems([]); setImportProjectSelections({}); }}>
+                            <div className={`radio-card ${importSource === 'PROJECT' ? 'active' : ''}`} style={{ flex: 1 }} onClick={() => { setImportSource('PROJECT'); setImportProjectId(''); setProjectItems([]); setImportProjectSelections({}); setIsFinalReturn(false); }}>
                                 <span style={{ fontSize: '20px' }}>♻️</span>
                                 <div>
                                     <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2b3674' }}>Từ Dự Án Trả Lại</div>
@@ -551,7 +554,16 @@ export default function QuanLyVatTu() {
                                             <div className="sku-suggestion">
                                                 {skuSuggestions.map(s => (
                                                     <div key={s.id} className="sku-suggestion-item" onMouseDown={() => handlePickSuggestion(s)}>
-                                                        <strong>{s.sku}</strong> — {s.name} (Tồn: {s.current_stock} {s.unit})
+                                                        <div style={{ marginBottom: '4px' }}>
+                                                            <strong>{s.sku}</strong> — {s.name} (Tồn: {s.current_stock} {s.unit})
+                                                        </div>
+                                                        {s.batches && s.batches.length > 0 && (
+                                                            <div style={{ fontSize: '11px', color: '#6b7280', paddingLeft: '10px' }}>
+                                                                {s.batches.map((b, i) => (
+                                                                    <div key={i}>↳ Lô {i+1}: {b.quantity} {s.unit} {b.hsd ? `(HSD: ${new Date(b.hsd).toLocaleDateString('vi-VN')})` : ''}</div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
@@ -742,6 +754,22 @@ export default function QuanLyVatTu() {
                                                 </tbody>
                                             </table>
                                         </div>
+                                        <div style={{ marginTop: '15px', padding: '15px', background: '#fff5f5', borderRadius: '12px', border: '1px solid #ffd4d4' }}>
+                                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    style={{ marginTop: '3px', width: '16px', height: '16px', accentColor: '#EE5D50' }}
+                                                    checked={isFinalReturn} 
+                                                    onChange={e => setIsFinalReturn(e.target.checked)} 
+                                                />
+                                                <div>
+                                                    <div style={{ fontWeight: 'bold', color: '#c0392b', fontSize: '13px' }}>Thu hồi & Quyết toán luôn dự án này</div>
+                                                    <div style={{ fontSize: '11px', color: '#e74c3c' }}>
+                                                        Chọn tùy chọn này nếu đây là lần thu hồi cuối. Hệ thống sẽ tự động chuyển phần vật tư còn thiếu (hao hụt thi công, mất mát) thành Phiếu Xuất Kho <b>(Hao hụt)</b> và xóa nợ dự án.
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
                                     </div>
                                 )}
 
@@ -926,9 +954,6 @@ export default function QuanLyVatTu() {
                                 <p style={{ margin: '5px 0' }}><strong>Mã SKU:</strong> {selectedProductDetails.product.sku}</p>
                                 <p style={{ margin: '5px 0' }}><strong>Loại hình:</strong> {selectedProductDetails.product.type === 'CONSUMABLE' ? 'Tiêu hao' : 'Thu hồi'}</p>
                                 <p style={{ margin: '5px 0' }}><strong>Kho:</strong> {selectedProductDetails.product.warehouse_name || 'N/A'}</p>
-                                {selectedProductDetails.product.hsd && (
-                                    <p style={{ margin: '5px 0', color: '#e53e3e' }}><strong>HSD:</strong> {new Date(selectedProductDetails.product.hsd).toLocaleDateString('vi-VN')}</p>
-                                )}
                             </div>
                             <div>
                                 <p style={{ margin: '5px 0' }}><strong>Tồn kho:</strong> {selectedProductDetails.product.current_stock} {selectedProductDetails.product.unit || 'Cái'}</p>
@@ -938,6 +963,36 @@ export default function QuanLyVatTu() {
                                 <p style={{ margin: '5px 0' }}><strong>Thể tích/SP:</strong> {selectedProductDetails.product.space_coefficient} m³</p>
                             </div>
                         </div>
+
+                        {selectedProductDetails.product.batches && selectedProductDetails.product.batches.length > 0 && (
+                            <div style={{ marginBottom: '20px' }}>
+                                <h3 style={{ color: '#2b3674', marginBottom: '10px' }}>📦 Chi tiết Lô hàng</h3>
+                                <div style={{ border: '1px solid #e0e5f2', borderRadius: '12px', overflow: 'hidden' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead style={{ background: '#f4f7fe' }}>
+                                            <tr>
+                                                <th style={{ padding: '8px', textAlign: 'left', color: '#a3aed0', fontSize: '12px' }}>TT LÔ</th>
+                                                <th style={{ padding: '8px', textAlign: 'left', color: '#a3aed0', fontSize: '12px' }}>HẠN SỬ DỤNG</th>
+                                                <th style={{ padding: '8px', textAlign: 'right', color: '#a3aed0', fontSize: '12px' }}>SỐ LƯỢNG</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedProductDetails.product.batches.map((b, idx) => (
+                                                <tr key={idx} style={{ borderTop: '1px solid #e0e5f2' }}>
+                                                    <td style={{ padding: '8px', fontSize: '12px' }}>Lô {idx + 1}</td>
+                                                    <td style={{ padding: '8px', fontSize: '12px', color: b.hsd ? '#e53e3e' : '#a3aed0' }}>
+                                                        {b.hsd ? new Date(b.hsd).toLocaleDateString('vi-VN') : 'Không có HSD'}
+                                                    </td>
+                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
+                                                        {b.quantity} {selectedProductDetails.product.unit || 'Cái'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
 
                         <h3 style={{ color: '#2b3674', marginBottom: '15px' }}>⏳ Lịch sử nhập/xuất kho</h3>
                         {selectedProductDetails.history.length === 0 ? (

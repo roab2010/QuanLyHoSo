@@ -18,6 +18,7 @@ import HomePortal from "./HomePortal";
 import CustomerDashboard from "./CustomerDashboard";
 import QuanLyKhachHang from "./QuanLyKhachHang";
 import QuanLyNhanVien from "./QuanLyNhanVien";
+import ProjectDocuments from "./ProjectDocuments";
 
 const COLUMNS = [
     { id: "new", title: "Mới tạo", color: "#6b7280" },
@@ -25,7 +26,7 @@ const COLUMNS = [
     { id: "done", title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án","Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho"];
+const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Quản lý khách hàng", "Báo cáo", "Quản lý kho"];
 
 const styles = {
     logoutBtn: {
@@ -41,11 +42,11 @@ const styles = {
 
 // --- TÁCH COMPONENT ĐỂ TRÁNH RE-MOUNT ---
 
-const AdminLayout = ({ 
-    admin, activeNav, setActiveNav, NAV_ITEMS, 
-    setShowModal, showModal, loading, error, cards, cardsByCol, 
-    xoaHoSo, moveCard, themHoSo, fetchAll, inventoryView, setInventoryView, 
-    handleSaveProject, location, navigate 
+const AdminLayout = ({
+    admin, activeNav, setActiveNav, NAV_ITEMS,
+    setShowModal, showModal, loading, error, cards, cardsByCol,
+    xoaHoSo, moveCard, themHoSo, fetchAll, inventoryView, setInventoryView,
+    handleSaveProject, location, navigate
 }) => {
     if (!admin) return <Navigate to="/admin/login" />;
 
@@ -87,10 +88,10 @@ const AdminLayout = ({
                 }}
                 NAV_ITEMS={NAV_ITEMS}
                 onShowModal={() => setShowModal(true)}
-                onLogout={() => { 
-                    localStorage.removeItem("admin_user"); 
+                onLogout={() => {
+                    localStorage.removeItem("admin_user");
                     setActiveNav("Bảng điều khiển");
-                    navigate("/admin/login"); 
+                    navigate("/admin/login");
                 }}
             />
 
@@ -113,23 +114,27 @@ const AdminLayout = ({
                             onMoveCard={moveCard}
                             onShowModal={() => setShowModal(true)}
                         />
-                    ):activeNav === "Quản lý khách hàng" ? (
+                    ) : activeNav === "Quản lý khách hàng" ? (
                         <QuanLyKhachHang />
-                    ): activeNav === "Quản lý nhân viên" ? (
+                    ) : activeNav === "Quản lý nhân viên" ? (
                         <QuanLyNhanVien admin={admin} />
-                    ): activeNav === "Chi Tiết" ? (
-                         <ChiTietHoSo />
+                    ) : activeNav === "Chi Tiết" ? (
+                        <ChiTietHoSo />
                     ) : activeNav === "Chỉnh sửa" ? (
-                         <EditHoSo setActiveAppNav={setActiveNav} refreshData={fetchAll} />
+                        <EditHoSo setActiveAppNav={setActiveNav} refreshData={fetchAll} />
                     ) : activeNav === "Danh sách hồ sơ" ? (
-                        <DanhSachHoSo 
-                            cards={cards} 
-                            xoaHoSo={xoaHoSo} 
-                            loading={loading} 
-                            error={error} 
+                        <DanhSachHoSo
+                            cards={cards}
+                            xoaHoSo={xoaHoSo}
+                            loading={loading}
+                            error={error}
                         />
                     ) : activeNav === "Danh mục dự án" ? (
                         <ProjectCategoryList />
+                    ) : activeNav === "Quản lý tài liệu" ? (
+                        <ProjectDocuments />
+                    ) : activeNav === "Tin tức" ? (
+                        <News />
                     ) : activeNav === "Quản lý kho" ? (
                         inventoryView === "selection" ? (
                             <InventoryDashboard onSelect={setInventoryView} />
@@ -164,7 +169,7 @@ export default function App() {
     const [activeNav, setActiveNav] = useState("Bảng điều khiển");
     const [showModal, setShowModal] = useState(false);
     const [inventoryView, setInventoryView] = useState("selection");
-    
+
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -185,7 +190,7 @@ export default function App() {
 
     useEffect(() => {
         const path = location.pathname;
-        
+
         // --- 1. Cập nhật Title trình duyệt ---
         if (path.includes("/admin")) {
             document.title = "DocuVault - Quản Trị Hệ Thống";
@@ -236,16 +241,17 @@ export default function App() {
     };
 
     const adminProps = {
-        admin, activeNav, setActiveNav, NAV_ITEMS, 
-        setShowModal, showModal, loading, error, cards, cardsByCol, 
-        xoaHoSo, moveCard, themHoSo, fetchAll, inventoryView, setInventoryView, 
-        handleSaveProject, location, navigate 
+        admin, activeNav, setActiveNav, NAV_ITEMS,
+        setShowModal, showModal, loading, error, cards, cardsByCol,
+        xoaHoSo, moveCard, themHoSo, fetchAll, inventoryView, setInventoryView,
+        handleSaveProject, location, navigate
     };
 
     return (
         <Routes>
             <Route path="/" element={<HomePortal />} />
             <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+            <Route path="/news" element={<News />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminLayout {...adminProps} />} />
             <Route path="/admin/login" element={<LoginPage />} />

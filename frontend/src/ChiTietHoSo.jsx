@@ -13,6 +13,10 @@ import {
     getProjectExportedItems,
     returnItemsToWarehouse,
     getAllWarehouses,
+    uploadProjectDocument,
+    updateProjectDocumentNew,
+    deleteProjectDocument,
+    getDocumentsMetadata
 } from "./hoSoService";
 import { useToast } from "./Toast";
 
@@ -52,6 +56,15 @@ export default function ChiTietHoSo() {
     const [activeTab, setActiveTab] = useState("thong-tin");
     const [loading, setLoading] = useState(true);
 
+    // Document Modal
+    const [showDocModal, setShowDocModal] = useState(false);
+    const [docUploading, setDocUploading] = useState(false);
+    const [docTypes, setDocTypes] = useState([]);
+    const [editDocId, setEditDocId] = useState(null);
+    const [docForm, setDocForm] = useState({ name: "", type: "", note: "", file: null });
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [previewScale, setPreviewScale] = useState(1);
+
     // Task modal
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
@@ -87,6 +100,11 @@ export default function ChiTietHoSo() {
         if (showLoading) setLoading(false);
     };
 
+    const fetchDocMetadata = async () => {
+        const metadata = await getDocumentsMetadata();
+        setDocTypes(metadata.types || []);
+    };
+
     const fetchVatTu = async () => {
         setVatTuLoading(true);
         const res = await getProjectExportedItems(id);
@@ -104,6 +122,7 @@ export default function ChiTietHoSo() {
 
     useEffect(() => {
         fetchData();
+        fetchDocMetadata();
     }, [id]);
 
     useEffect(() => {
@@ -207,13 +226,72 @@ export default function ChiTietHoSo() {
     };
 
     /* ─── DOCUMENT HANDLERS ─── */
+    const handleOpenAddDoc = () => {
+        setEditDocId(null);
+        setDocForm({ name: "", type: "", note: "", file: null });
+        setShowDocModal(true);
+    };
+    
+    const handleOpenEditDoc = (doc) => {
+        setEditDocId(doc.id);
+        setDocForm({
+            name: doc.document_name,
+            type: doc.category_name,
+            note: doc.note || "",
+            file: null
+        });
+        setShowDocModal(true);
+    };
+
+    const handleSaveDoc = async (e) => {
+        e.preventDefault();
+        // Validation handled by form required attributes, but for edit doc, file is optional.
+        if (!editDocId && !docForm.file) return toast.warning("Vui lòng chọn tệp tin!");
+
+        setDocUploading(true);
+        const formData = new FormData();
+        formData.append('document_name', docForm.name);
+        formData.append('project_id', id);
+        formData.append('category_name', docForm.type);
+        if (docForm.note) formData.append('note', docForm.note);
+        if (docForm.file) formData.append('file', docForm.file);
+
+        try {
+            if (editDocId) {
+                await updateProjectDocumentNew(editDocId, formData);
+                toast.success("Cập nhật tài liệu thành công");
+            } else {
+                await uploadProjectDocument(formData);
+                toast.success("Tải lên tài liệu thành công");
+            }
+            setShowDocModal(false);
+            fetchData(false);
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Lỗi lưu tài liệu");
+        } finally {
+            setDocUploading(false);
+        }
+    };
+
     const handleDocAction = async (docId, status) => {
         try {
             await updateDocument(id, docId, { status });
-            fetchData();
+            fetchData(false);
             toast.success("Trạng thái tài liệu đã được cập nhật");
         } catch (e) {
             toast.error("Lỗi khi cập nhật tài liệu");
+        }
+    };
+
+    const handleDeleteDoc = async (docId) => {
+        const isConfirmed = await toast.showConfirm("Bạn có chắc chắn muốn xóa tài liệu này?");
+        if (!isConfirmed) return;
+        try {
+            await deleteProjectDocument(docId);
+            fetchData(false);
+            toast.success("Đã xóa tài liệu");
+        } catch (e) {
+            toast.error("Lỗi khi xóa tài liệu");
         }
     };
 
@@ -348,10 +426,10 @@ export default function ChiTietHoSo() {
 
             <div className="detail-content">
                 {/* Sidebar */}
-                <div className="detail-sidebar">
+                <div className="detail-sidebar" style={{ minWidth: '220px', flexShrink: 0 }}>
                     {[
                         { key: "thong-tin", label: "Thông tin chung", icon: "📊" },
-                        { key: "phap-ly", label: "Tài liệu pháp lý", icon: "📄" },
+                        { key: "phap-ly", label: "Tài liệu", icon: "📄" },
                         { key: "nhan-su", label: "Nhân sự & Thành viên", icon: "👥" },
                         { key: "vat-tu", label: "Vật tư & Thiết bị", icon: "🏗️" },
                         { key: "tien-do", label: "Tiến độ thi công", icon: "📋" },
@@ -425,7 +503,7 @@ export default function ChiTietHoSo() {
                                 {/* Tài liệu pháp lý preview */}
                                 <section className="info-section" style={{ marginTop: 20 }}>
                                     <div className="section-header">
-                                        <h3>Tài liệu pháp lý</h3>
+                                        <h3>Tài liệu</h3>
                                         <button
                                             className="btn-edit"
                                             onClick={() => setActiveTab("phap-ly")}
@@ -550,26 +628,38 @@ export default function ChiTietHoSo() {
                         </div>
                     )}
 
-                    {/* ═══ TAB: TÀI LIỆU PHÁP LÝ ═══ */}
+                    {/* ═══ TAB: TÀI LIỆU ═══ */}
                     {activeTab === "phap-ly" && (
                         <section className="document-section animate-fade-in">
                             <div className="section-header">
-                                <h3>Danh sách hồ sơ pháp lý</h3>
+                                <h3>Danh sách tài liệu dự án</h3>
+                                <button className="btn-add-cat" onClick={handleOpenAddDoc} style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+                                    + Thêm tài liệu
+                                </button>
                             </div>
                             {documents.length > 0 ? (
                                 <table className="doc-table">
                                     <thead>
                                         <tr>
                                             <th>TÊN TÀI LIỆU</th>
+                                            <th>LOẠI TÀI LIỆU</th>
                                             <th>NGÀY TẢI LÊN</th>
                                             <th>TRẠNG THÁI</th>
-                                            <th>HÀNH ĐỘNG</th>
+                                            <th style={{ textAlign: "center" }}>HÀNH ĐỘNG</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {documents.map((doc) => (
                                             <tr key={doc.id}>
-                                                <td>📄 {doc.document_name}</td>
+                                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: '250px' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ fontWeight: '600', color: '#1e293b' }}>📄 {doc.document_name}</span>
+                                                        {doc.note && <small style={{ color: '#64748b', fontSize: '12px' }}>{doc.note}</small>}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span style={{ color: '#64748b' }}>{doc.category_name}</span>
+                                                </td>
                                                 <td>
                                                     {doc.uploaded_at
                                                         ? new Date(doc.uploaded_at).toLocaleDateString(
@@ -584,44 +674,46 @@ export default function ChiTietHoSo() {
                                                         {STATUS_LABELS[doc.status] || doc.status}
                                                     </span>
                                                 </td>
-                                                <td className="doc-actions">
-                                                    {doc.file_url && (
-                                                        <a
-                                                            href={doc.file_url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="btn-doc btn-doc-view"
-                                                        >
-                                                            👁 Xem
-                                                        </a>
-                                                    )}
-                                                    {doc.status !== "COMPLETED" && (
+                                                <td className="doc-actions" style={{ verticalAlign: 'middle' }}>
+                                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                                        {doc.file_url && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setPreviewUrl(`http://127.0.0.1:8000${doc.file_url}`)}
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
+                                                                title="Xem"
+                                                                onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = '#e0f2fe'}
+                                                            >
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/159/159604.png" width="18" alt="View" style={{ filter: "opacity(0.8)" }} />
+                                                            </button>
+                                                        )}
                                                         <button
-                                                            className="btn-doc btn-doc-approve"
-                                                            onClick={() =>
-                                                                handleDocAction(doc.id, "COMPLETED")
-                                                            }
+                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                            title="Sửa"
+                                                            onClick={() => handleOpenEditDoc(doc)}
+                                                            onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
+                                                            onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
                                                         >
-                                                            ✓ Duyệt
+                                                            <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
                                                         </button>
-                                                    )}
-                                                    {doc.status !== "REVISION" && (
                                                         <button
-                                                            className="btn-doc btn-doc-reject"
-                                                            onClick={() =>
-                                                                handleDocAction(doc.id, "REVISION")
-                                                            }
+                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                            title="Xóa"
+                                                            onClick={() => handleDeleteDoc(doc.id)}
+                                                            onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
+                                                            onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
                                                         >
-                                                            ✗ Từ chối
+                                                            <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
                                                         </button>
-                                                    )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             ) : (
-                                <p className="empty-text">Chưa có tài liệu pháp lý nào.</p>
+                                <p className="empty-text">Chưa có tài liệu nào.</p>
                             )}
                         </section>
                     )}
@@ -1209,6 +1301,84 @@ export default function ChiTietHoSo() {
                                 {returning ? "⏳ Đang xử lý..." : "✔ Xác nhận hoàn trả"}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal Tài liệu */}
+            {showDocModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ width: '450px' }}>
+                        <h4 className="modal-title" style={{ marginBottom: '20px', fontSize: '20px' }}>
+                            {editDocId ? "Sửa thông tin tài liệu" : "Tải tài liệu mới lên"}
+                        </h4>
+                        <form onSubmit={handleSaveDoc}>
+                            <div className="form-group">
+                                <label>Tên tài liệu <span style={{ color: "red" }}>*</span></label>
+                                <input required className="form-control" name="document_name" placeholder="Nhập tên tài liệu..." value={docForm.name} onChange={e => setDocForm({...docForm, name: e.target.value})} />
+                            </div>
+                            <div className="form-group">
+                                <label>Loại tài liệu <span style={{ color: "red" }}>*</span></label>
+                                <select required className="form-control" name="category_name" value={docForm.type} onChange={e => setDocForm({...docForm, type: e.target.value})}>
+                                    <option value="">-- Chọn loại --</option>
+                                    {docTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Ghi chú (nếu có)</label>
+                                <input className="form-control" name="note" placeholder="VD: Bản vẽ kỹ thuật móng..." value={docForm.note} onChange={e => setDocForm({...docForm, note: e.target.value})} />
+                            </div>
+                            <div className="form-group">
+                                <label>Chọn file tài liệu {editDocId && "(Để trống nếu không đổi)"} {!editDocId && <span style={{ color: "red" }}>*</span>}</label>
+                                <input type="file" required={!editDocId} className="form-control" style={{ padding: '8px' }} onChange={e => setDocForm({...docForm, file: e.target.files[0]})} />
+                            </div>
+                            <div className="modal-footer" style={{ marginTop: '20px', padding: '0' }}>
+                                <button type="button" className="btn-cancel" onClick={() => setShowDocModal(false)}>Hủy bỏ</button>
+                                <button type="submit" className="btn-submit-form" style={{ background: '#2563eb', padding: '8px 16px', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }} disabled={docUploading}>
+                                    {docUploading ? "Đang xử lý..." : (editDocId ? "Lưu thay đổi" : "Tải lên hệ thống")}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Preview Document */}
+            {previewUrl && (
+                <div className="modal-overlay" style={{ zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'relative', width: '80%', height: '85%', background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                        <button 
+                            onClick={() => { setPreviewUrl(null); setPreviewScale(1); }} 
+                            style={{ position: 'absolute', top: '15px', right: '20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '18px', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        >
+                            ✕
+                        </button>
+                        
+                        {previewUrl.match(/\.(jpeg|jpg|gif|png|webp)(\?|#|$)/i) ? (
+                            <>
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', background: '#e2e8f0' }}>
+                                    <img 
+                                        src={previewUrl} 
+                                        alt="Preview" 
+                                        style={{ 
+                                            maxWidth: '100%', 
+                                            maxHeight: '100%', 
+                                            objectFit: 'contain', 
+                                            transform: `scale(${previewScale})`,
+                                            transition: 'transform 0.2s ease-in-out',
+                                            transformOrigin: 'center center'
+                                        }} 
+                                    />
+                                </div>
+                                <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', background: 'rgba(15, 23, 42, 0.8)', padding: '10px 20px', borderRadius: '30px', zIndex: 1001, alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' }}>
+                                    <button onClick={() => setPreviewScale(s => Math.max(s - 0.25, 0.25))} style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '24px', cursor: 'pointer', outline: 'none', padding: '0 5px' }}>-</button>
+                                    <span style={{ color: 'white', display: 'flex', alignItems: 'center', fontWeight: 'bold', minWidth: '45px', justifyContent: 'center' }}>{Math.round(previewScale * 100)}%</span>
+                                    <button onClick={() => setPreviewScale(1)} style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', outline: 'none', padding: '0 5px' }}>↻</button>
+                                    <button onClick={() => setPreviewScale(s => Math.min(s + 0.25, 5))} style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '24px', cursor: 'pointer', outline: 'none', padding: '0 5px' }}>+</button>
+                                </div>
+                            </>
+                        ) : (
+                            <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', background: '#f8fafc' }} title="Document Preview" />
+                        )}
                     </div>
                 </div>
             )}

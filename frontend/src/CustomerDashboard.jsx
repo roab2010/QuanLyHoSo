@@ -40,6 +40,12 @@ export default function CustomerDashboard() {
     });
     const [updating, setUpdating] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [news, setNews] = useState([]);
+    const [activeView, setActiveView] = useState("overview"); // overview or news
+    
+    const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [isEditingPassword, setIsEditingPassword] = useState(false);
 
     // Update profileData when user state changes (e.g. after login/refresh)
     useEffect(() => {
@@ -70,7 +76,17 @@ export default function CustomerDashboard() {
             }
         };
 
+        const fetchNews = async () => {
+            try {
+                const res = await axios.get(`http://127.0.0.1:8000/api/news`);
+                setNews(res.data);
+            } catch (err) {
+                console.error("Lỗi lấy tin tức:", err);
+            }
+        };
+
         fetchProjects();
+        fetchNews();
     }, [user, navigate]);
 
     if (!user) return null;
@@ -126,6 +142,32 @@ export default function CustomerDashboard() {
             toast.error(err.response?.data?.message || "Lỗi cập nhật hồ sơ");
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (passwordData.new_password !== passwordData.new_password_confirmation) {
+            toast.error("Mật khẩu xác nhận không khớp!");
+            return;
+        }
+        if (passwordData.new_password.length < 6) {
+            toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            const res = await axios.post(`http://127.0.0.1:8000/api/customer/change-password/${user.id}`, passwordData);
+            if (res.data.status === "success") {
+                toast.success("Đổi mật khẩu thành công!");
+                setIsEditingPassword(false);
+                setPasswordData({ current_password: "", new_password: "", new_password_confirmation: "" });
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Lỗi đổi mật khẩu");
+        } finally {
+            setChangingPassword(false);
         }
     };
 
@@ -201,8 +243,18 @@ export default function CustomerDashboard() {
                 <nav className="aside-nav">
                     <div className="nav-sect">
                         <label>MENU</label>
-                        <button className="nav-btn-v3 active"><span className="material-symbols-outlined">grid_view</span> Tổng quan</button>
-                        <button className="nav-btn-v3"><span className="material-symbols-outlined">drafts</span> Hồ sơ kỹ thuật</button>
+                        <button 
+                            className={`nav-btn-v3 ${activeView === 'overview' ? 'active' : ''}`}
+                            onClick={() => setActiveView('overview')}
+                        >
+                            <span className="material-symbols-outlined">grid_view</span> Tổng quan
+                        </button>
+                        <button 
+                            className={`nav-btn-v3 ${activeView === 'news' ? 'active' : ''}`}
+                            onClick={() => setActiveView('news')}
+                        >
+                            <span className="material-symbols-outlined">newspaper</span> Tin tức thị trường
+                        </button>
                     </div>
 
                     <div className="nav-sect">
@@ -247,126 +299,199 @@ export default function CustomerDashboard() {
 
                 <div className="main-scroll">
                     <div className="main-inner">
-                        <section className="banner-v3">
-                            <div className="banner-info">
-                                <span className="banner-tag">{mainProject?.name || "DocuVault"}</span>
-                                <h1>Chào {user.full_name?.split(' ').pop() || "Bảo"},</h1>
-                                <p>Tiến độ dự án hiện tại đạt <strong>{mainProgress}%</strong>. Mọi công việc đang được kiểm soát chặt chẽ bởi đội ngũ kĩ sư.</p>
-                                <div className="banner-btns">
-                                    <button className="btn-v3-blue">Chi tiết dự án</button>
-                                    <button className="btn-v3-ghost">Lịch sử thi công</button>
-                                </div>
-                            </div>
-                            <div className="banner-visual">
-                                <div className="ring-container">
-                                    <svg viewBox="0 0 100 100" className="ring-svg">
-                                        <circle cx="50" cy="50" r="45" stroke="#ffffff10" strokeWidth="8" fill="none" />
-                                        <circle 
-                                            cx="50" cy="50" r="45" 
-                                            stroke="#2563eb" strokeWidth="8" fill="none" 
-                                            strokeDasharray="283" 
-                                            style={{ strokeDashoffset: 283 - (283 * mainProgress) / 100 }}
-                                            strokeLinecap="round"
-                                        />
-                                        <circle 
-                                            cx="50" cy="5" r="3" 
-                                            fill="#fff" 
-                                            style={{ transformOrigin: '50px 50px', transform: `rotate(${(mainProgress * 3.6)}deg)` }}
-                                        />
-                                    </svg>
-                                    <span className="ring-value">{mainProgress}%</span>
-                                </div>
-                            </div>
-                        </section>
-
-                        <div className="grid-v3">
-                            <div className="col-left">
-                                <div className="sect-head">
-                                    <h3>Hồ sơ đang triển khai</h3>
-                                    <span className="v3-live">Live</span>
-                                </div>
-
-                                {loading ? (
-                                    <div className="v3-msg">Đang đồng bộ...</div>
-                                ) : filteredProjects.length === 0 ? (
-                                    <div className="v3-msg">Không có hồ sơ.</div>
-                                ) : (
-                                    <div className="proj-list-v3">
-                                        {filteredProjects.map((proj) => {
-                                            const label = STATUS_LABELS[proj.status] || 'Chờ duyệt';
-                                            const colors = STATUS_COLORS[label];
-                                            const prog = getProjectProgress(proj);
-                                            return (
-                                                <div key={proj.id} className="proj-item-v3">
-                                                    <div className="item-v3-top">
-                                                        <span className="v3-type">THIẾT KẾ & XÂY DỰNG</span>
-                                                        <span className="v3-st" style={{ background: colors.bg, color: colors.color }}>{label}</span>
-                                                    </div>
-                                                    <h4>{proj.name}</h4>
-                                                    <div className="item-v3-meta">
-                                                        <div className="meta-line">
-                                                            <span className="material-symbols-outlined">fingerprint</span>
-                                                            {proj.project_code || "HS-XXXX"}
-                                                        </div>
-                                                        <div className="meta-line">
-                                                            <span className="material-symbols-outlined">location_on</span>
-                                                            {proj.address}
-                                                        </div>
-                                                        <div className="meta-line">
-                                                            <span className="material-symbols-outlined">analytics</span>
-                                                            Tiến độ: {prog}%
-                                                        </div>
-                                                    </div>
-                                                    <div className="item-v3-prog">
-                                                        <div className="v3-bar"><div className="v3-fill" style={{ width: prog + '%' }}></div></div>
-                                                    </div>
-
-                                                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px' }}>
-                                                        <label className="btn-v3-upload">
-                                                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
-                                                            Gửi ảnh/Hồ sơ
-                                                            <input 
-                                                                type="file" 
-                                                                hidden 
-                                                                onChange={(e) => handleProjectFileUpload(proj.id, e.target.files[0])} 
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                        {activeView === 'overview' ? (
+                            <>
+                                <section className="banner-v3">
+                                    <div className="banner-info">
+                                        <span className="banner-tag">{mainProject?.name || "DocuVault"}</span>
+                                        <h1>Chào {user.full_name?.split(' ').pop() || "Bảo"},</h1>
+                                        <p>Tiến độ dự án hiện tại đạt <strong>{mainProgress}%</strong>. Mọi công việc đang được kiểm soát chặt chẽ bởi đội ngũ kĩ sư.</p>
+                                        <div className="banner-btns">
+                                            <button className="btn-v3-blue">Chi tiết dự án</button>
+                                            <button className="btn-v3-ghost">Lịch sử thi công</button>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+                                    <div className="banner-visual">
+                                        <div className="ring-container">
+                                            <svg viewBox="0 0 100 100" className="ring-svg">
+                                                <circle cx="50" cy="50" r="45" stroke="#ffffff10" strokeWidth="8" fill="none" />
+                                                <circle 
+                                                    cx="50" cy="50" r="45" 
+                                                    stroke="#2563eb" strokeWidth="8" fill="none" 
+                                                    strokeDasharray="283" 
+                                                    style={{ strokeDashoffset: 283 - (283 * mainProgress) / 100 }}
+                                                    strokeLinecap="round"
+                                                />
+                                                <circle 
+                                                    cx="50" cy="5" r="3" 
+                                                    fill="#fff" 
+                                                    style={{ transformOrigin: '50px 50px', transform: `rotate(${(mainProgress * 3.6)}deg)` }}
+                                                />
+                                            </svg>
+                                            <span className="ring-value">{mainProgress}%</span>
+                                        </div>
+                                    </div>
+                                </section>
 
-                            <div className="col-right">
-                                <div className="card-v3">
-                                    <h4>Hoạt động gần nhất</h4>
+                                <div className="grid-v3">
+                                    <div className="col-left">
+                                        <div className="sect-head">
+                                            <h3>Hồ sơ đang triển khai</h3>
+                                            <span className="v3-live">Live</span>
+                                        </div>
+
+                                        {loading ? (
+                                            <div className="v3-msg">Đang đồng bộ...</div>
+                                        ) : filteredProjects.length === 0 ? (
+                                            <div className="v3-msg">Không có hồ sơ.</div>
+                                        ) : (
+                                            <div className="proj-list-v3">
+                                                {filteredProjects.map((proj) => {
+                                                    const label = STATUS_LABELS[proj.status] || 'Chờ duyệt';
+                                                    const colors = STATUS_COLORS[label];
+                                                    const prog = getProjectProgress(proj);
+                                                    return (
+                                                        <div key={proj.id} className="proj-item-v3">
+                                                            <div className="item-v3-top">
+                                                                <span className="v3-type">THIẾT KẾ & XÂY DỰNG</span>
+                                                                <span className="v3-st" style={{ background: colors.bg, color: colors.color }}>{label}</span>
+                                                            </div>
+                                                            <h4>{proj.name}</h4>
+                                                            <div className="item-v3-meta">
+                                                                <div className="meta-line">
+                                                                    <span className="material-symbols-outlined">fingerprint</span>
+                                                                    {proj.project_code || "HS-XXXX"}
+                                                                </div>
+                                                                <div className="meta-line">
+                                                                    <span className="material-symbols-outlined">location_on</span>
+                                                                    {proj.address}
+                                                                </div>
+                                                                <div className="meta-line">
+                                                                    <span className="material-symbols-outlined">analytics</span>
+                                                                    Tiến độ: {prog}%
+                                                                </div>
+                                                            </div>
+                                                            <div className="item-v3-prog">
+                                                                <div className="v3-bar"><div className="v3-fill" style={{ width: prog + '%' }}></div></div>
+                                                            </div>
+
+                                                            <div style={{ marginTop: '12px', display: 'flex', gap: '8px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px' }}>
+                                                                <label className="btn-v3-upload">
+                                                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
+                                                                    Gửi ảnh/Hồ sơ
+                                                                    <input 
+                                                                        type="file" 
+                                                                        hidden 
+                                                                        onChange={(e) => handleProjectFileUpload(proj.id, e.target.files[0])} 
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="col-right">
+                                        <div className="card-v3">
+                                            <h4>Hoạt động gần nhất</h4>
+                                            <div className="act-v3-list">
+                                                {currentActivities.map(act => (
+                                                    <div key={act.id} className="act-v3-item">
+                                                        <div className="act-dot"></div>
+                                                        <div className="act-v3-info">
+                                                            <small>{act.time}</small>
+                                                            <p><strong>{act.name}</strong></p>
+                                                            <p className="act-m">{act.msg}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button className="btn-v3-full" onClick={() => setActiveView('activities')}>Xem tất cả</button>
+                                        </div>
+
+                                        <div className="card-v3" style={{ marginTop: '32px' }}>
+                                            <h4>Tin tức thị trường</h4>
+                                            <div className="news-v3-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                {news.length === 0 ? (
+                                                    <p style={{ fontSize: '13px', color: 'var(--dim)' }}>Đang cập nhật tin tức...</p>
+                                                ) : (
+                                                    news.slice(0, 3).map(item => (
+                                                        <a key={item.id} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', gap: '12px' }}>
+                                                            <img src={item.image} alt="" style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover' }} />
+                                                            <div>
+                                                                <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', lineHeight: '1.3' }}>{item.title}</p>
+                                                                <small style={{ fontSize: '10px', color: 'var(--primary)' }}>{item.category}</small>
+                                                            </div>
+                                                        </a>
+                                                    ))
+                                                )}
+                                            </div>
+                                            <button className="btn-v3-full" onClick={() => setActiveView('news')}>Xem thêm tin tức</button>
+                                        </div>
+
+                                        <div className="team-v3">
+                                            <div className="team-v3-icon">JS</div>
+                                            <div>
+                                                <strong>Đội ngũ kĩ sư</strong>
+                                                <p>Đang trực tuyến</p>
+                                            </div>
+                                            <span className="material-symbols-outlined">chat</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        ) : activeView === 'news' ? (
+                            <div className="news-full-view animate-fade-in">
+                                <div className="sect-head">
+                                    <h3>Bản tin thị trường</h3>
+                                    <button className="btn-v3-ghost" style={{ color: 'var(--text)', borderColor: '#e2e8f0' }} onClick={() => setActiveView('overview')}> Quay lại</button>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px', marginTop: '32px' }}>
+                                    {news.length > 0 ? (
+                                        news.map(item => (
+                                            <a key={item.id} href={item.link} target="_blank" rel="noopener noreferrer" className="card-v3" style={{ textDecoration: 'none', color: 'inherit', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', transition: '0.3s' }}>
+                                                <img src={item.image} alt="" style={{ width: '100%', height: '200px', borderRadius: '20px', objectFit: 'cover' }} />
+                                                <div>
+                                                    <small style={{ color: 'var(--primary)', fontWeight: '800', textTransform: 'uppercase', fontSize: '10px' }}>{item.category}</small>
+                                                    <h4 style={{ margin: '8px 0 0', lineHeight: '1.4', fontSize: '16px' }}>{item.title}</h4>
+                                                </div>
+                                            </a>
+                                        ))
+                                    ) : (
+                                        <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '100px', background: 'white', borderRadius: '32px', border: '1px solid #e2e8f0' }}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--dim)', marginBottom: '16px' }}>pending</span>
+                                            <p style={{ color: 'var(--dim)', fontWeight: '600' }}>Đang lấy tin tức mới nhất từ VnExpress...</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="activities-full-view animate-fade-in">
+                                <div className="sect-head">
+                                    <h3>Tất cả hoạt động</h3>
+                                    <button className="btn-v3-ghost" style={{ color: 'var(--text)', borderColor: '#e2e8f0' }} onClick={() => setActiveView('overview')}> Quay lại</button>
+                                </div>
+                                <div className="card-v3" style={{ marginTop: '32px' }}>
                                     <div className="act-v3-list">
-                                        {currentActivities.map(act => (
-                                            <div key={act.id} className="act-v3-item">
+                                        {(mainProject?.tasks || []).map(act => (
+                                            <div key={act.id} className="act-v3-item" style={{ padding: '20px 0', borderBottom: '1px solid #f1f5f9' }}>
                                                 <div className="act-dot"></div>
                                                 <div className="act-v3-info">
-                                                    <small>{act.time}</small>
-                                                    <p><strong>{act.name}</strong></p>
-                                                    <p className="act-m">{act.msg}</p>
+                                                    <small>{act.updated_at ? new Date(act.updated_at).toLocaleString('vi-VN') : 'Mới đây'}</small>
+                                                    <p style={{ fontSize: '16px' }}><strong>{act.name}</strong></p>
+                                                    <p className="act-m" style={{ fontSize: '14px' }}>Trạng thái: <strong>{STATUS_LABELS[act.status] || act.status}</strong>. {act.status === 'DONE' ? 'Công việc đã được nghiệm thu hoàn tất.' : 'Đội ngũ kỹ sư đang triển khai theo tiến độ.'}</p>
                                                 </div>
                                             </div>
                                         ))}
+                                        {(!mainProject?.tasks || mainProject.tasks.length === 0) && (
+                                            <p style={{ color: 'var(--dim)', textAlign: 'center', padding: '40px' }}>Chưa có hoạt động nào được ghi lại.</p>
+                                        )}
                                     </div>
-                                    <button className="btn-v3-full">Xem tất cả</button>
-                                </div>
-
-                                <div className="team-v3">
-                                    <div className="team-v3-icon">JS</div>
-                                    <div>
-                                        <strong>Đội ngũ kĩ sư</strong>
-                                        <p>Đang trực tuyến</p>
-                                    </div>
-                                    <span className="material-symbols-outlined">chat</span>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -398,24 +523,56 @@ export default function CustomerDashboard() {
                             </div>
                         </div>
 
-                        <form onSubmit={handleUpdateProfile} className="modal-v3-form">
-                            <div className="v3-group">
-                                <label>Họ và tên</label>
-                                <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} />
-                            </div>
-                            <div className="v3-group">
-                                <label>Email</label>
-                                <input type="email" value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} />
-                            </div>
-                            <div className="v3-group">
-                                <label>Số điện thoại</label>
-                                <input type="text" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
-                            </div>
-                            <div className="modal-v3-foot">
-                                <button type="button" className="v3-no" onClick={() => setShowProfileModal(false)}>Hủy</button>
-                                <button type="submit" className="v3-yes" disabled={updating}>{updating ? "Đang lưu..." : "Lưu thay đổi"}</button>
-                            </div>
-                        </form>
+                        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                            <button
+                                style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: !isEditingPassword ? '2px solid #2563eb' : '2px solid transparent', color: !isEditingPassword ? '#2563eb' : '#64748b', fontWeight: '800', cursor: 'pointer' }}
+                                onClick={() => setIsEditingPassword(false)}
+                            >Thông tin chung</button>
+                            <button
+                                style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: isEditingPassword ? '2px solid #2563eb' : '2px solid transparent', color: isEditingPassword ? '#2563eb' : '#64748b', fontWeight: '800', cursor: 'pointer' }}
+                                onClick={() => setIsEditingPassword(true)}
+                            >Đổi mật khẩu</button>
+                        </div>
+
+                        {!isEditingPassword ? (
+                            <form onSubmit={handleUpdateProfile} className="modal-v3-form">
+                                <div className="v3-group">
+                                    <label>Họ và tên</label>
+                                    <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Email</label>
+                                    <input type="email" value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Số điện thoại</label>
+                                    <input type="text" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
+                                </div>
+                                <div className="modal-v3-foot">
+                                    <button type="button" className="v3-no" onClick={() => setShowProfileModal(false)}>Hủy</button>
+                                    <button type="submit" className="v3-yes" disabled={updating}>{updating ? "Đang lưu..." : "Lưu thay đổi"}</button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleChangePassword} className="modal-v3-form">
+                                <div className="v3-group">
+                                    <label>Mật khẩu hiện tại</label>
+                                    <input type="password" required value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Mật khẩu mới</label>
+                                    <input type="password" required value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Xác nhận mật khẩu</label>
+                                    <input type="password" required value={passwordData.new_password_confirmation} onChange={e => setPasswordData({...passwordData, new_password_confirmation: e.target.value})} />
+                                </div>
+                                <div className="modal-v3-foot">
+                                    <button type="button" className="v3-no" onClick={() => setIsEditingPassword(false)}>Hủy</button>
+                                    <button type="submit" className="v3-yes" disabled={changingPassword}>{changingPassword ? "Đang xử lý..." : "Cập nhật"}</button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}
@@ -637,6 +794,14 @@ export default function CustomerDashboard() {
                     background: #eff6ff;
                     border-color: #2563eb;
                     color: #2563eb;
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.4s ease-out forwards;
                 }
             `}</style>
         </div>

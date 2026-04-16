@@ -14,7 +14,7 @@ class InventoryController extends Controller
 {
     public function index()
     {
-        $products = Product::all();
+        $products = Product::with('batches')->get();
 
         $stats = [
             'total_types'  => $products->count(),
@@ -42,8 +42,8 @@ class InventoryController extends Controller
                     'category_name'     => $p->category_name,
                     'warehouse_id'      => $p->warehouse_id,
                     'created_at'        => $p->created_at,
-                    'hsd'               => $p->hsd,
                     'space_coefficient' => (float) ($p->space_coefficient ?? 1),
+                    'batches'           => $p->batches->filter(fn($b) => $b->quantity > 0)->values(),
                 ];
             })
         ]);
@@ -52,7 +52,9 @@ class InventoryController extends Controller
     public function show($id)
     {
         try {
-            $product = Product::findOrFail($id);
+            $product = Product::with(['batches' => function($q) {
+                $q->where('quantity', '>', 0)->orderBy('hsd', 'asc');
+            }])->findOrFail($id);
             $warehouse = Warehouse::find($product->warehouse_id);
             if ($warehouse) {
                 $product->warehouse_name = $warehouse->name;
@@ -147,10 +149,20 @@ class InventoryController extends Controller
                 if ($existingProduct) {
                     // --- Cộng dồn số lượng vào sản phẩm đã có ---
                     $existingProduct->current_stock = $existingProduct->current_stock + $newQty;
-                    // Cập nhật kho nếu muốn nhập vào kho khác (tuỳ chọn)
-                    $existingProduct->warehouse_id = $request->warehouse_id;
-                    if ($request->hsd) $existingProduct->hsd = $request->hsd;
                     $existingProduct->save();
+                    
+                    // Xử lý tạo Lô hàng (Batch)
+                    $batchHsd = $request->hsd ?: null;
+                    $existingBatch = $existingProduct->batches()->where('hsd', $batchHsd)->first();
+                    if ($existingBatch) {
+                        $existingBatch->quantity += $newQty;
+                        $existingBatch->save();
+                    } else {
+                        $existingProduct->batches()->create([
+                            'hsd' => $batchHsd,
+                            'quantity' => $newQty,
+                        ]);
+                    }
 
                     $transaction = InventoryTransaction::create([
                         'transaction_code' => 'PNK-' . strtoupper(bin2hex(random_bytes(3))),
@@ -175,19 +187,24 @@ class InventoryController extends Controller
                         'product' => $existingProduct,
                     ]);
                 } else {
-                    // --- Tạo sản phẩm mới ---
+                    // --- Tạo mới sản phẩm hoàn toàn ---
                     $product = Product::create([
                         'sku'               => $request->sku,
                         'name'              => $request->name,
-                        'unit'              => $request->unit,
+                        'unit'              => $request->unit ?? 'Cái',
                         'current_stock'     => $newQty,
                         'min_stock_level'   => $request->min_stock_level ?? 10,
-                        'price'             => $request->price,
+                        'price'             => $request->price ?? 0,
                         'type'              => $request->type ?? 'CONSUMABLE',
-                        'category_name'     => $request->category_name,
+                        'category_name'     => $request->category_name ?? '',
                         'warehouse_id'      => $request->warehouse_id,
-                        'hsd'               => $request->hsd,
+                        'supplier_id'       => $request->supplier_id,
                         'space_coefficient' => $spaceCoef,
+                    ]);
+
+                    $product->batches()->create([
+                        'hsd' => $request->hsd ?: null,
+                        'quantity' => $newQty,
                     ]);
 
                     $transaction = InventoryTransaction::create([
@@ -311,6 +328,32 @@ class InventoryController extends Controller
                     $p->current_stock = $p->current_stock - $qty;
                     $p->save();
 
+                    // --- Thuật toán FIFO: Khấu trừ dần ở các Batch chứa HSD cũ ---
+                    $remainingQtyToDeduct = $qty;
+                    // Lọc những lô hàng nào còn qty, sau đó sort asc (null sẽ đi sau)
+                    // Ở SQL, NULL HSD có thể đứng lên đầu tuỳ DB, ta gọi bằng Collection cho an toàn
+                    $batches = $p->batches()->where('quantity', '>', 0)->get()->sortBy(function($b) {
+                        return $b->hsd ? $b->hsd : '9999-12-31'; // HSD null thì xử lý cuối cùng
+                    });
+
+                    // Lưu lịch sử các batch bị tuồn đi để chuyển giao cho kho mới
+                    $transferredBatches = [];
+
+                    foreach ($batches as $batch) {
+                        if ($remainingQtyToDeduct <= 0) break;
+
+                        $deduct = min($remainingQtyToDeduct, $batch->quantity);
+                        $batch->quantity -= $deduct;
+                        $batch->save();
+
+                        $transferredBatches[] = [
+                            'hsd' => $batch->hsd,
+                            'quantity' => $deduct,
+                        ];
+
+                        $remainingQtyToDeduct -= $deduct;
+                    }
+
                     // Nếu xuất sang kho khác: tìm sản phẩm cùng SKU tại kho đích và cộng vào hoặc tạo mới
                     if ($exportType === 'TO_WAREHOUSE') {
                         $destProduct = Product::where('sku', $p->sku)
@@ -320,6 +363,19 @@ class InventoryController extends Controller
                         if ($destProduct) {
                             $destProduct->current_stock += $qty;
                             $destProduct->save();
+                            
+                            foreach ($transferredBatches as $tb) {
+                                $existingBatch = $destProduct->batches()->where('hsd', $tb['hsd'])->first();
+                                if ($existingBatch) {
+                                    $existingBatch->quantity += $tb['quantity'];
+                                    $existingBatch->save();
+                                } else {
+                                    $destProduct->batches()->create([
+                                        'hsd' => $tb['hsd'],
+                                        'quantity' => $tb['quantity'],
+                                    ]);
+                                }
+                            }
                         } else {
                             // Tạo bản ghi mới cho sản phẩm ở kho đích
                             $destProduct = Product::create([
@@ -332,9 +388,15 @@ class InventoryController extends Controller
                                 'type'              => $p->type,
                                 'category_name'     => $p->category_name,
                                 'warehouse_id'      => $destWhId,
-                                'hsd'               => $p->hsd,
                                 'space_coefficient' => $p->space_coefficient,
                             ]);
+                            
+                            foreach ($transferredBatches as $tb) {
+                                $destProduct->batches()->create([
+                                    'hsd' => $tb['hsd'],
+                                    'quantity' => $tb['quantity'],
+                                ]);
+                            }
                         }
 
                         // Tạo chi tiết phiếu nhập cho kho đích
@@ -368,6 +430,11 @@ class InventoryController extends Controller
      */
     public function getProjectExportedItems($projectId)
     {
+        $isClosed = DB::table('projects')->where('id', $projectId)->value('is_return_closed');
+        if ($isClosed) {
+            return response()->json(['success' => true, 'items' => []]);
+        }
+        
         // Lấy tất cả chi tiết xuất (OUT) cho dự án này
         $exported = InventoryTransactionDetail::whereHas('transaction', function ($q) use ($projectId) {
                 $q->where('type', 'OUT')->where('project_id', $projectId);
@@ -413,11 +480,12 @@ class InventoryController extends Controller
     public function importFromProject(Request $request)
     {
         $request->validate([
-            'project_id'   => 'required',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'items'        => 'required|array|min:1',
+            'project_id'       => 'required',
+            'warehouse_id'     => 'required|exists:warehouses,id',
+            'items'            => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity'   => 'required|numeric|min:0.01',
+            'is_final_return'  => 'nullable|boolean',
         ]);
 
         try {
@@ -461,11 +529,71 @@ class InventoryController extends Controller
                     $p->warehouse_id   = $request->warehouse_id;
                     $p->save();
 
+                    // Tạo lô hàng (hsd null cho hàng trả về vì không xác định được đích xác lô nào)
+                    $existingBatch = $p->batches()->whereNull('hsd')->first();
+                    if ($existingBatch) {
+                        $existingBatch->quantity += $qty;
+                        $existingBatch->save();
+                    } else {
+                        $p->batches()->create([
+                            'hsd' => null,
+                            'quantity' => $qty,
+                        ]);
+                    }
+
                     $transaction->details()->create([
                         'product_id' => $p->id,
                         'quantity'   => $qty,
                         'unit_price' => (float) $p->price,
                     ]);
+                }
+
+                // Chốt sổ: Khấu trừ phần dư thừa (hao hụt thi công)
+                if ($request->is_final_return) {
+                    DB::table('projects')->where('id', $request->project_id)->update(['is_return_closed' => true]);
+
+                    // Tính lại dư nợ tương tự getProjectExportedItems
+                    $exported = InventoryTransactionDetail::whereHas('transaction', function ($q) use ($request) {
+                            $q->where('type', 'OUT')->where('project_id', $request->project_id);
+                        })->get()->groupBy('product_id');
+
+                    $returned = InventoryTransactionDetail::whereHas('transaction', function ($q) use ($request) {
+                            $q->where('type', 'IN')->where('project_id', $request->project_id);
+                        })->get()->groupBy('product_id');
+
+                    $lossItems = [];
+                    foreach ($exported as $productId => $details) {
+                        $totalExported = $details->sum('quantity');
+                        $totalReturned = isset($returned[$productId]) ? $returned[$productId]->sum('quantity') : 0;
+                        $remaining     = $totalExported - $totalReturned;
+                        if ($remaining > 0) {
+                            $lossItems[] = [
+                                'product_id' => $productId,
+                                'quantity' => $remaining,
+                                'price' => $details->first()->unit_price ?? 0,
+                            ];
+                        }
+                    }
+
+                    if (count($lossItems) > 0) {
+                        $lossTransaction = InventoryTransaction::create([
+                            'transaction_code' => 'P-LOSS-' . strtoupper(bin2hex(random_bytes(3))),
+                            'type'             => 'OUT',
+                            'project_id'       => $request->project_id,
+                            'warehouse_id'     => $request->warehouse_id, // Gán tạm để đủ pass schema
+                            'transaction_date' => now(),
+                            'status'           => 'COMPLETED',
+                            'note'             => 'Quyết toán hao hụt khi đóng dự án #' . $request->project_id,
+                        ]);
+
+                        foreach ($lossItems as $lItem) {
+                            $lossTransaction->details()->create([
+                                'product_id' => $lItem['product_id'],
+                                'quantity'   => $lItem['quantity'],
+                                'unit_price' => $lItem['price'],
+                            ]);
+                        }
+                    }
                 }
 
                 return response()->json([
