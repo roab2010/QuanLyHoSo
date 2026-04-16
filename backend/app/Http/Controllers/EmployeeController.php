@@ -66,7 +66,7 @@ class EmployeeController extends Controller
             }
             // Xóa Employee
             \DB::table('employees')->where('id', $id)->delete();
-            
+
             \DB::commit();
             return response()->json(['message' => 'Xóa nhân viên thành công']);
         } catch (\Exception $e) {
@@ -101,7 +101,7 @@ class EmployeeController extends Controller
             $emailParts = explode('@', $request->email);
             $baseUsername = $emailParts[0] ?? strtolower(str_replace(' ', '', $request->full_name));
             $username = $baseUsername;
-            
+
             // Đảm bảo username là duy nhất
             $counter = 1;
             while (DB::table('users')->where('username', $username)->exists()) {
@@ -115,7 +115,7 @@ class EmployeeController extends Controller
                 'full_name' => $request->full_name,
                 'email' => $request->email,
                 'phone' => $request->phone ?? '',
-                'password_hash' => Hash::make('123456'), 
+                'password_hash' => Hash::make('123456'),
                 'role_id' => $request->role_id,
                 'status' => 1,
             ]);
@@ -150,7 +150,6 @@ class EmployeeController extends Controller
                     'email' => $request->email,
                 ]
             ], 201);
-            
         } catch (Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
