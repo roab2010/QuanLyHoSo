@@ -23,7 +23,6 @@ class Product extends Model
         'current_stock',
         'warehouse_id',
         'supplier_id',
-        'hsd',
         'space_coefficient'
     ];
 
@@ -39,6 +38,16 @@ class Product extends Model
     ];
 
     protected $appends = ['stock_status'];
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    public function batches()
+    {
+        return $this->hasMany(ProductBatch::class);
+    }
 
     public function getStockStatusAttribute()
     {
