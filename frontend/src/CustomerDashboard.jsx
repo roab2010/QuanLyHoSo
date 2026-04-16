@@ -42,6 +42,10 @@ export default function CustomerDashboard() {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [news, setNews] = useState([]);
     const [activeView, setActiveView] = useState("overview"); // overview or news
+    
+    const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [isEditingPassword, setIsEditingPassword] = useState(false);
 
     // Update profileData when user state changes (e.g. after login/refresh)
     useEffect(() => {
@@ -138,6 +142,32 @@ export default function CustomerDashboard() {
             toast.error(err.response?.data?.message || "Lỗi cập nhật hồ sơ");
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (passwordData.new_password !== passwordData.new_password_confirmation) {
+            toast.error("Mật khẩu xác nhận không khớp!");
+            return;
+        }
+        if (passwordData.new_password.length < 6) {
+            toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            const res = await axios.post(`http://127.0.0.1:8000/api/customer/change-password/${user.id}`, passwordData);
+            if (res.data.status === "success") {
+                toast.success("Đổi mật khẩu thành công!");
+                setIsEditingPassword(false);
+                setPasswordData({ current_password: "", new_password: "", new_password_confirmation: "" });
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Lỗi đổi mật khẩu");
+        } finally {
+            setChangingPassword(false);
         }
     };
 
@@ -493,24 +523,56 @@ export default function CustomerDashboard() {
                             </div>
                         </div>
 
-                        <form onSubmit={handleUpdateProfile} className="modal-v3-form">
-                            <div className="v3-group">
-                                <label>Họ và tên</label>
-                                <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} />
-                            </div>
-                            <div className="v3-group">
-                                <label>Email</label>
-                                <input type="email" value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} />
-                            </div>
-                            <div className="v3-group">
-                                <label>Số điện thoại</label>
-                                <input type="text" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
-                            </div>
-                            <div className="modal-v3-foot">
-                                <button type="button" className="v3-no" onClick={() => setShowProfileModal(false)}>Hủy</button>
-                                <button type="submit" className="v3-yes" disabled={updating}>{updating ? "Đang lưu..." : "Lưu thay đổi"}</button>
-                            </div>
-                        </form>
+                        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                            <button
+                                style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: !isEditingPassword ? '2px solid #2563eb' : '2px solid transparent', color: !isEditingPassword ? '#2563eb' : '#64748b', fontWeight: '800', cursor: 'pointer' }}
+                                onClick={() => setIsEditingPassword(false)}
+                            >Thông tin chung</button>
+                            <button
+                                style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: isEditingPassword ? '2px solid #2563eb' : '2px solid transparent', color: isEditingPassword ? '#2563eb' : '#64748b', fontWeight: '800', cursor: 'pointer' }}
+                                onClick={() => setIsEditingPassword(true)}
+                            >Đổi mật khẩu</button>
+                        </div>
+
+                        {!isEditingPassword ? (
+                            <form onSubmit={handleUpdateProfile} className="modal-v3-form">
+                                <div className="v3-group">
+                                    <label>Họ và tên</label>
+                                    <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Email</label>
+                                    <input type="email" value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Số điện thoại</label>
+                                    <input type="text" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
+                                </div>
+                                <div className="modal-v3-foot">
+                                    <button type="button" className="v3-no" onClick={() => setShowProfileModal(false)}>Hủy</button>
+                                    <button type="submit" className="v3-yes" disabled={updating}>{updating ? "Đang lưu..." : "Lưu thay đổi"}</button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleChangePassword} className="modal-v3-form">
+                                <div className="v3-group">
+                                    <label>Mật khẩu hiện tại</label>
+                                    <input type="password" required value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Mật khẩu mới</label>
+                                    <input type="password" required value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} />
+                                </div>
+                                <div className="v3-group">
+                                    <label>Xác nhận mật khẩu</label>
+                                    <input type="password" required value={passwordData.new_password_confirmation} onChange={e => setPasswordData({...passwordData, new_password_confirmation: e.target.value})} />
+                                </div>
+                                <div className="modal-v3-foot">
+                                    <button type="button" className="v3-no" onClick={() => setIsEditingPassword(false)}>Hủy</button>
+                                    <button type="submit" className="v3-yes" disabled={changingPassword}>{changingPassword ? "Đang xử lý..." : "Cập nhật"}</button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}

@@ -10,6 +10,9 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
         email: admin?.email || "",
         phone: admin?.phone || ""
     });
+    const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [isEditingPassword, setIsEditingPassword] = useState(false);
 
     const getInitials = () => {
         if (admin?.full_name) {
@@ -57,6 +60,31 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             }
         } catch (err) {
             alert("Lỗi cập nhật thông tin cá nhân");
+        }
+    };
+
+    const handleChangePassword = async () => {
+        if (passwordData.new_password !== passwordData.new_password_confirmation) {
+            alert("Mật khẩu xác nhận không khớp!");
+            return;
+        }
+        if (passwordData.new_password.length < 6) {
+            alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            const res = await api.post(`/admin/change-password/${admin.id}`, passwordData);
+            if (res.status === 200) {
+                alert("Đổi mật khẩu thành công!");
+                setIsEditingPassword(false);
+                setPasswordData({ current_password: "", new_password: "", new_password_confirmation: "" });
+            }
+        } catch (err) {
+            alert(err.response?.data?.message || "Lỗi đổi mật khẩu");
+        } finally {
+            setChangingPassword(false);
         }
     };
 
@@ -212,37 +240,85 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                         <p style={{ color: '#6b7280', fontSize: '14px' }}>Cập nhật thông tin cá nhân của bạn</p>
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                        <label>Họ và Tên</label>
-                        <input 
-                            className="form-input" 
-                            value={profileData.full_name} 
-                            onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
-                        />
+                    <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', marginBottom: '24px' }}>
+                        <button
+                            style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: !isEditingPassword ? '2px solid #3b82f6' : '2px solid transparent', color: !isEditingPassword ? '#3b82f6' : '#6b7280', fontWeight: '600', cursor: 'pointer' }}
+                            onClick={() => setIsEditingPassword(false)}
+                        >Thông tin</button>
+                        <button
+                            style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: isEditingPassword ? '2px solid #3b82f6' : '2px solid transparent', color: isEditingPassword ? '#3b82f6' : '#6b7280', fontWeight: '600', cursor: 'pointer' }}
+                            onClick={() => setIsEditingPassword(true)}
+                        >Mật khẩu</button>
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                        <label>Email</label>
-                        <input 
-                            className="form-input" 
-                            value={profileData.email} 
-                            onChange={(e) => setProfileData({...profileData, email: e.target.value})}
-                        />
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '24px' }}>
-                        <label>Số điện thoại</label>
-                        <input 
-                            className="form-input" 
-                            value={profileData.phone} 
-                            onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setShowProfileModal(false)}>Hủy</button>
-                        <button className="btn-submit" style={{ flex: 1 }} onClick={handleUpdateProfile}>Lưu thay đổi</button>
-                    </div>
+                    {!isEditingPassword ? (
+                        <>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Họ và Tên</label>
+                                <input 
+                                    className="form-input" 
+                                    value={profileData.full_name} 
+                                    onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Email</label>
+                                <input 
+                                    className="form-input" 
+                                    value={profileData.email} 
+                                    onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '24px' }}>
+                                <label>Số điện thoại</label>
+                                <input 
+                                    className="form-input" 
+                                    value={profileData.phone} 
+                                    onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setShowProfileModal(false)}>Hủy</button>
+                                <button className="btn-submit" style={{ flex: 1 }} onClick={handleUpdateProfile}>Lưu thay đổi</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Mật khẩu hiện tại</label>
+                                <input 
+                                    type="password"
+                                    className="form-input" 
+                                    value={passwordData.current_password} 
+                                    onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label>Mật khẩu mới</label>
+                                <input 
+                                    type="password"
+                                    className="form-input" 
+                                    value={passwordData.new_password} 
+                                    onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '24px' }}>
+                                <label>Xác nhận mật khẩu mới</label>
+                                <input 
+                                    type="password"
+                                    className="form-input" 
+                                    value={passwordData.new_password_confirmation} 
+                                    onChange={(e) => setPasswordData({...passwordData, new_password_confirmation: e.target.value})}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setIsEditingPassword(false)}>Hủy</button>
+                                <button className="btn-submit" style={{ flex: 1 }} disabled={changingPassword} onClick={handleChangePassword}>
+                                    {changingPassword ? "Đang xử lý..." : "Cập nhật mật khẩu"}
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         )}

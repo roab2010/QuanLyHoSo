@@ -15,6 +15,7 @@ use App\Http\Controllers\ProjectDocumentController;
 Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)
 Route::post('/admin/login', [AuthController::class, 'loginAdmin']); // Admin/Staff đăng nhập (username)
 Route::post('/admin/profile/{id}', [AuthController::class, 'updateProfile']);
+Route::post('/admin/change-password/{id}', [AuthController::class, 'changePassword']);
 
 // CÁC ROUTE CỦA DỰ ÁN (HỒ SƠ)
 Route::get('/projects', [ProjectController::class, 'index']);
@@ -73,6 +74,7 @@ Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile
 // QUẢN LÝ NHÂN VIÊN & VAI TRÒ (Cấp phát tài khoản)
 use App\Http\Controllers\EmployeeController;
     Route::get('/manage/employees', [EmployeeController::class, 'index']);
+    Route::get('/manage/employees/{id}/projects', [EmployeeController::class, 'getEmployeeProjects']);
     Route::post('/manage/employees', [EmployeeController::class, 'store']);
     Route::delete('/manage/employees/{id}', [EmployeeController::class, 'destroy']);
     Route::get('/roles', [EmployeeController::class, 'getRoles']);
@@ -100,6 +102,7 @@ Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
 Route::get('/customer/projects', [CustomerController::class, 'list']);
 Route::get('/customer/projects/{id}', [CustomerController::class, 'detail']);
 Route::post('/customer/profile/{id}', [CustomerController::class, 'updateProfile']);
+Route::post('/customer/change-password/{id}', [CustomerController::class, 'changePassword']);
 Route::post('/customer/projects/{projectId}/upload', [ProjectController::class, 'customerUploadDocument']);
 Route::get('/news', [NewsController::class, 'index']);
 Route::get('/crawl-news', [NewsController::class, 'crawl']);
