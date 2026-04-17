@@ -101,6 +101,7 @@ Route::post('/suppliers', [SupplierController::class, 'store']);
 Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
 Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
 Route::post('/suppliers/{id}/materials', [SupplierController::class, 'addMaterial']);
+Route::post('/suppliers/{id}/materials/bulk', [SupplierController::class, 'bulkAddMaterials']);
 Route::put('/supplier-materials/{id}/price', [SupplierController::class, 'updatePrice']);
 Route::get('/supplier-materials/{id}/history', [SupplierController::class, 'getPriceHistory']);
 Route::delete('/supplier-materials/{id}', [SupplierController::class, 'deleteMaterial']);
