@@ -196,6 +196,35 @@ export const returnItemsToWarehouse = async (payload) => {
 };
 
 /**
+ * Yêu cầu cấp vật tư cho dự án (Gửi trạng thái PENDING)
+ */
+export const requestProjectMaterials = async (payload) => {
+  const res = await api.post(`/inventory/export`, { ...payload, status: 'PENDING' });
+  return res.data;
+};
+
+/**
+ * Lấy danh sách phiếu yêu cầu cấp vật tư đang chờ duyệt
+ */
+export const getPendingMaterialRequests = async () => {
+  try {
+    const res = await api.get('/inventory/pending-requests');
+    return res.data;
+  } catch (e) {
+    console.error("Lỗi lấy danh sách phiếu chờ duyệt:", e);
+    return { success: false, requests: [] };
+  }
+};
+
+/**
+ * Xử lý (Duyệt/Từ chối) phiếu yêu cầu vật tư
+ */
+export const processMaterialRequest = async (id, action) => {
+  const res = await api.post(`/inventory/requests/${id}/process`, { action });
+  return res.data;
+};
+
+/**
  * Lấy danh sách kho
  */
 export const getAllWarehouses = async () => {
@@ -205,6 +234,20 @@ export const getAllWarehouses = async () => {
     return Array.isArray(data) ? data : [];
   } catch (e) {
     console.error("Lỗi lấy kho:", e);
+    return [];
+  }
+};
+
+/**
+ * Lấy danh sách vật tư tồn kho
+ */
+export const getAllInventoryItems = async () => {
+  try {
+    const res = await api.get("/inventory");
+    const data = res.data?.inventory ?? res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Lỗi lấy danh sách tồn kho:", e);
     return [];
   }
 };

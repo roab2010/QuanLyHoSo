@@ -4,7 +4,6 @@ import {
     User, 
     Fingerprint, 
     Phone, 
-    Mail, 
     Building2, 
     ShieldCheck, 
     Star, 
@@ -13,7 +12,8 @@ import {
     CheckCircle2,
     X,
     AlertCircle,
-    Award
+    Award,
+    Package
 } from "lucide-react";
 
 export default function ModalAddSupplier({ onClose, onSave, editingData }) {
@@ -21,13 +21,12 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
         supplier_code: "",
         name: "",
         tax_code: "",
-        main_material_type: "",
         phone: "",
-        email: "",
         status: "ACTIVE",
         is_strategic: false,
         rating_stars: 5,
-        evaluation_tag: "TIN_CAY"
+        evaluation_tag: "TIN_CAY",
+        materials_string: ""
     });
 
     const [loading, setLoading] = useState(false);
@@ -35,7 +34,8 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
     useEffect(() => {
         if (editingData) setFormData({ 
             ...editingData,
-            is_strategic: Boolean(editingData.is_strategic)
+            is_strategic: Boolean(editingData.is_strategic),
+            materials_string: "" // We don't edit existing materials here, they have their own modal
         });
     }, [editingData]);
 
@@ -106,7 +106,7 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                         </div>
                         <h3>{editingData ? "Cập nhật hồ sơ đối tác" : "Thêm nhà cung cấp mới"}</h3>
                     </div>
-                    <button className="modal-close" onClick={onClose} disabled={loading}><X size={20} /></button>
+                    <button type="button" className="modal-close" onClick={onClose} disabled={loading}><X size={20} /></button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -174,30 +174,16 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                                     </div>
 
                                     <div className="input-group-premium">
-                                        <label>Số điện thoại</label>
+                                        <label>Số điện thoại <span className="req-mark">*</span></label>
                                         <div className="form-input-wrapper">
                                             <Phone size={18} />
                                             <input 
                                                 name="phone" 
                                                 className="form-input"
-                                                placeholder="Số hotline/di động"
+                                                placeholder="Số hotline/di động (Bắt buộc)"
                                                 value={formData.phone} 
                                                 onChange={handleChange} 
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="input-group-premium">
-                                        <label>Email liên hệ</label>
-                                        <div className="form-input-wrapper">
-                                            <Mail size={18} />
-                                            <input 
-                                                type="email"
-                                                name="email" 
-                                                className="form-input"
-                                                placeholder="example@supplier.com"
-                                                value={formData.email} 
-                                                onChange={handleChange} 
+                                                required
                                             />
                                         </div>
                                     </div>
@@ -221,13 +207,13 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                                 </div>
                             </div>
 
-                            {/* Section: Đánh giá & Vật tư (Dưới cùng, chia 2 cột tiếp) */}
+                            {/* Section: Đánh giá & Vật tư */}
                             <div className="sections-row">
                                 <div className="section-column">
                                     <div className="form-section-title" style={{ marginTop: 0 }}>
                                         <Star size={16} /> Đánh giá năng lực
                                     </div>
-                                    <div className="form-grid-2">
+                                    <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                         <div className="input-group-premium">
                                             <label>Xếp hạng</label>
                                             <div className="form-input-wrapper">
@@ -268,40 +254,45 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="section-column">
-                                    <div className="form-section-title" style={{ marginTop: 0 }}>
-                                        <Tag size={16} /> Lĩnh vực cung ứng
-                                    </div>
-                                    <div className="input-group-premium">
-                                        <label>Loại vật tư chính</label>
-                                        <div className="form-input-wrapper">
-                                            <BoxIcon size={18} />
+                                    {/* Strategic Toggle */}
+                                    <div className="full-width" style={{ marginTop: '16px' }}>
+                                        <label className="strategic-toggle">
                                             <input 
-                                                name="main_material_type" 
-                                                className="form-input"
-                                                placeholder="Thép, Xi măng, Nội thất..."
-                                                value={formData.main_material_type} 
+                                                type="checkbox" 
+                                                name="is_strategic" 
+                                                checked={formData.is_strategic} 
                                                 onChange={handleChange} 
                                             />
-                                        </div>
+                                            <Star size={18} fill={formData.is_strategic ? "#FFB547" : "none"} color={formData.is_strategic ? "#FFB547" : "#a3aed0"} />
+                                            <span>Đánh dấu Đối tác Chiến lược</span>
+                                        </label>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Strategic Toggle */}
-                            <div className="full-width" style={{ marginTop: '-10px' }}>
-                                <label className="strategic-toggle">
-                                    <input 
-                                        type="checkbox" 
-                                        name="is_strategic" 
-                                        checked={formData.is_strategic} 
-                                        onChange={handleChange} 
-                                    />
-                                    <Star size={18} fill={formData.is_strategic ? "#FFB547" : "none"} color={formData.is_strategic ? "#FFB547" : "#a3aed0"} />
-                                    <span>Đánh dấu đây là Đối tác cung ứng Chiến lược</span>
-                                </label>
+                                {!editingData && (
+                                    <div className="section-column">
+                                        <div className="form-section-title" style={{ marginTop: 0 }}>
+                                            <Package size={16} /> Lĩnh vực cung ứng (Tạo phiếu giá)
+                                        </div>
+                                        <div className="input-group-premium" style={{ height: '100%' }}>
+                                            <label>Danh sách vật tư (ngăn cách bởi dấu phẩy)</label>
+                                            <div className="form-input-wrapper" style={{ height: '100%' }}>
+                                                <textarea 
+                                                    name="materials_string" 
+                                                    className="form-input"
+                                                    placeholder="Ví dụ: Thép hộp 40x80, Xi măng PCB40, Gạch ốp 60x60..."
+                                                    value={formData.materials_string} 
+                                                    onChange={handleChange} 
+                                                    style={{ height: '100%', minHeight: '120px', padding: '12px', paddingLeft: '14px' }}
+                                                />
+                                            </div>
+                                            <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px' }}>
+                                                Hệ thống sẽ tự động tạo phiếu giá 0đ cho các vật tư này để bạn cập nhật sau.
+                                            </small>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                         </div>
@@ -320,8 +311,3 @@ export default function ModalAddSupplier({ onClose, onSave, editingData }) {
         </div>
     );
 }
-
-// Custom icon for Material because Box is generic
-const BoxIcon = ({ size }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-);

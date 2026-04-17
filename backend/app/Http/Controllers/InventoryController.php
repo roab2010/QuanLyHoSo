@@ -245,6 +245,7 @@ class InventoryController extends Controller
             'items'        => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity'   => 'required|numeric|min:0.01',
+            'status'       => 'nullable|in:COMPLETED,PENDING',
         ]);
 
         try {
@@ -252,6 +253,7 @@ class InventoryController extends Controller
                 $exportType = $request->export_type;
                 $destWhId   = $request->destination_warehouse_id;
                 $projectId  = $request->project_id;
+                $status     = $request->status ?? 'COMPLETED';
 
                 // --- Kiểm tra capacity kho đích (nếu xuất sang kho khác) ---
                 if ($exportType === 'TO_WAREHOUSE') {
@@ -302,7 +304,7 @@ class InventoryController extends Controller
                     'warehouse_id'     => $sourceWhId,
                     'project_id'       => $projectId ?? null,
                     'transaction_date' => now(),
-                    'status'           => 'COMPLETED',
+                    'status'           => $status,
                     'note'             => $exportType === 'TO_WAREHOUSE' ? 'Chuyển sang: ' . $destWarehouseInfo->name : ($request->note ?? null),
                 ]);
 
@@ -324,34 +326,33 @@ class InventoryController extends Controller
                     $p   = Product::findOrFail($item['product_id']);
                     $qty = (float) $item['quantity'];
 
-                    // Trừ tồn kho nguồn
-                    $p->current_stock = $p->current_stock - $qty;
-                    $p->save();
-
-                    // --- Thuật toán FIFO: Khấu trừ dần ở các Batch chứa HSD cũ ---
-                    $remainingQtyToDeduct = $qty;
-                    // Lọc những lô hàng nào còn qty, sau đó sort asc (null sẽ đi sau)
-                    // Ở SQL, NULL HSD có thể đứng lên đầu tuỳ DB, ta gọi bằng Collection cho an toàn
-                    $batches = $p->batches()->where('quantity', '>', 0)->get()->sortBy(function($b) {
-                        return $b->hsd ? $b->hsd : '9999-12-31'; // HSD null thì xử lý cuối cùng
-                    });
-
-                    // Lưu lịch sử các batch bị tuồn đi để chuyển giao cho kho mới
                     $transferredBatches = [];
 
-                    foreach ($batches as $batch) {
-                        if ($remainingQtyToDeduct <= 0) break;
+                    if ($status === 'COMPLETED') {
+                        // Trừ tồn kho nguồn
+                        $p->current_stock = $p->current_stock - $qty;
+                        $p->save();
 
-                        $deduct = min($remainingQtyToDeduct, $batch->quantity);
-                        $batch->quantity -= $deduct;
-                        $batch->save();
+                        // --- Thuật toán FIFO: Khấu trừ dần ở các Batch chứa HSD cũ ---
+                        $remainingQtyToDeduct = $qty;
+                        $batches = $p->batches()->where('quantity', '>', 0)->get()->sortBy(function($b) {
+                            return $b->hsd ? $b->hsd : '9999-12-31'; 
+                        });
 
-                        $transferredBatches[] = [
-                            'hsd' => $batch->hsd,
-                            'quantity' => $deduct,
-                        ];
+                        foreach ($batches as $batch) {
+                            if ($remainingQtyToDeduct <= 0) break;
 
-                        $remainingQtyToDeduct -= $deduct;
+                            $deduct = min($remainingQtyToDeduct, $batch->quantity);
+                            $batch->quantity -= $deduct;
+                            $batch->save();
+
+                            $transferredBatches[] = [
+                                'hsd' => $batch->hsd,
+                                'quantity' => $deduct,
+                            ];
+
+                            $remainingQtyToDeduct -= $deduct;
+                        }
                     }
 
                     // Nếu xuất sang kho khác: tìm sản phẩm cùng SKU tại kho đích và cộng vào hoặc tạo mới
@@ -419,6 +420,82 @@ class InventoryController extends Controller
                     'success' => true,
                     'message' => 'Xuất kho thành công!',
                 ]);
+            });
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Lấy danh sách các yêu cầu vật tư đang chờ duyệt
+     */
+    public function getPendingRequests()
+    {
+        $requests = InventoryTransaction::where('inventory_transactions.type', 'OUT')
+            ->where('inventory_transactions.status', 'PENDING')
+            ->with(['details.product', 'warehouse'])
+            ->leftJoin('projects', 'inventory_transactions.project_id', '=', 'projects.id')
+            ->select('inventory_transactions.*', 'projects.name as project_name')
+            ->orderBy('inventory_transactions.created_at', 'desc')
+            ->get();
+
+        return response()->json(['success' => true, 'requests' => $requests]);
+    }
+
+    /**
+     * Duyệt hoặc từ chối phiếu yêu cầu vật tư
+     */
+    public function processRequest(Request $request, $id)
+    {
+        $request->validate([
+            'action' => 'required|in:APPROVE,REJECT'
+        ]);
+
+        try {
+            return DB::transaction(function () use ($request, $id) {
+                $transaction = InventoryTransaction::with('details.product')->findOrFail($id);
+
+                if ($transaction->status !== 'PENDING') {
+                    throw new Exception('Phiếu yêu cầu không còn ở trạng thái chờ duyệt!');
+                }
+
+                if ($request->action === 'REJECT') {
+                    $transaction->status = 'REJECTED';
+                    $transaction->save();
+                    return response()->json(['success' => true, 'message' => 'Đã từ chối phiếu yêu cầu!']);
+                }
+
+                // APPROVE logic
+                foreach ($transaction->details as $detail) {
+                    $p = $detail->product;
+                    $qty = (float) $detail->quantity;
+
+                    if ((float) $p->current_stock < $qty) {
+                        throw new Exception("Vật tư '{$p->name}' không đủ tồn kho để duyệt! Hiện còn: {$p->current_stock}");
+                    }
+
+                    $p->current_stock = $p->current_stock - $qty;
+                    $p->save();
+
+                    // Thuật toán FIFO
+                    $remainingQtyToDeduct = $qty;
+                    $batches = $p->batches()->where('quantity', '>', 0)->get()->sortBy(function($b) {
+                        return $b->hsd ? $b->hsd : '9999-12-31';
+                    });
+
+                    foreach ($batches as $batch) {
+                        if ($remainingQtyToDeduct <= 0) break;
+                        $deduct = min($remainingQtyToDeduct, $batch->quantity);
+                        $batch->quantity -= $deduct;
+                        $batch->save();
+                        $remainingQtyToDeduct -= $deduct;
+                    }
+                }
+
+                $transaction->status = 'COMPLETED';
+                $transaction->save();
+
+                return response()->json(['success' => true, 'message' => 'Duyệt phiếu yêu cầu thành công!']);
             });
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
