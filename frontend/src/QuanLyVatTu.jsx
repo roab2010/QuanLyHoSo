@@ -73,14 +73,20 @@ export default function QuanLyVatTu() {
     const [exportNote, setExportNote] = useState('');
     const [exportSelections, setExportSelections] = useState({}); // {product_id: qty}
 
+    // --- PENDING REQUESTS STATE ---
+    const [activeMainTab, setActiveMainTab] = useState("INVENTORY"); // INVENTORY | PENDING
+    const [pendingRequests, setPendingRequests] = useState([]);
+    const [processingRequest, setProcessingRequest] = useState(false);
+
     // ======================== LOAD DATA ========================
     const loadData = async () => {
         try {
-            const [invRes, wareRes, supRes, projRes] = await Promise.all([
+            const [invRes, wareRes, supRes, projRes, pendRes] = await Promise.all([
                 api.get("/inventory"),
                 api.get("/warehouses"),
                 api.get("/suppliers"),
                 api.get("/projects"),
+                api.get("/inventory/pending-requests").catch(() => ({ data: { requests: [] } }))
             ]);
             const invData = invRes.data?.inventory || invRes.data || [];
             setInventory(Array.isArray(invData) ? invData : []);
@@ -90,10 +96,31 @@ export default function QuanLyVatTu() {
             // Projects: lấy data từ đúng cấu trúc
             const projData = projRes.data?.projects || projRes.data?.data || projRes.data || [];
             setProjects(Array.isArray(projData) ? projData : []);
+            
+            setPendingRequests(pendRes.data?.requests || []);
         } catch (err) {
             console.error("Lỗi load data:", err);
         } finally {
             setLoading(false);
+        }
+    };
+    
+    // ======================== PROCESS REQUEST ========================
+    const handleProcessRequest = async (id, action) => {
+        if (!window.confirm(`Bạn có chắc muốn ${action === 'APPROVE' ? 'Duyệt' : 'Từ chối'} yêu cầu này?`)) return;
+        setProcessingRequest(true);
+        try {
+            const res = await api.post(`/inventory/requests/${id}/process`, { action });
+            if (res.data.success) {
+                alert(res.data.message);
+                loadData();
+            } else {
+                alert(res.data.message || "Có lỗi xảy ra!");
+            }
+        } catch (e) {
+            alert(e?.response?.data?.message || "Lỗi xử lý yêu cầu!");
+        } finally {
+            setProcessingRequest(false);
         }
     };
 
@@ -400,6 +427,17 @@ export default function QuanLyVatTu() {
                 <h1 style={{ margin: 0, color: '#2b3674', fontSize: '24px', fontWeight: 'bold' }}>Hệ thống Quản lý Kho</h1>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button
+                        style={{ padding: '12px 24px', background: activeMainTab === 'PENDING' ? '#2563eb' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }}
+                        onClick={() => setActiveMainTab(activeMainTab === 'PENDING' ? 'INVENTORY' : 'PENDING')}
+                    >
+                        📑 Duyệt yêu cầu {activeMainTab === 'PENDING' ? '(Đang xem)' : ''}
+                        {pendingRequests.length > 0 && (
+                            <span style={{ position: 'absolute', top: -5, right: -5, background: '#ef4444', color: '#fff', fontSize: '11px', padding: '2px 6px', borderRadius: '10px' }}>
+                                {pendingRequests.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
                         style={{ padding: '12px 24px', background: '#4318FF', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
                         onMouseOver={e => e.currentTarget.style.opacity = '0.85'}
                         onMouseOut={e => e.currentTarget.style.opacity = '1'}
@@ -418,7 +456,9 @@ export default function QuanLyVatTu() {
                 </div>
             </div>
 
-            {/* Stats */}
+            {activeMainTab === 'INVENTORY' ? (
+                <>
+                    {/* Stats */}
             <div style={{ marginBottom: '25px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px' }}>
                 <div className="stat-card">
                     <label style={{ fontSize: '12px', color: '#a3aed0', fontWeight: 'bold' }}>TỔNG LOẠI</label>
@@ -505,6 +545,75 @@ export default function QuanLyVatTu() {
                     </tbody>
                 </table>
             </div>
+            </>
+            ) : (
+                <div style={{ background: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', padding: '20px' }}>
+                    <h3 style={{ marginTop: 0, color: '#2b3674' }}>Danh sách yêu cầu cấp phát vật tư chờ duyệt</h3>
+                    {pendingRequests.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "40px", color: "#a3aed0" }}>
+                            Không có yêu cầu nào đang chờ duyệt.
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                            {pendingRequests.map(req => (
+                                <div key={req.id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                                    <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <span style={{ fontWeight: 'bold', color: '#1e293b', fontSize: '15px' }}>Dự án: {req.project_name || 'N/A'}</span>
+                                            <span style={{ marginLeft: '12px', color: '#64748b', fontSize: '13px' }}>Ngày tạo: {new Date(req.created_at).toLocaleString('vi-VN')}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button 
+                                                onClick={() => handleProcessRequest(req.id, 'REJECT')}
+                                                disabled={processingRequest}
+                                                style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                            >Từ chối</button>
+                                            <button 
+                                                onClick={() => handleProcessRequest(req.id, 'APPROVE')}
+                                                disabled={processingRequest}
+                                                style={{ background: '#10b981', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                            >Duyệt & Xuất kho</button>
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '0' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ background: '#fff' }}>
+                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontSize: '12px', borderBottom: '1px solid #f1f5f9' }}>VẬT TƯ</th>
+                                                    <th style={{ padding: '10px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', borderBottom: '1px solid #f1f5f9' }}>SỐ LƯỢNG YC</th>
+                                                    <th style={{ padding: '10px 16px', textAlign: 'center', color: '#64748b', fontSize: '12px', borderBottom: '1px solid #f1f5f9' }}>TỒN KHO THỰC TẾ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {req.details?.map(dt => {
+                                                    const stockObj = inventory.find(i => i.id === dt.product_id);
+                                                    const currentStock = stockObj ? Number(stockObj.current_stock) : Number(dt.product?.current_stock || 0);
+                                                    const isEnough = currentStock >= Number(dt.quantity);
+                                                    return (
+                                                        <tr key={dt.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '10px 16px' }}>
+                                                                <div style={{ fontWeight: '600', color: '#334155', fontSize: '13px' }}>{dt.product?.name}</div>
+                                                                <div style={{ color: '#94a3b8', fontSize: '12px' }}>{dt.product?.sku}</div>
+                                                            </td>
+                                                            <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 'bold', color: '#d97706' }}>
+                                                                {dt.quantity}
+                                                            </td>
+                                                            <td style={{ padding: '10px 16px', textAlign: 'center', color: isEnough ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                                                                {currentStock}
+                                                                {!isEnough && <span style={{display: 'block', fontSize: '10px'}}>Không đủ tồn kho!</span>}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ======================== MODAL NHẬP KHO ======================== */}
             {isImportModalOpen && (

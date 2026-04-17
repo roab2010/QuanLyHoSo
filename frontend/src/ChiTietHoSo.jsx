@@ -16,7 +16,9 @@ import {
     uploadProjectDocument,
     updateProjectDocumentNew,
     deleteProjectDocument,
-    getDocumentsMetadata
+    getDocumentsMetadata,
+    requestProjectMaterials,
+    getAllInventoryItems
 } from "./hoSoService";
 import { useToast } from "./Toast";
 
@@ -87,6 +89,12 @@ export default function ChiTietHoSo() {
     const [returning, setReturning] = useState(false);
     // Track which single item is being returned (null = return all)
     const [singleReturnItem, setSingleReturnItem] = useState(null);
+
+    // Request materials state
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [inventoryItems, setInventoryItems] = useState([]);
+    const [requestItems, setRequestItems] = useState([]);
+    const [requesting, setRequesting] = useState(false);
 
     // Drag state
     const dragItem = useRef(null);
@@ -372,6 +380,87 @@ export default function ChiTietHoSo() {
             toast.error(e?.response?.data?.message || "Lỗi khi hoàn trả vật tư");
         } finally {
             setReturning(false);
+        }
+    };
+
+    const openRequestModal = async () => {
+        if (inventoryItems.length === 0) {
+            const items = await getAllInventoryItems();
+            setInventoryItems(items);
+        }
+        setRequestItems([]);
+        setShowRequestModal(true);
+    };
+
+    const handleAddItemToRequest = (e) => {
+        const productId = e.target.value;
+        if (!productId) return;
+        const product = inventoryItems.find(p => p.id === Number(productId));
+        if (!product) return;
+        
+        if (requestItems.find(i => i.product_id === product.id)) {
+            toast.error("Vật tư đã có trong danh sách yêu cầu!");
+            e.target.value = ""; // Reset select
+            return;
+        }
+
+        setRequestItems([
+            ...requestItems,
+            {
+                product_id: product.id,
+                name: product.name,
+                sku: product.sku,
+                unit: product.unit,
+                current_stock: product.current_stock,
+                quantity: 1, 
+            }
+        ]);
+        e.target.value = ""; // Reset select
+    };
+
+    const handleUpdateQuantityRequest = (productId, qty) => {
+        setRequestItems(requestItems.map(item => 
+            item.product_id === productId ? { ...item, quantity: parseFloat(qty) || 0 } : item
+        ));
+    };
+
+    const handleRemoveItemFromRequest = (productId) => {
+        setRequestItems(requestItems.filter(item => item.product_id !== productId));
+    };
+
+    const handleRequestMaterials = async () => {
+        if (requestItems.length === 0) {
+            toast.error("Vui lòng chọn ít nhất 1 vật tư!");
+            return;
+        }
+        
+        const invalidItem = requestItems.find(item => item.quantity <= 0);
+        if (invalidItem) {
+            toast.error("Số lượng yêu cầu phải lớn hơn 0!");
+            return;
+        }
+        
+        setRequesting(true);
+        try {
+            const payload = {
+                export_type: 'TO_PROJECT',
+                project_id: id,
+                items: requestItems.map(item => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity
+                }))
+            };
+            const res = await requestProjectMaterials(payload);
+            if (res.success) {
+                toast.success("Đã gửi yêu cầu cấp vật tư thành công! Đang chờ duyệt.");
+                setShowRequestModal(false);
+            } else {
+                toast.error(res.message || "Lỗi khi gửi yêu cầu!");
+            }
+        } catch (e) {
+            toast.error(e?.response?.data?.message || "Lỗi gửi yêu cầu!");
+        } finally {
+            setRequesting(false);
         }
     };
 
@@ -785,7 +874,16 @@ export default function ChiTietHoSo() {
                             {/* Header section */}
                             <div className="section-header">
                                 <h3>Quản lý Vật tư & Thiết bị</h3>
-                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                                    {!isProjectCompleted && (
+                                        <button
+                                            className="btn-add-member"
+                                            onClick={openRequestModal}
+                                            style={{ background: "linear-gradient(135deg,#3b82f6,#2563eb)" }}
+                                        >
+                                            🏗️ Yêu cầu cấp vật tư
+                                        </button>
+                                    )}
                                     <button
                                         className="btn-add-member"
                                         onClick={fetchVatTu}
@@ -1379,6 +1477,147 @@ export default function ChiTietHoSo() {
                         ) : (
                             <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', background: '#f8fafc' }} title="Document Preview" />
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Yêu cầu cấp vật tư */}
+            {showRequestModal && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget && !requesting) setShowRequestModal(false);
+                    }}
+                >
+                    <div className="modal-box" style={{ maxWidth: 700, width: "95vw" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                            <span style={{ fontSize: 26 }}>🏗️</span>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: 18 }}>Yêu cầu cấp vật tư cho dự án</h3>
+                                <p style={{ margin: 0, fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                                    Chọn vật tư từ kho để gửi yêu cầu cấp phát. Phiếu sẽ được chuyển cho quản lý kho duyệt.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 20 }}>
+                            <label style={{ fontWeight: 600 }}>Thêm vật tư vào yêu cầu</label>
+                            <select
+                                className="form-input"
+                                onChange={handleAddItemToRequest}
+                                defaultValue=""
+                            >
+                                <option value="">— Tìm và chọn vật tư —</option>
+                                {inventoryItems.filter(p => !requestItems.some(req => req.product_id === p.id)).map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name} ({p.sku}) - Tồn thực tế: {p.current_stock} {p.unit}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {requestItems.length > 0 ? (
+                            <div style={{
+                                border: "1px solid #e2e8f0", borderRadius: 10,
+                                overflow: "hidden", marginBottom: 16
+                            }}>
+                                <div style={{
+                                    background: "#f8fafc", padding: "10px 14px",
+                                    borderBottom: "1px solid #e2e8f0",
+                                    fontSize: 12, fontWeight: 600, color: "#64748b",
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 100px 100px 50px",
+                                    gap: 8
+                                }}>
+                                    <span>TÊN VẬT TƯ</span>
+                                    <span style={{ textAlign: "center" }}>TỒN KHO</span>
+                                    <span style={{ textAlign: "center" }}>SỐ LƯỢNG YC</span>
+                                    <span></span>
+                                </div>
+                                <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                                    {requestItems.map((item, idx) => (
+                                        <div
+                                            key={item.product_id}
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "1fr 100px 100px 50px",
+                                                gap: 8,
+                                                padding: "10px 14px",
+                                                alignItems: "center",
+                                                borderBottom: idx < requestItems.length - 1 ? "1px solid #f1f5f9" : "none",
+                                                background: idx % 2 === 0 ? "#fff" : "#fafafa"
+                                            }}
+                                        >
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 13 }}>
+                                                    {item.name}
+                                                </div>
+                                                <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 2 }}>
+                                                    {item.sku} • {item.unit}
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: "center", color: "#64748b", fontSize: 13 }}>
+                                                {item.current_stock}
+                                            </div>
+                                            <div style={{ textAlign: "center" }}>
+                                                <input
+                                                    type="number"
+                                                    min={0.01}
+                                                    step={0.01}
+                                                    value={item.quantity}
+                                                    onChange={(e) => handleUpdateQuantityRequest(item.product_id, e.target.value)}
+                                                    max={item.current_stock} // optional: limit to current_stock
+                                                    style={{
+                                                        width: 80, padding: "6px",
+                                                        textAlign: "center", border: "1.5px solid #e2e8f0",
+                                                        borderRadius: 6, fontSize: 13, outline: "none"
+                                                    }}
+                                                />
+                                            </div>
+                                            <div style={{ textAlign: "center" }}>
+                                                <button
+                                                    onClick={() => handleRemoveItemFromRequest(item.product_id)}
+                                                    style={{
+                                                        background: "none", border: "none", color: "#ef4444",
+                                                        cursor: "pointer", fontSize: 16
+                                                    }}
+                                                    title="Xóa"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: "center", padding: "30px", background: "#f8fafc", borderRadius: 10, border: "2px dashed #e2e8f0", marginBottom: 16 }}>
+                                <p style={{ color: "#94a3b8", fontSize: 14 }}>Chưa có vật tư nào được chọn.</p>
+                            </div>
+                        )}
+
+                        <div className="modal-footer">
+                            <button
+                                className="btn-cancel"
+                                onClick={() => setShowRequestModal(false)}
+                                disabled={requesting}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                className="btn-submit"
+                                disabled={requesting || requestItems.length === 0}
+                                style={{
+                                    background: (requesting || requestItems.length === 0)
+                                        ? "#9ca3af"
+                                        : "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                                    cursor: (requesting || requestItems.length === 0) ? "not-allowed" : "pointer"
+                                }}
+                                onClick={handleRequestMaterials}
+                            >
+                                {requesting ? "⏳ Đang gửi..." : "✔ Gửi yêu cầu"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
