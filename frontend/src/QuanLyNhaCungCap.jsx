@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import ModalAddSupplier from "./ModalAddSupplier";
-
+import ModalSupplierPrices from "./ModalSupplierPrices";
 
 export default function QuanLyNhaCungCap() {
     // 1. Khai báo tất cả States ở đây (Chỉ khai báo 1 lần)
@@ -9,8 +9,14 @@ export default function QuanLyNhaCungCap() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterType, setFilterType] = useState("Tất cả");
+    
+    // Modal states
     const [showModal, setShowModal] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState(null); 
+    
+    // Price Modal states
+    const [showPricesModal, setShowPricesModal] = useState(false);
+    const [activeSupplierForPrices, setActiveSupplierForPrices] = useState(null);
 
     // 2. Lấy dữ liệu từ API
     useEffect(() => {
@@ -31,18 +37,15 @@ export default function QuanLyNhaCungCap() {
 
     // 3. Các hàm xử lý Logic (Thêm, Sửa, Xóa)
     const handleSaveSuccess = (data, action) => {
-        if (action === 'add') {
-            setSuppliers([data, ...suppliers]);
-        } else {
-            const updatedList = suppliers.map(s => s.id === data.id ? data : s);
-            setSuppliers(updatedList);
-        }
+        // Because of eager loaded nested relationships, it's safer to just fetch again
+        // after add/edit to get all the structure beautifully.
+        fetchSuppliers();
         setShowModal(false);
         setEditingSupplier(null);
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa nhà cung cấp này?")) {
+        if (window.confirm("Bạn có chắc chắn muốn xóa nhà cung cấp này? Toàn bộ danh sách vật tư và phiếu giá liên quan sẽ bị xóa!")) {
             try {
                 await axios.delete(`http://127.0.0.1:8000/api/suppliers/${id}`);
                 setSuppliers(suppliers.filter(s => s.id !== id));
@@ -62,12 +65,18 @@ export default function QuanLyNhaCungCap() {
         setShowModal(true);
     };
 
+    const handleOpenPrices = (supplier) => {
+        setActiveSupplierForPrices(supplier);
+        setShowPricesModal(true);
+    };
+
     // 4. Bộ lọc dữ liệu
     const filteredSuppliers = suppliers.filter(sup => {
         const nameMatch = sup.name?.toLowerCase().includes(searchTerm.toLowerCase());
         const taxMatch = sup.tax_code?.includes(searchTerm);
-        const matchType = filterType === "Tất cả" || sup.main_material_type === filterType;
-        return (nameMatch || taxMatch) && matchType;
+        // Note: Filter by specific material if needed. For now, we skip material type filtering as it's complex 
+        // to filter an array inside an object here, or we can just return true.
+        return (nameMatch || taxMatch);
     });
 
     // 5. Thống kê
@@ -117,20 +126,7 @@ export default function QuanLyNhaCungCap() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-            </div>
-                <select className="filter-select" onChange={(e) => setFilterType(e.target.value)}
-                    style={ {
-                        padding: '10px 40px 10px 15px',
-                        borderRadius: '12px',
-                        border: '1px solid #E0E5F2',
-                        color: '#1B2559',
-                        fontWeight: '600',
-                    }}>
-                    <option value="Tất cả">Tất cả loại vật tư</option>
-                    {[...new Set(suppliers.map(s => s.main_material_type))].filter(Boolean).map(t => (
-                    <option key={t} value={t}>{t}</option>
-                    ))}
-                 </select>
+                </div>
             </div>
 
             {/* Table */}
@@ -142,11 +138,11 @@ export default function QuanLyNhaCungCap() {
                         <thead>
                             <tr>
                                 <th>NHÀ CUNG CẤP</th>
-                                <th>LOẠI VẬT TƯ</th>
+                                <th>SỐ LƯỢNG VẬT TƯ</th>
                                 <th>LIÊN HỆ</th>
                                 <th>ĐÁNH GIÁ</th>
                                 <th>TRẠNG THÁI</th>
-                                <th>THAO TÁC</th>
+                                <th style={{ textAlign: 'center' }}>THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -164,14 +160,16 @@ export default function QuanLyNhaCungCap() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td><span className="type-tag">{sup.main_material_type || 'N/A'}</span></td>
                                     <td>
-                                        <div className="contact-info">{sup.phone}</div>
-                                        <div className="mst">{sup.email}</div>
+                                        <span className="type-tag" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}>
+                                            {sup.materials ? sup.materials.length : 0} loại
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="contact-info">📞 {sup.phone || 'Chưa cập nhật'}</div>
                                     </td>
                                    <td>
                                         {(() => {
-                                            // Định nghĩa màu sắc cho từng loại nhãn
                                             const tagStyles = {
                                                 'TIN_CAY': { class: 'reliable', icon: '✅' },
                                                 'TIEM_NANG': { class: 'potential', icon: '📈' },
@@ -194,14 +192,12 @@ export default function QuanLyNhaCungCap() {
                                     </td>
                                     <td>
                                         {(() => {
-                                            // Cấu hình hiển thị theo giá trị từ Database
                                             const statusConfig = {
                                                 'ACTIVE': { label: 'Đang hợp tác', class: 'active' },
                                                 'SUSPENDED': { label: 'Tạm dừng', class: 'paused' },
                                                 'PENDING': { label: 'Đang chờ', class: 'pending' }
                                             };
 
-                                            // Lấy cấu hình dựa trên sup.status, nếu không có thì để mặc định
                                             const currentStatus = statusConfig[sup.status] || { label: sup.status, class: '' };
 
                                             return (
@@ -212,9 +208,12 @@ export default function QuanLyNhaCungCap() {
                                         })()}
                                     </td>
                                     <td>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button onClick={() => handleEdit(sup)} className="btn-edit-small">✏️</button>
-                                            <button onClick={() => handleDelete(sup.id)} className="btn-delete-small">🗑️</button>
+                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                            <button onClick={() => handleOpenPrices(sup)} className="btn-edit-small" style={{ background: '#eff6ff', color: '#2563eb' }} title="Quản lý Phiếu giá">
+                                                📋
+                                            </button>
+                                            <button onClick={() => handleEdit(sup)} className="btn-edit-small" title="Sửa hồ sơ">✏️</button>
+                                            <button onClick={() => handleDelete(sup.id)} className="btn-delete-small" title="Xóa NCC">🗑️</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -232,6 +231,17 @@ export default function QuanLyNhaCungCap() {
                     }} 
                     onSave={handleSaveSuccess} 
                     editingData={editingSupplier} 
+                />
+            )}
+
+            {showPricesModal && activeSupplierForPrices && (
+                <ModalSupplierPrices
+                    supplier={activeSupplierForPrices}
+                    onClose={() => {
+                        setShowPricesModal(false);
+                        setActiveSupplierForPrices(null);
+                    }}
+                    onRefresh={fetchSuppliers} // Fetch when prices/materials change to sync numbers
                 />
             )}
         </div>

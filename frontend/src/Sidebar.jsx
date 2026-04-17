@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LayoutDashboard, FolderOpen, Settings, Users, Box, UsersRound, FileText, FileSpreadsheet, LogOut, Camera, User } from 'lucide-react';
 import api from "./api";
+import { getPendingMaterialRequests } from "./hoSoService";
 
 export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onShowModal, onLogout }) {
     const [uploading, setUploading] = useState(false);
@@ -13,6 +14,23 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
     const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
     const [changingPassword, setChangingPassword] = useState(false);
     const [isEditingPassword, setIsEditingPassword] = useState(false);
+    const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+    useEffect(() => {
+        if (hasPermission("inventory")) {
+            const fetchPendingCount = async () => {
+                const res = await getPendingMaterialRequests();
+                if (res?.success && res.requests) {
+                    setPendingRequestsCount(res.requests.length);
+                }
+            };
+            fetchPendingCount();
+            
+            // Periodically check for new requests every 30 seconds
+            const interval = setInterval(fetchPendingCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [admin]);
 
     const getInitials = () => {
         if (admin?.full_name) {
@@ -147,7 +165,23 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                                                             label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
                                                                 <FolderOpen size={20} />}
                         </span>
-                        {label}
+                        <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+                        {label === "Quản lý kho" && pendingRequestsCount > 0 && admin?.role === 'admin' && (
+                            <span style={{
+                                background: '#ef4444', color: 'white', fontSize: '11px',
+                                padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold'
+                            }}>
+                                {pendingRequestsCount}
+                            </span>
+                        )}
+                        {label === "Quản lý kho" && pendingRequestsCount > 0 && admin?.role !== 'admin' && (
+                            <span style={{
+                                background: '#f59e0b', color: 'white', fontSize: '11px',
+                                padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold'
+                            }}>
+                                {pendingRequestsCount}
+                            </span>
+                        )}
                     </button>
                 ))}
 

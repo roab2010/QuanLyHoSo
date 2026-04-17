@@ -24,7 +24,17 @@ class ProjectController extends Controller
 
     public function getByCustomer($customerId)
     {
-        $projects = Project::with(['category'])
+        $projects = Project::with([
+                'category', 
+                'documents' => function($q) {
+                    $q->orderBy('uploaded_at', 'desc');
+                },
+                'tasks' => function($q) {
+                    $q->orderBy('id', 'asc');
+                },
+                'members.employee',
+                'supervisor'
+            ])
             ->where('customer_id', $customerId)
             ->orderBy('created_at', 'desc')
             ->get();

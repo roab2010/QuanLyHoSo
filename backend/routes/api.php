@@ -89,6 +89,9 @@ Route::get('/inventory', [InventoryController::class, 'index']);
 Route::get('/products/{id}', [InventoryController::class, 'show']);
 Route::post('/products', [InventoryController::class, 'store']);
 Route::delete('/products/{id}', [InventoryController::class, 'destroy']);
+Route::get('/inventory/pending-requests', [InventoryController::class, 'getPendingRequests']);
+Route::post('/inventory/requests/{id}/process', [InventoryController::class, 'processRequest']);
+
 Route::post('/inventory/export', [InventoryController::class, 'export']);
 Route::post('/inventory/import-from-project', [InventoryController::class, 'importFromProject']);
 Route::get('/inventory/project-items/{projectId}', [InventoryController::class, 'getProjectExportedItems']);
@@ -97,6 +100,11 @@ Route::get('/suppliers', [SupplierController::class, 'index']);
 Route::post('/suppliers', [SupplierController::class, 'store']);
 Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
 Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+Route::post('/suppliers/{id}/materials', [SupplierController::class, 'addMaterial']);
+Route::put('/supplier-materials/{id}/price', [SupplierController::class, 'updatePrice']);
+Route::get('/supplier-materials/{id}/history', [SupplierController::class, 'getPriceHistory']);
+Route::delete('/supplier-materials/{id}', [SupplierController::class, 'deleteMaterial']);
+
 
 // KHÁCH HÀNG (PORTAL)
 Route::get('/customer/projects', [CustomerController::class, 'list']);

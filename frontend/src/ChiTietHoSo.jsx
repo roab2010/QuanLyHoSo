@@ -16,7 +16,9 @@ import {
     uploadProjectDocument,
     updateProjectDocumentNew,
     deleteProjectDocument,
-    getDocumentsMetadata
+    getDocumentsMetadata,
+    requestProjectMaterials,
+    getAllInventoryItems
 } from "./hoSoService";
 import { useToast } from "./Toast";
 
@@ -87,6 +89,12 @@ export default function ChiTietHoSo() {
     const [returning, setReturning] = useState(false);
     // Track which single item is being returned (null = return all)
     const [singleReturnItem, setSingleReturnItem] = useState(null);
+
+    // Request materials state
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [inventoryItems, setInventoryItems] = useState([]);
+    const [requestItems, setRequestItems] = useState([]);
+    const [requesting, setRequesting] = useState(false);
 
     // Drag state
     const dragItem = useRef(null);
@@ -198,12 +206,8 @@ export default function ChiTietHoSo() {
     const handleDrop = async (e, targetStatus) => {
         e.preventDefault();
         const task = dragItem.current;
+        // Cho phép Admin thay đổi trạng thái tự do
         if (!task || task.status === targetStatus) return;
-        const curOrd = TASK_ORDER[task.status];
-        const newOrd = TASK_ORDER[targetStatus];
-        if (newOrd < curOrd) return toast.warning("Không được kéo ngược trạng thái!");
-        if (newOrd > curOrd + 1)
-            return toast.warning("Chỉ được chuyển sang trạng thái kế tiếp!");
 
         setProject(prev => {
             const newTasks = prev.tasks.map(t =>
@@ -375,6 +379,87 @@ export default function ChiTietHoSo() {
         }
     };
 
+    const openRequestModal = async () => {
+        if (inventoryItems.length === 0) {
+            const items = await getAllInventoryItems();
+            setInventoryItems(items);
+        }
+        setRequestItems([]);
+        setShowRequestModal(true);
+    };
+
+    const handleAddItemToRequest = (e) => {
+        const productId = e.target.value;
+        if (!productId) return;
+        const product = inventoryItems.find(p => p.id === Number(productId));
+        if (!product) return;
+        
+        if (requestItems.find(i => i.product_id === product.id)) {
+            toast.error("Vật tư đã có trong danh sách yêu cầu!");
+            e.target.value = ""; // Reset select
+            return;
+        }
+
+        setRequestItems([
+            ...requestItems,
+            {
+                product_id: product.id,
+                name: product.name,
+                sku: product.sku,
+                unit: product.unit,
+                current_stock: product.current_stock,
+                quantity: 1, 
+            }
+        ]);
+        e.target.value = ""; // Reset select
+    };
+
+    const handleUpdateQuantityRequest = (productId, qty) => {
+        setRequestItems(requestItems.map(item => 
+            item.product_id === productId ? { ...item, quantity: parseFloat(qty) || 0 } : item
+        ));
+    };
+
+    const handleRemoveItemFromRequest = (productId) => {
+        setRequestItems(requestItems.filter(item => item.product_id !== productId));
+    };
+
+    const handleRequestMaterials = async () => {
+        if (requestItems.length === 0) {
+            toast.error("Vui lòng chọn ít nhất 1 vật tư!");
+            return;
+        }
+        
+        const invalidItem = requestItems.find(item => item.quantity <= 0);
+        if (invalidItem) {
+            toast.error("Số lượng yêu cầu phải lớn hơn 0!");
+            return;
+        }
+        
+        setRequesting(true);
+        try {
+            const payload = {
+                export_type: 'TO_PROJECT',
+                project_id: id,
+                items: requestItems.map(item => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity
+                }))
+            };
+            const res = await requestProjectMaterials(payload);
+            if (res.success) {
+                toast.success("Đã gửi yêu cầu cấp vật tư thành công! Đang chờ duyệt.");
+                setShowRequestModal(false);
+            } else {
+                toast.error(res.message || "Lỗi khi gửi yêu cầu!");
+            }
+        } catch (e) {
+            toast.error(e?.response?.data?.message || "Lỗi gửi yêu cầu!");
+        } finally {
+            setRequesting(false);
+        }
+    };
+
     if (loading)
         return (
             <div className="loading-screen">
@@ -450,6 +535,34 @@ export default function ChiTietHoSo() {
 
                 {/* Nội dung chính */}
                 <div className="detail-main">
+                    {/* Thêm style v3 cục bộ cho Kanban */}
+                    <style>{`
+                        .kb-v3-board { display: flex; gap: 20px; margin-top: 20px; overflow-x: auto; padding-bottom: 20px; }
+                        .kb-v3-col { flex: 1; min-width: 280px; background: #f8fafc; border-radius: 20px; padding: 16px; border: 1px solid #e2e8f0; transition: 0.3s; }
+                        .kb-v3-col.drag-over { background: #eff6ff; border-color: var(--primary); transform: scale(1.02); }
+                        .kb-v3-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 0 4px; }
+                        .kb-v3-dot { width: 8px; height: 8px; border-radius: 50%; }
+                        .kb-v3-title { font-size: 13px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .kb-v3-count { margin-left: auto; font-size: 11px; background: #e2e8f0; color: #64748b; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+                        
+                        .kb-v3-task { 
+                            background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; 
+                            border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); 
+                            cursor: grab; transition: 0.2s; position: relative;
+                        }
+                        .kb-v3-task:hover { box-shadow: 0 10px 15px rgba(0,0,0,0.05); transform: translateY(-2px); border-color: var(--primary); }
+                        .kb-v3-task:active { cursor: grabbing; transform: scale(0.98); opacity: 0.8; }
+                        .kb-v3-task.dragging { opacity: 0.4; }
+                        
+                        .kb-v3-task-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: block; line-height: 1.4; }
+                        .kb-v3-task-meta { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #94a3b8; font-weight: 600; }
+                        .kb-v3-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: 0.2s; }
+                        .kb-v3-task:hover .kb-v3-actions { opacity: 1; }
+                        .kb-v3-btn { width: 28px; height: 28px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+                        .kb-v3-btn.edit { background: #eff6ff; color: #2563eb; }
+                        .kb-v3-btn.del { background: #fef2f2; color: #ef4444; }
+                        .kb-v3-btn:hover { transform: scale(1.1); }
+                    `}</style>
 
                     {/* ═══ TAB: THÔNG TIN CHUNG (DASHBOARD) ═══ */}
                     {activeTab === "thong-tin" && (
@@ -560,37 +673,51 @@ export default function ChiTietHoSo() {
                                             Xem chi tiết →
                                         </button>
                                     </div>
-                                    <div className="kanban-preview">
+                                    <div className="kb-v3-board">
                                         {TASK_COLS.map((col) => {
                                             const colTasks = tasks.filter((t) => t.status === col.id);
                                             return (
-                                                <div className="kanban-preview-col" key={col.id}>
-                                                    <div className="kanban-col-header">
-                                                        <span
-                                                            className="kanban-dot"
-                                                            style={{ background: col.color }}
-                                                        ></span>
-                                                        <span className="kanban-col-title">
-                                                            {col.title}
-                                                        </span>
-                                                        <span className="kanban-col-count">
-                                                            {colTasks.length}
-                                                        </span>
+                                                <div 
+                                                    className="kb-v3-col" 
+                                                    key={col.id}
+                                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                                    onDragLeave={(e) => e.currentTarget.classList.remove('drag-over')}
+                                                    onDrop={(e) => { e.currentTarget.classList.remove('drag-over'); handleDrop(e, col.id); }}
+                                                >
+                                                    <div className="kb-v3-header">
+                                                        <span className="kb-v3-dot" style={{ background: col.color }}></span>
+                                                        <span className="kb-v3-title">{col.title}</span>
+                                                        <span className="kb-v3-count">{colTasks.length}</span>
                                                     </div>
-                                                    {colTasks.slice(0, 2).map((t) => (
-                                                        <div className="kanban-mini-card" key={t.id}>
-                                                            {t.task_name}
-                                                        </div>
-                                                    ))}
-                                                    {colTasks.length > 2 && (
-                                                        <span className="kanban-more">
-                                                            +{colTasks.length - 2} khác
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                    <div className="kb-v3-list">
+                                                        {colTasks.slice(0, 5).map((t) => (
+                                                            <div 
+                                                                className="kb-v3-task" 
+                                                                key={t.id}
+                                                                draggable
+                                                                onDragStart={(e) => handleDragStart(e, t)}
+                                                            >
+                                                                <span className="kb-v3-task-name">{t.task_name}</span>
+                                                                <div className="kb-v3-task-meta">
+                                                                    {t.work_volume > 0 && <span>📊 {t.work_volume} KL</span>}
+                                                                    <span>#{t.id.toString().slice(-4)}</span>
+                                                                </div>
+                                                                <div className="kb-v3-actions">
+                                                                    <button className="kb-v3-btn edit" onClick={() => handleEditTask(t)}>✎</button>
+                                                                    <button className="kb-v3-btn del" onClick={() => handleDeleteTask(t.id)}>🗑</button>
+                                                                </div>
+                                                            </div>
+                                                         ))}
+                                                         {colTasks.length > 5 && (
+                                                             <div className="kb-v3-more" onClick={() => setActiveTab("tien-do")} style={{ textAlign: 'center', padding: '10px', fontSize: '12px', color: '#3b82f6', fontWeight: '700', cursor: 'pointer' }}>
+                                                                 +{colTasks.length - 5} công việc khác
+                                                             </div>
+                                                         )}
+                                                     </div>
+                                                 </div>
+                                             );
+                                         })}
+                                     </div>
                                 </section>
                             </div>
 
@@ -785,7 +912,16 @@ export default function ChiTietHoSo() {
                             {/* Header section */}
                             <div className="section-header">
                                 <h3>Quản lý Vật tư & Thiết bị</h3>
-                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                                    {!isProjectCompleted && (
+                                        <button
+                                            className="btn-add-member"
+                                            onClick={openRequestModal}
+                                            style={{ background: "linear-gradient(135deg,#3b82f6,#2563eb)" }}
+                                        >
+                                            🏗️ Yêu cầu cấp vật tư
+                                        </button>
+                                    )}
                                     <button
                                         className="btn-add-member"
                                         onClick={fetchVatTu}
@@ -983,63 +1119,47 @@ export default function ChiTietHoSo() {
                                 </span>
                             </div>
 
-                            {/* Kanban Board */}
-                            <div className="kanban-board">
+                            {/* Kanban Board v3 Upgrade */}
+                            <div className="kb-v3-board" style={{ minHeight: '600px' }}>
                                 {TASK_COLS.map((col) => {
                                     const colTasks = tasks.filter((t) => t.status === col.id);
                                     return (
                                         <div
-                                            className="kanban-column"
+                                            className="kb-v3-col"
                                             key={col.id}
-                                            onDragOver={handleDragOver}
-                                            onDrop={(e) => handleDrop(e, col.id)}
+                                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                            onDragLeave={(e) => e.currentTarget.classList.remove('drag-over')}
+                                            onDrop={(e) => { e.currentTarget.classList.remove('drag-over'); handleDrop(e, col.id); }}
                                         >
-                                            <div className="kanban-col-header">
-                                                <span
-                                                    className="kanban-dot"
-                                                    style={{ background: col.color }}
-                                                ></span>
-                                                <span className="kanban-col-title">{col.title}</span>
-                                                <span className="kanban-col-count">
-                                                    {colTasks.length}
-                                                </span>
+                                            <div className="kb-v3-header">
+                                                <span className="kb-v3-dot" style={{ background: col.color }}></span>
+                                                <span className="kb-v3-title">{col.title}</span>
+                                                <span className="kb-v3-count">{colTasks.length}</span>
                                             </div>
-                                            <div className="kanban-cards">
+                                            <div className="kb-v3-list" style={{ minHeight: '400px' }}>
                                                 {colTasks.map((task) => (
                                                     <div
-                                                        className="kanban-task-card"
+                                                        className="kb-v3-task"
                                                         key={task.id}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, task)}
                                                     >
-                                                        <div className="task-card-top">
-                                                            <span className="task-name">
-                                                                {task.task_name}
-                                                            </span>
+                                                        <span className="kb-v3-task-name">{task.task_name}</span>
+                                                        <div className="kb-v3-task-meta">
+                                                            {task.work_volume > 0 && <span>📊 Khối lượng: {task.work_volume}</span>}
+                                                            <span>ID: #{task.id}</span>
                                                         </div>
-                                                        {task.work_volume > 0 && (
-                                                            <span className="task-volume">
-                                                                KL: {task.work_volume}
-                                                            </span>
-                                                        )}
-                                                        <div className="task-card-actions">
-                                                            <button
-                                                                className="task-btn task-btn-edit"
-                                                                onClick={() => handleEditTask(task)}
-                                                                title="Sửa"
-                                                            >
-                                                                ✎
-                                                            </button>
-                                                            <button
-                                                                className="task-btn task-btn-del"
-                                                                onClick={() => handleDeleteTask(task.id)}
-                                                                title="Xóa"
-                                                            >
-                                                                🗑
-                                                            </button>
+                                                        <div className="kb-v3-actions">
+                                                            <button className="kb-v3-btn edit" onClick={() => handleEditTask(task)}>✎</button>
+                                                            <button className="kb-v3-btn del" onClick={() => handleDeleteTask(task.id)}>🗑</button>
                                                         </div>
                                                     </div>
                                                 ))}
+                                                {colTasks.length === 0 && (
+                                                    <div style={{ padding: '60px 10px', textAlign: 'center', color: '#cbd5e1', border: '2px dashed #e2e8f0', borderRadius: '16px', fontSize: '13px' }}>
+                                                        Chưa có công việc
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -1379,6 +1499,147 @@ export default function ChiTietHoSo() {
                         ) : (
                             <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', background: '#f8fafc' }} title="Document Preview" />
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Yêu cầu cấp vật tư */}
+            {showRequestModal && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget && !requesting) setShowRequestModal(false);
+                    }}
+                >
+                    <div className="modal-box" style={{ maxWidth: 700, width: "95vw" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                            <span style={{ fontSize: 26 }}>🏗️</span>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: 18 }}>Yêu cầu cấp vật tư cho dự án</h3>
+                                <p style={{ margin: 0, fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                                    Chọn vật tư từ kho để gửi yêu cầu cấp phát. Phiếu sẽ được chuyển cho quản lý kho duyệt.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 20 }}>
+                            <label style={{ fontWeight: 600 }}>Thêm vật tư vào yêu cầu</label>
+                            <select
+                                className="form-input"
+                                onChange={handleAddItemToRequest}
+                                defaultValue=""
+                            >
+                                <option value="">— Tìm và chọn vật tư —</option>
+                                {inventoryItems.filter(p => !requestItems.some(req => req.product_id === p.id)).map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name} ({p.sku}) - Tồn thực tế: {p.current_stock} {p.unit}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {requestItems.length > 0 ? (
+                            <div style={{
+                                border: "1px solid #e2e8f0", borderRadius: 10,
+                                overflow: "hidden", marginBottom: 16
+                            }}>
+                                <div style={{
+                                    background: "#f8fafc", padding: "10px 14px",
+                                    borderBottom: "1px solid #e2e8f0",
+                                    fontSize: 12, fontWeight: 600, color: "#64748b",
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 100px 100px 50px",
+                                    gap: 8
+                                }}>
+                                    <span>TÊN VẬT TƯ</span>
+                                    <span style={{ textAlign: "center" }}>TỒN KHO</span>
+                                    <span style={{ textAlign: "center" }}>SỐ LƯỢNG YC</span>
+                                    <span></span>
+                                </div>
+                                <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                                    {requestItems.map((item, idx) => (
+                                        <div
+                                            key={item.product_id}
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "1fr 100px 100px 50px",
+                                                gap: 8,
+                                                padding: "10px 14px",
+                                                alignItems: "center",
+                                                borderBottom: idx < requestItems.length - 1 ? "1px solid #f1f5f9" : "none",
+                                                background: idx % 2 === 0 ? "#fff" : "#fafafa"
+                                            }}
+                                        >
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 13 }}>
+                                                    {item.name}
+                                                </div>
+                                                <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 2 }}>
+                                                    {item.sku} • {item.unit}
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: "center", color: "#64748b", fontSize: 13 }}>
+                                                {item.current_stock}
+                                            </div>
+                                            <div style={{ textAlign: "center" }}>
+                                                <input
+                                                    type="number"
+                                                    min={0.01}
+                                                    step={0.01}
+                                                    value={item.quantity}
+                                                    onChange={(e) => handleUpdateQuantityRequest(item.product_id, e.target.value)}
+                                                    max={item.current_stock} // optional: limit to current_stock
+                                                    style={{
+                                                        width: 80, padding: "6px",
+                                                        textAlign: "center", border: "1.5px solid #e2e8f0",
+                                                        borderRadius: 6, fontSize: 13, outline: "none"
+                                                    }}
+                                                />
+                                            </div>
+                                            <div style={{ textAlign: "center" }}>
+                                                <button
+                                                    onClick={() => handleRemoveItemFromRequest(item.product_id)}
+                                                    style={{
+                                                        background: "none", border: "none", color: "#ef4444",
+                                                        cursor: "pointer", fontSize: 16
+                                                    }}
+                                                    title="Xóa"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: "center", padding: "30px", background: "#f8fafc", borderRadius: 10, border: "2px dashed #e2e8f0", marginBottom: 16 }}>
+                                <p style={{ color: "#94a3b8", fontSize: 14 }}>Chưa có vật tư nào được chọn.</p>
+                            </div>
+                        )}
+
+                        <div className="modal-footer">
+                            <button
+                                className="btn-cancel"
+                                onClick={() => setShowRequestModal(false)}
+                                disabled={requesting}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                className="btn-submit"
+                                disabled={requesting || requestItems.length === 0}
+                                style={{
+                                    background: (requesting || requestItems.length === 0)
+                                        ? "#9ca3af"
+                                        : "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                                    cursor: (requesting || requestItems.length === 0) ? "not-allowed" : "pointer"
+                                }}
+                                onClick={handleRequestMaterials}
+                            >
+                                {requesting ? "⏳ Đang gửi..." : "✔ Gửi yêu cầu"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

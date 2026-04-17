@@ -10,7 +10,7 @@ export default function CustomerDashboard() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    
+
     // Status Logic sync with Backend
     const STATUS_LABELS = {
         'DRAFT': 'Chờ duyệt',
@@ -41,8 +41,10 @@ export default function CustomerDashboard() {
     const [updating, setUpdating] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [news, setNews] = useState([]);
-    const [activeView, setActiveView] = useState("overview"); // overview or news
-    
+    const [activeView, setActiveView] = useState("overview"); // overview, news, project-detail
+    const [selectedProject, setSelectedProject] = useState(null);
+    const [previewingImage, setPreviewingImage] = useState(null);
+
     const [passwordData, setPasswordData] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
     const [changingPassword, setChangingPassword] = useState(false);
     const [isEditingPassword, setIsEditingPassword] = useState(false);
@@ -145,6 +147,23 @@ export default function CustomerDashboard() {
         }
     };
 
+    const DOC_STATUS_LABELS = {
+        'PENDING': 'Chờ duyệt',
+        'PROCESSING': 'Đang xử lý',
+        'APPROVED': 'Đã duyệt',
+        'DONE': 'Đã duyệt',
+        'COMPLETED': 'Đã duyệt',
+        'REJECTED': 'Từ chối',
+        'FAILED': 'Từ chối'
+    };
+
+    const DOC_STATUS_COLORS = {
+        'Chờ duyệt': { bg: '#fff7ed', color: '#c2410c' },
+        'Đang xử lý': { bg: '#eff6ff', color: '#1d4ed8' },
+        'Đã duyệt': { bg: '#f0fdf4', color: '#15803d' },
+        'Từ chối': { bg: '#fef2f2', color: '#b91c1c' }
+    };
+
     const handleChangePassword = async (e) => {
         e.preventDefault();
         if (passwordData.new_password !== passwordData.new_password_confirmation) {
@@ -177,8 +196,8 @@ export default function CustomerDashboard() {
         return Math.round((completed / proj.tasks.length) * 100);
     };
 
-    const filteredProjects = projects.filter(p => 
-        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const filteredProjects = projects.filter(p =>
+        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.project_code && p.project_code.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
@@ -191,15 +210,20 @@ export default function CustomerDashboard() {
         { id: 'h3', name: 'Platinum', time: '2 ngày trước', status: 'DONE', msg: 'Tài khoản của bạn đã được xác minh Platinum.' }
     ];
 
-    const currentActivities = mainProject?.tasks?.length > 0 
-        ? mainProject.tasks.slice(0, 3).map(t => ({ 
-            id: t.id, 
-            name: t.name, 
+    const currentActivities = mainProject?.tasks?.length > 0
+        ? mainProject.tasks.slice(0, 3).map(t => ({
+            id: t.id,
+            name: t.name,
             time: t.updated_at ? new Date(t.updated_at).toLocaleDateString('vi-VN') : 'Mới đây',
             status: t.status,
             msg: t.status === 'DONE' || t.status === 'COMPLETED' ? 'Công việc đã hoàn thành.' : 'Đang triển khai thực tế.'
         }))
         : dummyActivities;
+
+    const isImage = (url) => {
+        if (!url) return false;
+        return /\.(jpg|jpeg|png|webp|avif|gif|svg)$/.test(url.toLowerCase());
+    };
 
     const handleProjectFileUpload = async (projectId, file) => {
         if (!file) return;
@@ -213,6 +237,16 @@ export default function CustomerDashboard() {
             });
             if (res.data.status === "success") {
                 toast.success("Đã gửi hồ sơ/ảnh thành công! Hồ sơ này sẽ được kĩ sư duyệt.");
+                // Update local state to show the new document immediately
+                setProjects(prev => prev.map(p => {
+                    if (p.id === projectId) {
+                        return {
+                            ...p,
+                            documents: [res.data.data, ...(p.documents || [])]
+                        };
+                    }
+                    return p;
+                }));
             }
         } catch (err) {
             toast.error("Lỗi khi gửi hồ sơ: " + (err.response?.data?.error || "Lỗi hệ thống"));
@@ -222,7 +256,7 @@ export default function CustomerDashboard() {
     return (
         <div className="dash-root-v3">
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-            
+
             {/* Sidebar */}
             <aside className="dash-aside">
                 <div className="aside-brand">
@@ -243,13 +277,13 @@ export default function CustomerDashboard() {
                 <nav className="aside-nav">
                     <div className="nav-sect">
                         <label>MENU</label>
-                        <button 
+                        <button
                             className={`nav-btn-v3 ${activeView === 'overview' ? 'active' : ''}`}
                             onClick={() => setActiveView('overview')}
                         >
                             <span className="material-symbols-outlined">grid_view</span> Tổng quan
                         </button>
-                        <button 
+                        <button
                             className={`nav-btn-v3 ${activeView === 'news' ? 'active' : ''}`}
                             onClick={() => setActiveView('news')}
                         >
@@ -307,24 +341,24 @@ export default function CustomerDashboard() {
                                         <h1>Chào {user.full_name?.split(' ').pop() || "Bảo"},</h1>
                                         <p>Tiến độ dự án hiện tại đạt <strong>{mainProgress}%</strong>. Mọi công việc đang được kiểm soát chặt chẽ bởi đội ngũ kĩ sư.</p>
                                         <div className="banner-btns">
-                                            <button className="btn-v3-blue">Chi tiết dự án</button>
-                                            <button className="btn-v3-ghost">Lịch sử thi công</button>
+                                            <button className="btn-v3-blue" onClick={() => { setSelectedProject(mainProject); setActiveView('project-detail'); }}>Chi tiết dự án</button>
+                                            <button className="btn-v3-ghost" onClick={() => setActiveView('activities')}>Lịch sử thi công</button>
                                         </div>
                                     </div>
                                     <div className="banner-visual">
                                         <div className="ring-container">
                                             <svg viewBox="0 0 100 100" className="ring-svg">
                                                 <circle cx="50" cy="50" r="45" stroke="#ffffff10" strokeWidth="8" fill="none" />
-                                                <circle 
-                                                    cx="50" cy="50" r="45" 
-                                                    stroke="#2563eb" strokeWidth="8" fill="none" 
-                                                    strokeDasharray="283" 
+                                                <circle
+                                                    cx="50" cy="50" r="45"
+                                                    stroke="#2563eb" strokeWidth="8" fill="none"
+                                                    strokeDasharray="283"
                                                     style={{ strokeDashoffset: 283 - (283 * mainProgress) / 100 }}
                                                     strokeLinecap="round"
                                                 />
-                                                <circle 
-                                                    cx="50" cy="5" r="3" 
-                                                    fill="#fff" 
+                                                <circle
+                                                    cx="50" cy="5" r="3"
+                                                    fill="#fff"
                                                     style={{ transformOrigin: '50px 50px', transform: `rotate(${(mainProgress * 3.6)}deg)` }}
                                                 />
                                             </svg>
@@ -351,7 +385,7 @@ export default function CustomerDashboard() {
                                                     const colors = STATUS_COLORS[label];
                                                     const prog = getProjectProgress(proj);
                                                     return (
-                                                        <div key={proj.id} className="proj-item-v3">
+                                                        <div key={proj.id} className="proj-item-v3" onClick={() => { setSelectedProject(proj); setActiveView('project-detail'); }} style={{ cursor: 'pointer' }}>
                                                             <div className="item-v3-top">
                                                                 <span className="v3-type">THIẾT KẾ & XÂY DỰNG</span>
                                                                 <span className="v3-st" style={{ background: colors.bg, color: colors.color }}>{label}</span>
@@ -375,14 +409,55 @@ export default function CustomerDashboard() {
                                                                 <div className="v3-bar"><div className="v3-fill" style={{ width: prog + '%' }}></div></div>
                                                             </div>
 
+                                                            {proj.documents && proj.documents.length > 0 && (
+                                                                <div className="v3-uploaded-sect">
+                                                                    <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--dim)', display: 'block', marginBottom: '12px' }}>
+                                                                        HÌNH ẢNH & HỒ SƠ ĐÃ GỬI ({proj.documents.length})
+                                                                    </label>
+                                                                    <div className="v3-file-grid">
+                                                                        {proj.documents.map((doc) => {
+                                                                            const docLabel = DOC_STATUS_LABELS[doc.status] || 'Chờ duyệt';
+                                                                            const docColors = DOC_STATUS_COLORS[docLabel] || DOC_STATUS_COLORS['Chờ duyệt'];
+                                                                            return (
+                                                                                <div key={doc.id} className="v3-file-card" onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (isImage(doc.file_url)) {
+                                                                                        setPreviewingImage(doc.file_url);
+                                                                                    } else {
+                                                                                        window.open(doc.file_url, '_blank');
+                                                                                    }
+                                                                                }}>
+                                                                                    <div className="v3-file-preview">
+                                                                                        {isImage(doc.file_url) ? (
+                                                                                            <img src={doc.file_url} alt={doc.document_name} />
+                                                                                        ) : (
+                                                                                            <div className="v3-file-icon">
+                                                                                                <span className="material-symbols-outlined">description</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <span className="v3-file-st" style={{ background: docColors.bg, color: docColors.color }}>
+                                                                                            {docLabel}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <div className="v3-file-info">
+                                                                                        <p title={doc.document_name}>{doc.document_name}</p>
+                                                                                        <span>{doc.uploaded_at}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
                                                             <div style={{ marginTop: '12px', display: 'flex', gap: '8px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px' }}>
-                                                                <label className="btn-v3-upload">
+                                                                <label className="btn-v3-upload" onClick={(e) => e.stopPropagation()}>
                                                                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
                                                                     Gửi ảnh/Hồ sơ
-                                                                    <input 
-                                                                        type="file" 
-                                                                        hidden 
-                                                                        onChange={(e) => handleProjectFileUpload(proj.id, e.target.files[0])} 
+                                                                    <input
+                                                                        type="file"
+                                                                        hidden
+                                                                        onChange={(e) => handleProjectFileUpload(proj.id, e.target.files[0])}
                                                                     />
                                                                 </label>
                                                             </div>
@@ -446,12 +521,12 @@ export default function CustomerDashboard() {
                             <div className="news-full-view animate-fade-in">
                                 <div className="sect-head">
                                     <h3>Bản tin thị trường</h3>
-                                    <button className="btn-v3-ghost" style={{ color: 'var(--text)', borderColor: '#e2e8f0' }} onClick={() => setActiveView('overview')}> Quay lại</button>
+                                    <button className="btn-v3-ghost" onClick={() => setActiveView('overview')}> Quay lại</button>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px', marginTop: '32px' }}>
                                     {news.length > 0 ? (
                                         news.map(item => (
-                                            <a key={item.id} href={item.link} target="_blank" rel="noopener noreferrer" className="card-v3" style={{ textDecoration: 'none', color: 'inherit', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', transition: '0.3s' }}>
+                                            <a key={item.id} href={item.link} target="_blank" rel="noopener noreferrer" className="card-v3 news-card-v3-full">
                                                 <img src={item.image} alt="" style={{ width: '100%', height: '200px', borderRadius: '20px', objectFit: 'cover' }} />
                                                 <div>
                                                     <small style={{ color: 'var(--primary)', fontWeight: '800', textTransform: 'uppercase', fontSize: '10px' }}>{item.category}</small>
@@ -465,6 +540,201 @@ export default function CustomerDashboard() {
                                             <p style={{ color: 'var(--dim)', fontWeight: '600' }}>Đang lấy tin tức mới nhất từ VnExpress...</p>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        ) : activeView === 'project-detail' && selectedProject ? (
+                            <div className="project-detail-view animate-fade-in">
+                                <div className="sect-head">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <button className="btn-v3-back" onClick={() => setActiveView('overview')}>
+                                            <span className="material-symbols-outlined">arrow_back</span>
+                                        </button>
+                                        <h3>Chi tiết hồ sơ: {selectedProject.name}</h3>
+                                    </div>
+                                    <span className="v3-live" style={{ background: STATUS_COLORS[STATUS_LABELS[selectedProject.status]]?.bg, color: STATUS_COLORS[STATUS_LABELS[selectedProject.status]]?.color }}>
+                                        {STATUS_LABELS[selectedProject.status] || selectedProject.status}
+                                    </span>
+                                </div>
+
+                                <div className="detail-grid-v3">
+                                    <div className="detail-main-col">
+                                        <div className="card-v3 info-card-v3">
+                                            <div className="info-header">
+                                                <span className="material-symbols-outlined">info</span>
+                                                <h4>Thông tin tổng quát</h4>
+                                            </div>
+                                            <div className="info-grid-content">
+                                                <div className="info-box">
+                                                    <label>Mã hồ sơ</label>
+                                                    <p>{selectedProject.project_code || 'HS-XXXX'}</p>
+                                                </div>
+                                                <div className="info-box">
+                                                    <label>Loại dự án</label>
+                                                    <p>{selectedProject.category?.name || 'Chưa phân loại'}</p>
+                                                </div>
+                                                <div className="info-box">
+                                                    <label>Địa điểm</label>
+                                                    <p>{selectedProject.address}</p>
+                                                </div>
+                                                <div className="info-box">
+                                                    <label>Ngày khởi tạo</label>
+                                                    <p>{selectedProject.created_at ? new Date(selectedProject.created_at).toLocaleDateString('vi-VN') : '—'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="card-v3 tasks-card-v3" style={{ padding: '32px' }}>
+                                            <div className="sect-head" style={{ marginBottom: '24px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: '28px' }}>view_kanban</span>
+                                                    <h4 style={{ margin: 0 }}>Tiến độ thi công (Kanban)</h4>
+                                                </div>
+                                            </div>
+
+                                            <div className="kanban-v3-board">
+                                                {/* CHƯA LÀM Column */}
+                                                <div className="kb-col">
+                                                    <div className="kb-head">
+                                                        <span className="kb-dot todo"></span>
+                                                        <strong>CHƯA LÀM</strong>
+                                                        <span className="kb-count">{(selectedProject.tasks || []).filter(t => ['TODO', 'PENDING', 'NEW', 'DRAFT', 'REVISION'].includes(t.status.toUpperCase())).length}</span>
+                                                    </div>
+                                                    <div className="kb-list">
+                                                        {(selectedProject.tasks || []).filter(t => ['TODO', 'PENDING', 'NEW', 'DRAFT', 'REVISION'].includes(t.status.toUpperCase())).map(task => (
+                                                            <div key={task.id} className="kb-task-card">
+                                                                <p>{task.task_name}</p>
+                                                                {task.work_volume > 0 && <small>Khối lượng: {task.work_volume}</small>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* ĐANG LÀM Column */}
+                                                <div className="kb-col">
+                                                    <div className="kb-head">
+                                                        <span className="kb-dot doing"></span>
+                                                        <strong>ĐANG LÀM</strong>
+                                                        <span className="kb-count">{(selectedProject.tasks || []).filter(t => ['DOING', 'PROCESSING'].includes(t.status.toUpperCase())).length}</span>
+                                                    </div>
+                                                    <div className="kb-list">
+                                                        {(selectedProject.tasks || []).filter(t => ['DOING', 'PROCESSING'].includes(t.status.toUpperCase())).map(task => (
+                                                            <div key={task.id} className="kb-task-card">
+                                                                <p>{task.task_name}</p>
+                                                                {task.work_volume > 0 && <small>Khối lượng: {task.work_volume}</small>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* HOÀN THÀNH Column */}
+                                                <div className="kb-col">
+                                                    <div className="kb-head">
+                                                        <span className="kb-dot done"></span>
+                                                        <strong>HOÀN THÀNH</strong>
+                                                        <span className="kb-count">{(selectedProject.tasks || []).filter(t => ['DONE', 'COMPLETED'].includes(t.status.toUpperCase())).length}</span>
+                                                    </div>
+                                                    <div className="kb-list">
+                                                        {(selectedProject.tasks || []).filter(t => ['DONE', 'COMPLETED'].includes(t.status.toUpperCase())).map(task => (
+                                                            <div key={task.id} className="kb-task-card done">
+                                                                <p>{task.task_name}</p>
+                                                                <span className="material-symbols-outlined kb-check">check_circle</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {(!selectedProject.tasks || selectedProject.tasks.length === 0) && (
+                                                <p className="v3-empty">Chưa có bảng phân rã công việc.</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="detail-side-col">
+                                        <div className="card-v3 progress-card-v3" style={{ marginBottom: '32px' }}>
+                                            <h4>Trạng thái hoàn thành</h4>
+                                            <div className="progress-radial-v3">
+                                                <svg viewBox="0 0 100 100">
+                                                    <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                                                    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--primary)" strokeWidth="8"
+                                                        strokeDasharray="283"
+                                                        strokeDashoffset={283 - (283 * getProjectProgress(selectedProject)) / 100}
+                                                        strokeLinecap="round"
+                                                        style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+                                                    />
+                                                </svg>
+                                                <div className="progress-center">
+                                                    <strong>{getProjectProgress(selectedProject)}%</strong>
+                                                    <span>Hoàn tất</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="card-v3 team-card-v3" style={{ marginBottom: '32px' }}>
+                                            <div className="info-header">
+                                                <span className="material-symbols-outlined">groups</span>
+                                                <h4>Đội ngũ thực hiện</h4>
+                                            </div>
+                                            <div className="team-list-v3">
+                                                {selectedProject.supervisor && (
+                                                    <div className="team-member-item">
+                                                        <div className="member-avatar-v3 mini">{selectedProject.supervisor.full_name?.charAt(0)}</div>
+                                                        <div className="member-info-v3">
+                                                            <strong>{selectedProject.supervisor.full_name}</strong>
+                                                            <span>Kỹ sư trưởng (Giám sát)</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {(selectedProject.members || []).map(m => (
+                                                    <div key={m.id} className="team-member-item">
+                                                        <div className="member-avatar-v3 mini">{m.employee?.full_name?.charAt(0)}</div>
+                                                        <div className="member-info-v3">
+                                                            <strong>{m.employee?.full_name}</strong>
+                                                            <span>{m.employee?.job_title || 'Thành viên dự án'}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {!(selectedProject.supervisor || (selectedProject.members && selectedProject.members.length > 0)) && (
+                                                    <p className="v3-empty">Chưa phân công nhân sự.</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="card-v3 docs-card-v3">
+                                            <div className="info-header">
+                                                <span className="material-symbols-outlined">folder_shared</span>
+                                                <h4>Hồ sơ & Tài liệu liên quan</h4>
+                                            </div>
+                                            <div className="side-doc-list">
+                                                {(selectedProject.documents || []).length > 0 ? (
+                                                    selectedProject.documents.map(doc => {
+                                                        const docLabel = DOC_STATUS_LABELS[doc.status] || 'Chờ duyệt';
+                                                        const docColors = DOC_STATUS_COLORS[docLabel] || DOC_STATUS_COLORS['Chờ duyệt'];
+                                                        return (
+                                                            <div key={doc.id} className="side-doc-item" onClick={() => {
+                                                                if (isImage(doc.file_url)) {
+                                                                    setPreviewingImage(doc.file_url);
+                                                                } else {
+                                                                    window.open(doc.file_url, '_blank');
+                                                                }
+                                                            }}>
+                                                                <span className="material-symbols-outlined">description</span>
+                                                                <div className="doc-meta">
+                                                                    <strong title={doc.document_name}>{doc.document_name}</strong>
+                                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                                                                        <span className="doc-st-pill" style={{ background: docColors.bg, color: docColors.color }}>{docLabel}</span>
+                                                                        <small>{doc.uploaded_at}</small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <p className="v3-empty">Chưa có tài liệu đính kèm.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -538,15 +808,15 @@ export default function CustomerDashboard() {
                             <form onSubmit={handleUpdateProfile} className="modal-v3-form">
                                 <div className="v3-group">
                                     <label>Họ và tên</label>
-                                    <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} />
+                                    <input type="text" value={profileData.full_name} onChange={e => setProfileData({ ...profileData, full_name: e.target.value })} />
                                 </div>
                                 <div className="v3-group">
                                     <label>Email</label>
-                                    <input type="email" value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} />
+                                    <input type="email" value={profileData.email} onChange={e => setProfileData({ ...profileData, email: e.target.value })} />
                                 </div>
                                 <div className="v3-group">
                                     <label>Số điện thoại</label>
-                                    <input type="text" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
+                                    <input type="text" value={profileData.phone} onChange={e => setProfileData({ ...profileData, phone: e.target.value })} />
                                 </div>
                                 <div className="modal-v3-foot">
                                     <button type="button" className="v3-no" onClick={() => setShowProfileModal(false)}>Hủy</button>
@@ -557,15 +827,15 @@ export default function CustomerDashboard() {
                             <form onSubmit={handleChangePassword} className="modal-v3-form">
                                 <div className="v3-group">
                                     <label>Mật khẩu hiện tại</label>
-                                    <input type="password" required value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} />
+                                    <input type="password" required value={passwordData.current_password} onChange={e => setPasswordData({ ...passwordData, current_password: e.target.value })} />
                                 </div>
                                 <div className="v3-group">
                                     <label>Mật khẩu mới</label>
-                                    <input type="password" required value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} />
+                                    <input type="password" required value={passwordData.new_password} onChange={e => setPasswordData({ ...passwordData, new_password: e.target.value })} />
                                 </div>
                                 <div className="v3-group">
                                     <label>Xác nhận mật khẩu</label>
-                                    <input type="password" required value={passwordData.new_password_confirmation} onChange={e => setPasswordData({...passwordData, new_password_confirmation: e.target.value})} />
+                                    <input type="password" required value={passwordData.new_password_confirmation} onChange={e => setPasswordData({ ...passwordData, new_password_confirmation: e.target.value })} />
                                 </div>
                                 <div className="modal-v3-foot">
                                     <button type="button" className="v3-no" onClick={() => setIsEditingPassword(false)}>Hủy</button>
@@ -573,6 +843,18 @@ export default function CustomerDashboard() {
                                 </div>
                             </form>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Image Lightbox */}
+            {previewingImage && (
+                <div className="v3-lightbox-overlay" onClick={() => setPreviewingImage(null)}>
+                    <button className="v3-lightbox-close" onClick={() => setPreviewingImage(null)}>
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                    <div className="v3-lightbox-content" onClick={(e) => e.stopPropagation()}>
+                        <img src={previewingImage} alt="Preview" />
                     </div>
                 </div>
             )}
@@ -796,13 +1078,104 @@ export default function CustomerDashboard() {
                     color: #2563eb;
                 }
 
+                .v3-uploaded-sect { margin-top: 24px; }
+                .v3-file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; }
+                .v3-file-card { 
+                    background: #f8fafc; 
+                    border-radius: 16px; 
+                    overflow: hidden; 
+                    border: 1px solid #e2e8f0; 
+                    cursor: pointer; 
+                    transition: 0.2s;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .v3-file-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-color: var(--primary); }
+                .v3-file-preview { position: relative; width: 100%; height: 90px; overflow: hidden; }
+                .v3-file-preview img { width: 100%; height: 100%; object-fit: cover; }
+                .v3-file-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e2e8f0; color: #64748b; }
+                .v3-file-icon span { font-size: 32px; }
+                .v3-file-st { position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; backdrop-filter: blur(4px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .v3-file-info { padding: 10px; border-top: 1px solid #e2e8f0; }
+                .v3-file-info p { margin: 0; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+                .v3-file-info span { font-size: 9px; color: var(--dim); font-weight: 600; }
+
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(10px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-                .animate-fade-in {
-                    animation: fadeIn 0.4s ease-out forwards;
-                }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+                /* Project Detail Styles - THE FIX */
+                .btn-v3-back { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #e2e8f0; background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+                .btn-v3-back:hover { background: #f8fafc; border-color: var(--dim); }
+                .detail-grid-v3 { display: grid; grid-template-columns: 1fr 340px; gap: 32px; margin-top: 32px; }
+                .info-card-v3, .tasks-card-v3, .progress-card-v3, .docs-card-v3 { padding: 32px; margin-bottom: 0 !important; }
+                .info-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; color: var(--text); }
+                .info-header span { color: var(--primary); font-size: 24px; }
+                .info-header h4 { margin: 0 !important; font-size: 18px; font-weight: 800; font-family: 'Manrope'; }
+                .info-grid-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 32px; }
+                .info-box { display: flex; flex-direction: column; gap: 4px; }
+                .info-box label { display: block; font-size: 11px; font-weight: 800; color: var(--dim); text-transform: uppercase; }
+                .info-box p { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+                
+                .step-content p { margin: 0; font-size: 12px; color: var(--dim); font-weight: 600; }
+                .step-badge { font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 100px; text-transform: uppercase; }
+                .step-badge.todo { background: #f1f5f9; color: #64748b; }
+                .step-badge.doing, .step-badge.processing { background: #eff6ff; color: #2563eb; }
+                .step-badge.done, .step-badge.completed { background: #f0fdf4; color: #16a34a; }
+
+                .progress-radial-v3 { position: relative; width: 180px; height: 180px; margin: 0 auto; }
+                .progress-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                .progress-center strong { font-size: 28px; font-weight: 800; font-family: 'Manrope'; color: var(--text); }
+                .progress-center span { font-size: 11px; font-weight: 800; color: var(--dim); text-transform: uppercase; }
+
+                .side-doc-list { display: flex; flex-direction: column; gap: 16px; }
+                .side-doc-item { display: flex; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; }
+                .side-doc-item:hover { background: #f8fafc; border-color: var(--primary); }
+                .side-doc-item span { color: var(--primary); font-size: 32px; }
+                .doc-meta { flex: 1; overflow: hidden; }
+                .doc-meta strong { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .doc-st-pill { font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+                .doc-meta small { font-size: 10px; color: var(--dim); font-weight: 600; }
+
+                .v3-empty { color: var(--dim); font-size: 13px; font-weight: 600; text-align: center; padding: 20px 0; }
+
+                /* Team Styles in Detail */
+                .team-card-v3 { padding: 32px; margin-bottom: 32px !important; }
+                .team-list-v3 { display: flex; flex-direction: column; gap: 16px; }
+                .team-member-item { display: flex; align-items: center; gap: 12px; }
+                .member-avatar-v3.mini { width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; border: 1.5px solid #dbeafe; }
+                .member-info-v3 { display: flex; flex-direction: column; }
+                .member-info-v3 strong { font-size: 13px; font-weight: 700; color: var(--text); }
+                .member-info-v3 span { font-size: 10px; color: var(--dim); font-weight: 600; }
+
+                .docs-card-v3 { padding: 32px; }
+
+                /* Lightbox Styles */
+                .v3-lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 40px; animation: fadeIn 0.3s ease-out; }
+                .v3-lightbox-content { position: relative; max-width: 90%; max-height: 90%; display: flex; align-items: center; justify-content: center; }
+                .v3-lightbox-content img { max-width: 100%; max-height: 90vh; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); object-fit: contain; }
+                .v3-lightbox-close { position: absolute; top: 32px; right: 32px; width: 48px; height: 48px; border-radius: 50%; background: #ffffff20; border: 1.5px solid #ffffff30; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; z-index: 10001; }
+                .v3-lightbox-close:hover { background: #ffffff40; border-color: white; transform: rotate(90deg); }
+                .v3-lightbox-close span { font-size: 24px; }
+                /* Kanban Board */
+                .kanban-v3-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; min-height: 200px; margin-top: 20px; }
+                .kb-col { background: #f8fafc; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 16px; border: 1px solid #f1f5f9; }
+                .kb-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+                .kb-dot { width: 8px; height: 8px; border-radius: 50%; }
+                .kb-dot.todo { background: #64748b; }
+                .kb-dot.doing { background: #f59e0b; }
+                .kb-dot.done { background: #10b981; }
+                .kb-head strong { font-size: 11px; font-weight: 800; color: #475569; letter-spacing: 0.5px; }
+                .kb-count { margin-left: auto; background: #e2e8f0; color: #64748b; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; }
+                
+                .kb-list { display: flex; flex-direction: column; gap: 12px; }
+                .kb-task-card { background: white; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); transition: 0.2s; position: relative; }
+                .kb-task-card p { margin: 0; font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.4; }
+                .kb-task-card small { display: block; margin-top: 6px; font-size: 10px; color: var(--dim); font-weight: 600; }
+                .kb-task-card.done { border-left: 3px solid #10b981; }
+                .kb-check { position: absolute; top: 12px; right: 12px; font-size: 18px; color: #10b981; font-variation-settings: 'FILL' 1; }
             `}</style>
         </div>
     );

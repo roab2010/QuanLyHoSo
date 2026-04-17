@@ -39,4 +39,9 @@ class Supplier extends Model
         'is_strategic' => 'boolean',
         'rating_stars' => 'integer',
     ];
+
+    public function materials()
+    {
+        return $this->hasMany(SupplierMaterial::class, 'supplier_id');
+    }
 }
