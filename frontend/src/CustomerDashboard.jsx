@@ -648,6 +648,52 @@ export default function CustomerDashboard() {
                                                 <p className="v3-empty">Chưa có bảng phân rã công việc.</p>
                                             )}
                                         </div>
+
+                                        {/* MOVED DOCUMENTS SECTION HERE */}
+                                        <div className="card-v3 docs-card-v3" style={{ marginTop: '32px' }}>
+                                            <div className="sect-head" style={{ marginBottom: '24px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: '28px' }}>folder_shared</span>
+                                                    <h4 style={{ margin: 0 }}>Hồ sơ & Tài liệu liên quan</h4>
+                                                </div>
+                                            </div>
+                                            {(selectedProject.documents || []).length > 0 ? (
+                                                <div className="v3-file-grid">
+                                                    {selectedProject.documents.map(doc => {
+                                                        const docLabel = DOC_STATUS_LABELS[doc.status] || 'Chờ duyệt';
+                                                        const docColors = DOC_STATUS_COLORS[docLabel] || DOC_STATUS_COLORS['Chờ duyệt'];
+                                                        return (
+                                                            <div key={doc.id} className="v3-file-card" onClick={() => {
+                                                                if (isImage(doc.file_url)) {
+                                                                    setPreviewingImage(doc.file_url);
+                                                                } else {
+                                                                    window.open(doc.file_url, '_blank');
+                                                                }
+                                                            }}>
+                                                                <div className="v3-file-preview">
+                                                                    {isImage(doc.file_url) ? (
+                                                                        <img src={doc.file_url} alt={doc.document_name} />
+                                                                    ) : (
+                                                                        <div className="v3-file-icon">
+                                                                            <span className="material-symbols-outlined">description</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <span className="v3-file-st" style={{ background: docColors.bg, color: docColors.color }}>
+                                                                        {docLabel}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="v3-file-info">
+                                                                    <p title={doc.document_name}>{doc.document_name}</p>
+                                                                    <span>{doc.uploaded_at}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="v3-empty">Chưa có tài liệu đính kèm.</p>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="detail-side-col">
@@ -700,40 +746,6 @@ export default function CustomerDashboard() {
                                             </div>
                                         </div>
 
-                                        <div className="card-v3 docs-card-v3">
-                                            <div className="info-header">
-                                                <span className="material-symbols-outlined">folder_shared</span>
-                                                <h4>Hồ sơ & Tài liệu liên quan</h4>
-                                            </div>
-                                            <div className="side-doc-list">
-                                                {(selectedProject.documents || []).length > 0 ? (
-                                                    selectedProject.documents.map(doc => {
-                                                        const docLabel = DOC_STATUS_LABELS[doc.status] || 'Chờ duyệt';
-                                                        const docColors = DOC_STATUS_COLORS[docLabel] || DOC_STATUS_COLORS['Chờ duyệt'];
-                                                        return (
-                                                            <div key={doc.id} className="side-doc-item" onClick={() => {
-                                                                if (isImage(doc.file_url)) {
-                                                                    setPreviewingImage(doc.file_url);
-                                                                } else {
-                                                                    window.open(doc.file_url, '_blank');
-                                                                }
-                                                            }}>
-                                                                <span className="material-symbols-outlined">description</span>
-                                                                <div className="doc-meta">
-                                                                    <strong title={doc.document_name}>{doc.document_name}</strong>
-                                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-                                                                        <span className="doc-st-pill" style={{ background: docColors.bg, color: docColors.color }}>{docLabel}</span>
-                                                                        <small>{doc.uploaded_at}</small>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <p className="v3-empty">Chưa có tài liệu đính kèm.</p>
-                                                )}
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1095,10 +1107,24 @@ export default function CustomerDashboard() {
                 .v3-file-preview img { width: 100%; height: 100%; object-fit: cover; }
                 .v3-file-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e2e8f0; color: #64748b; }
                 .v3-file-icon span { font-size: 32px; }
-                .v3-file-st { position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; backdrop-filter: blur(4px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                .v3-file-info { padding: 10px; border-top: 1px solid #e2e8f0; }
-                .v3-file-info p { margin: 0; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-                .v3-file-info span { font-size: 9px; color: var(--dim); font-weight: 600; }
+                .v3-file-st { 
+                    position: absolute; 
+                    top: 10px; 
+                    right: 10px; 
+                    padding: 4px 10px; 
+                    border-radius: 8px; 
+                    font-size: 10px; 
+                    font-weight: 800; 
+                    text-transform: uppercase; 
+                    backdrop-filter: blur(10px); 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+                    white-space: nowrap;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    z-index: 10;
+                }
+                .v3-file-info { padding: 12px; border-top: 1px solid #f1f5f9; }
+                .v3-file-info p { margin: 0; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+                .v3-file-info span { font-size: 10px; color: var(--dim); font-weight: 600; margin-top: 4px; display: block; }
 
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(10px); }

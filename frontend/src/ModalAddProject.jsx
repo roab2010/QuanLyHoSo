@@ -21,7 +21,8 @@ export default function ModalAddProject({ onClose, onSubmit }) {
         supervisor_id: 1,
         status: "DRAFT",
         estimated_budget: 0,
-        contract_value: 0
+        contract_value: 0,
+        expected_end_date: ""
     });
 
     useEffect(() => {
@@ -218,6 +219,16 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                                 type="date" required
                                 value={formData.start_date}
                                 onChange={e => setFormData({ ...formData, start_date: e.target.value })}
+                            />
+                        </div>
+                        <div style={modernStyles.formGroup}>
+                            <label style={modernStyles.label}>Ngày hoàn thành dự kiến</label>
+                            <input
+                                style={modernStyles.input}
+                                type="date"
+                                min={formData.start_date}
+                                value={formData.expected_end_date}
+                                onChange={e => setFormData({ ...formData, expected_end_date: e.target.value })}
                             />
                         </div>
 

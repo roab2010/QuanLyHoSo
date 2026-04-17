@@ -54,6 +54,9 @@ const normalize = (item) => {
         avatarColor: '#3730a3',
         processing: status === 'PROCESSING' || status === 'REVISION',
         done: status === 'COMPLETED',
+        expected_end_date: item?.expected_end_date ?? '',
+        estimated_budget: item?.estimated_budget ?? 0,
+        contract_value: item?.contract_value ?? 0,
         waitText: '',
     };
 };
@@ -106,7 +109,10 @@ export default function useHoSo() {
             category_id: payload.category_id, 
             customer_id: payload.customer_id,
             max_warehouse_capacity: payload.max_warehouse_capacity || 0,
-            supervisor_id: payload.supervisor_id || 1
+            supervisor_id: payload.supervisor_id || 1,
+            expected_end_date: payload.expected_end_date,
+            estimated_budget: payload.estimated_budget || 0,
+            contract_value: payload.contract_value || 0
         };
         const created = await createHoSo(dbPayload);
         setCards((prev) => [...prev, normalize(created)]);

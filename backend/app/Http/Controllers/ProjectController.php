@@ -57,6 +57,7 @@ class ProjectController extends Controller
             'max_warehouse_capacity' => 'required|numeric',
             'estimated_budget' => 'nullable|numeric',
             'contract_value' => 'nullable|numeric',
+            'expected_end_date' => 'nullable|date',
         ], [
             'required' => ':attribute không được để trống.',
             'date' => ':attribute không đúng định dạng ngày.',
@@ -71,6 +72,7 @@ class ProjectController extends Controller
             'max_warehouse_capacity' => 'Công suất kho',
             'estimated_budget' => 'Chi phí dự kiến',
             'contract_value' => 'Giá trị hợp đồng',
+            'expected_end_date' => 'Ngày hoàn thành dự kiến',
         ]);
 
         if ($validator->fails()) {
@@ -117,6 +119,7 @@ class ProjectController extends Controller
                 'max_warehouse_capacity' => $request->max_warehouse_capacity ?? 0,
                 'estimated_budget' => $request->estimated_budget ?? 0,
                 'contract_value' => $request->contract_value ?? 0,
+                'expected_end_date' => $request->expected_end_date,
                 'status_updated_at' => now(),
             ]);
 
@@ -206,8 +209,16 @@ class ProjectController extends Controller
             $project->contract_value = $request->contract_value;
         }
 
+        if ($request->has('start_date')) {
+            $project->start_date = $request->start_date;
+        }
+
         if ($request->has('max_warehouse_capacity')) {
             $project->max_warehouse_capacity = $request->max_warehouse_capacity;
+        }
+        
+        if ($request->has('expected_end_date')) {
+            $project->expected_end_date = $request->expected_end_date;
         }
 
         // 4. THÔNG MINH HÓA: Nếu đổi danh mục, tự động nạp quy trình mới
