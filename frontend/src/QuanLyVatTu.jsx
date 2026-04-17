@@ -543,12 +543,13 @@ export default function QuanLyVatTu() {
                                         <label>Mã SKU <span style={{ color: '#05CD99', fontSize: '11px' }}>(nhập để tìm hoặc thêm mới)</span></label>
                                         <input
                                             className="form-input"
-                                            style={{ borderColor: errors.sku ? '#EE5D50' : matchedProduct ? '#05CD99' : '#ddd' }}
+                                            style={{ borderColor: errors.sku ? '#EE5D50' : matchedProduct ? '#05CD99' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
                                             value={skuInput}
                                             onChange={e => handleSkuChange(e.target.value)}
                                             onBlur={() => setTimeout(() => setShowSkuDropdown(false), 150)}
                                             placeholder="VD: SKU-001"
                                             autoComplete="off"
+                                            readOnly={!!matchedProduct}
                                         />
                                         {showSkuDropdown && (
                                             <div className="sku-suggestion">
@@ -614,6 +615,77 @@ export default function QuanLyVatTu() {
                                         </select>
                                         {errors.supplier_id && <span className="error-text">{errors.supplier_id}</span>}
                                     </div>
+
+                                    {/* Vật tư của NCC (Nếu có) */}
+                                    {formData.supplier_id && suppliers.find(s => String(s.id) === String(formData.supplier_id))?.materials?.length > 0 && (
+                                        <div className="form-group">
+                                            <label>Chọn từ phiếu giá NCC <span style={{ color: '#05CD99', fontSize: '11px' }}>(tự điền giá)</span></label>
+                                            <select 
+                                                className="form-input" 
+                                                style={{ background: '#f8fafc', borderStyle: 'dashed' }}
+                                                onChange={e => {
+                                                    const selectedMatId = e.target.value;
+                                                    
+                                                    // Nếu người dủng bỏ chọn (chọn về default)
+                                                    if (!selectedMatId) {
+                                                        setSkuInput('');
+                                                        setMatchedProduct(null);
+                                                        setFormData(p => ({
+                                                            ...p,
+                                                            sku: '',
+                                                            name: '',
+                                                            price: '',
+                                                        }));
+                                                        return;
+                                                    }
+                                                    
+                                                    const supplier = suppliers.find(s => String(s.id) === String(formData.supplier_id));
+                                                    const mat = supplier?.materials?.find(m => String(m.id) === String(selectedMatId));
+                                                    
+                                                    if (mat) {
+                                                        // Fallback tìm vật tư trong kho có cùng tên (không phân biệt chữ hoa thường)
+                                                        const existingProduct = inventory.find(
+                                                            i => i.name?.toLowerCase().trim() === mat.material_name.toLowerCase().trim()
+                                                        );
+
+                                                        if (existingProduct) {
+                                                            setSkuInput(existingProduct.sku);
+                                                            setMatchedProduct(existingProduct);
+                                                            setFormData(p => ({
+                                                                ...p,
+                                                                sku: existingProduct.sku,
+                                                                name: existingProduct.name,
+                                                                // Ưu tiên giá mới nhất của form NCC, nếu không có mới dùng giá tồn kho
+                                                                price: mat.current_price || existingProduct.price,
+                                                                unit: existingProduct.unit || 'Cái',
+                                                                type: existingProduct.type || 'CONSUMABLE',
+                                                                category_name: existingProduct.category_name || '',
+                                                                space_coefficient: existingProduct.space_coefficient || '1',
+                                                            }));
+                                                        } else {
+                                                            // Không có trong kho -> Đây là vật tư hoàn toàn mới
+                                                            setSkuInput('');
+                                                            setMatchedProduct(null);
+                                                            setFormData(p => ({
+                                                                ...p,
+                                                                sku: '', // Bắt buộc user tự nhập SKU nếu tạo mới
+                                                                name: mat.material_name,
+                                                                price: mat.current_price || p.price,
+                                                                unit: mat.unit || p.unit
+                                                            }));
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <option value="">-- Click để chọn vật tư --</option>
+                                                {suppliers.find(s => String(s.id) === String(formData.supplier_id))?.materials?.map(m => (
+                                                    <option key={m.id} value={m.id}>
+                                                        {m.material_name} (Giá: {new Intl.NumberFormat('vi-VN').format(m.current_price || 0)}đ)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
 
                                     {/* Số lượng */}
                                     <div className="form-group">

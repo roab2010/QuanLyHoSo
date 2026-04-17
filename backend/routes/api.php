@@ -97,6 +97,11 @@ Route::get('/suppliers', [SupplierController::class, 'index']);
 Route::post('/suppliers', [SupplierController::class, 'store']);
 Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
 Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+Route::post('/suppliers/{id}/materials', [SupplierController::class, 'addMaterial']);
+Route::put('/supplier-materials/{id}/price', [SupplierController::class, 'updatePrice']);
+Route::get('/supplier-materials/{id}/history', [SupplierController::class, 'getPriceHistory']);
+Route::delete('/supplier-materials/{id}', [SupplierController::class, 'deleteMaterial']);
+
 
 // KHÁCH HÀNG (PORTAL)
 Route::get('/customer/projects', [CustomerController::class, 'list']);
