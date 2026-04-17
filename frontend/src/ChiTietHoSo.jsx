@@ -71,7 +71,7 @@ export default function ChiTietHoSo() {
     // Task modal
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
-    const [taskForm, setTaskForm] = useState({ task_name: "", work_volume: 0 });
+    const [taskForm, setTaskForm] = useState({ task_name: "", work_volume: 0, estimated_completion_date: "" });
 
     // Member modal
     const [showMemberModal, setShowMemberModal] = useState(false);
@@ -180,12 +180,12 @@ export default function ChiTietHoSo() {
     /* ─── TASK HANDLERS ─── */
     const handleAddTask = () => {
         setEditingTask(null);
-        setTaskForm({ task_name: "", work_volume: 0 });
+        setTaskForm({ task_name: "", work_volume: 0, estimated_completion_date: "" });
         setShowTaskModal(true);
     };
     const handleEditTask = (task) => {
         setEditingTask(task);
-        setTaskForm({ task_name: task.task_name, work_volume: task.work_volume });
+        setTaskForm({ task_name: task.task_name, work_volume: task.work_volume, estimated_completion_date: task.estimated_completion_date || "" });
         setShowTaskModal(true);
     };
     const handleSaveTask = async () => {
@@ -1187,6 +1187,9 @@ export default function ChiTietHoSo() {
                                     {tasks.filter((t) => t.status === "DONE").length}/
                                     {tasks.length} công việc)
                                 </span>
+                                <div style={{ marginTop: "12px", fontSize: "14px", color: "#2563eb", fontWeight: "600" }}>
+                                    📅 Tổng số ngày dự kiến: <span style={{ color: "#0f172a" }}>{tasks.reduce((sum, task) => sum + (task.estimated_completion_date && task.estimated_completion_date > 0 ? task.estimated_completion_date : 0), 0)} ngày</span>
+                                </div>
                             </div>
 
                             {/* Kanban Board v3 Upgrade */}
@@ -1217,6 +1220,7 @@ export default function ChiTietHoSo() {
                                                         <span className="kb-v3-task-name">{task.task_name}</span>
                                                         <div className="kb-v3-task-meta">
                                                             {task.work_volume > 0 && <span>📊 Khối lượng: {task.work_volume}</span>}
+                                                            {task.estimated_completion_date && task.estimated_completion_date > 0 && <span>📅 {task.estimated_completion_date} ngày</span>}
                                                             <span>ID: #{task.id}</span>
                                                         </div>
                                                         <div className="kb-v3-actions">
@@ -1271,6 +1275,18 @@ export default function ChiTietHoSo() {
                                 value={taskForm.work_volume}
                                 onChange={(e) =>
                                     setTaskForm({ ...taskForm, work_volume: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Ngày dự kiến hoàn thành (số ngày)</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                placeholder="0"
+                                value={taskForm.estimated_completion_date}
+                                onChange={(e) =>
+                                    setTaskForm({ ...taskForm, estimated_completion_date: e.target.value })
                                 }
                             />
                         </div>
