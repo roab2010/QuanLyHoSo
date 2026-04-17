@@ -26,7 +26,7 @@ const COLUMNS = [
     { id: "done", title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Quản lý khách hàng", "Báo cáo", "Quản lý kho"];
+const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho"];
 
 const styles = {
     logoutBtn: {
