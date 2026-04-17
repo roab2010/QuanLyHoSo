@@ -237,7 +237,7 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             </select>
                         </div>
                         <div style={modernStyles.formGroup}>
-                            <label style={modernStyles.label}>Phân loại quy trình *</label>
+                            <label style={modernStyles.label}>Danh mục dự án (Loại dự án) *</label>
                             <select
                                 style={modernStyles.input}
                                 required

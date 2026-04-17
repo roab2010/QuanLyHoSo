@@ -22,6 +22,8 @@ import {
     getDocumentsMetadata
 } from "./hoSoService";
 import { useToast } from "./Toast";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 const STATUS_LABELS = {
     'new': 'Chờ duyệt',
@@ -314,6 +316,78 @@ export default function ChiTietHoSo() {
             toast.success("Đã xóa tài liệu");
         } catch (e) {
             toast.error("Lỗi khi xóa tài liệu");
+        }
+    };
+
+    const handleDownload = async (doc) => {
+        const isConfirmed = await toast.showConfirm(`Bạn muốn tải về tài liệu "${doc.document_name}" này chứ?`);
+        if (!isConfirmed) return;
+
+        try {
+            const url = `http://127.0.0.1:8000/api/documents/download-file?url=${encodeURIComponent(doc.file_url)}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                toast.error(errorData.error || "Tài liệu không tồn tại hoặc có lỗi hệ thống!");
+                return;
+            }
+            
+            const blob = await response.blob();
+            const extMatch = doc.file_url.match(/\.([^.]+)$/);
+            const ext = extMatch ? `.${extMatch[1]}` : "";
+            let safeName = doc.document_name.replace(/[<>:"\/\\|?*]+/g, '_');
+            saveAs(blob, `${safeName}${ext}`);
+            toast.success("Tải xuống thành công!");
+        } catch (error) {
+            console.error("Lỗi khi tải xuống:", error);
+            toast.error("Lỗi kết nối khi tải tài liệu!");
+        }
+    };
+
+    const handleDownloadAllDocuments = async () => {
+        const docsWithFile = documents.filter(doc => doc.file_url);
+        if (docsWithFile.length === 0) return toast.warning("Không có tài liệu nào để tải xuống!");
+        
+        const isConfirmed = await toast.showConfirm("Bạn muốn tải về tất cả tài liệu của dự án này dưới dạng file nén (.zip) chứ?");
+        if (!isConfirmed) return;
+        
+        toast.success("Đang chuẩn bị file tải xuống, vui lòng đợi...");
+        const zip = new JSZip();
+        let successCount = 0;
+        
+        try {
+            for (const doc of docsWithFile) {
+                const url = `http://127.0.0.1:8000/api/documents/download-file?url=${encodeURIComponent(doc.file_url)}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    toast.warning(`Tài liệu "${doc.document_name}" không tồn tại trên máy chủ, bỏ qua...`);
+                    continue;
+                }
+                
+                const blob = await response.blob();
+                const extMatch = doc.file_url.match(/\.([^.]+)$/);
+                const ext = extMatch ? `.${extMatch[1]}` : "";
+                
+                // Lọc ký tự đặc biệt khỏi tên file
+                let safeName = doc.document_name.replace(/[<>:"\/\\|?*]+/g, '_');
+                const fileName = `${safeName}${ext}`;
+                zip.file(fileName, blob);
+                successCount++;
+            }
+            
+            if (successCount === 0) {
+                return toast.error("Không có tập tin nào tải được!");
+            }
+
+            const zipContent = await zip.generateAsync({ type: "blob" });
+            const projectNameClean = project.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+            saveAs(zipContent, `${projectNameClean}.zip`);
+            toast.success("Tải xuống hoàn tất!");
+        } catch (error) {
+            console.error("Lỗi khi tạo file zip:", error);
+            toast.error("Có lỗi xảy ra khi đóng gói tài liệu!");
         }
     };
 
@@ -779,9 +853,14 @@ export default function ChiTietHoSo() {
                         <section className="document-section animate-fade-in">
                             <div className="section-header">
                                 <h3>Danh sách tài liệu dự án</h3>
-                                <button className="btn-add-cat" onClick={handleOpenAddDoc} style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-                                    + Thêm tài liệu
-                                </button>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button className="btn-add-cat" onClick={handleDownloadAllDocuments} style={{ background: '#10b981', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+                                        ↓ Tải tất cả
+                                    </button>
+                                    <button className="btn-add-cat" onClick={handleOpenAddDoc} style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+                                        + Thêm tài liệu
+                                    </button>
+                                </div>
                             </div>
                             {documents.length > 0 ? (
                                 <table className="doc-table">
@@ -813,25 +892,50 @@ export default function ChiTietHoSo() {
                                                         )
                                                         : "—"}
                                                 </td>
-                                                <td>
+                                                <td style={{ verticalAlign: 'middle' }}>
                                                     <span
-                                                        className={STATUS_CLASS[doc.status] || "st-wait"}
+                                                        className={doc.file_url ? (STATUS_CLASS[doc.status] || "st-wait") : "st-reject"}
+                                                        style={!doc.file_url ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2' } : {}}
                                                     >
-                                                        {STATUS_LABELS[doc.status] || doc.status}
+                                                        {doc.file_url ? (STATUS_LABELS[doc.status] || doc.status) : "Đang thiếu"}
                                                     </span>
                                                 </td>
                                                 <td className="doc-actions" style={{ verticalAlign: 'middle' }}>
-                                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
-                                                        {doc.file_url && (
+                                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'nowrap' }}>
+                                                        {doc.file_url ? (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPreviewUrl(`http://127.0.0.1:8000${doc.file_url}`)}
+                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
+                                                                    title="Xem"
+                                                                    onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}
+                                                                    onMouseOut={(e) => e.currentTarget.style.background = '#e0f2fe'}
+                                                                >
+                                                                    <img src="https://cdn-icons-png.flaticon.com/512/159/159604.png" width="18" alt="View" style={{ filter: "opacity(0.8)" }} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDownload(doc)}
+                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#dcfce7', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
+                                                                    title="Tải xuống"
+                                                                    onMouseOver={(e) => e.currentTarget.style.background = '#bbf7d0'}
+                                                                    onMouseOut={(e) => e.currentTarget.style.background = '#dcfce7'}
+                                                                >
+                                                                    <img src="https://cdn-icons-png.flaticon.com/512/2926/2926214.png" width="18" alt="Download" style={{ filter: "opacity(0.8)" }} />
+                                                                </button>
+                                                            </>
+                                                        ) : (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setPreviewUrl(`http://127.0.0.1:8000${doc.file_url}`)}
-                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
-                                                                title="Xem"
-                                                                onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}
-                                                                onMouseOut={(e) => e.currentTarget.style.background = '#e0f2fe'}
+                                                                onClick={() => handleOpenEditDoc(doc)}
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#2563eb', cursor: 'pointer', border: 'none', transition: 'all 0.2s', color: 'white' }}
+                                                                title="Tải lên tài liệu mẫu này"
+                                                                onMouseOver={(e) => e.currentTarget.style.background = '#1d4ed8'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = '#2563eb'}
                                                             >
-                                                                <img src="https://cdn-icons-png.flaticon.com/512/159/159604.png" width="18" alt="View" style={{ filter: "opacity(0.8)" }} />
+                                                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>cloud_upload</span>
+                                                                <span style={{ marginLeft: '4px', fontSize: '12px', fontWeight: '600' }}>Tải lên</span>
                                                             </button>
                                                         )}
                                                         <button
