@@ -16,9 +16,10 @@ import {
     uploadProjectDocument,
     updateProjectDocumentNew,
     deleteProjectDocument,
-    getDocumentsMetadata,
     requestProjectMaterials,
-    getAllInventoryItems
+    getAllInventoryItems,
+    getPendingMaterialRequests,
+    getDocumentsMetadata
 } from "./hoSoService";
 import { useToast } from "./Toast";
 
@@ -95,6 +96,9 @@ export default function ChiTietHoSo() {
     const [inventoryItems, setInventoryItems] = useState([]);
     const [requestItems, setRequestItems] = useState([]);
     const [requesting, setRequesting] = useState(false);
+    
+    // Pending requests state
+    const [pendingRequests, setPendingRequests] = useState([]);
 
     // Drag state
     const dragItem = useRef(null);
@@ -115,8 +119,22 @@ export default function ChiTietHoSo() {
 
     const fetchVatTu = async () => {
         setVatTuLoading(true);
-        const res = await getProjectExportedItems(id);
-        if (res?.success) setVatTuItems(res.items || []);
+        const [resExport, resPending] = await Promise.all([
+            getProjectExportedItems(id),
+            getPendingMaterialRequests()
+        ]);
+        
+        if (resExport?.success) {
+            setVatTuItems(resExport.items || []);
+        }
+        
+        if (resPending?.success) {
+            const projectPending = (resPending.requests || []).filter(
+                (req) => req.project_id === parseInt(id)
+            );
+            setPendingRequests(projectPending);
+        }
+        
         setVatTuLoading(false);
     };
 
@@ -450,6 +468,7 @@ export default function ChiTietHoSo() {
             if (res.success) {
                 toast.success("Đã gửi yêu cầu cấp vật tư thành công! Đang chờ duyệt.");
                 setShowRequestModal(false);
+                fetchVatTu(); // Refresh the lists
             } else {
                 toast.error(res.message || "Lỗi khi gửi yêu cầu!");
             }
@@ -987,6 +1006,52 @@ export default function ChiTietHoSo() {
                                 </div>
                             )}
 
+                            {/* Pending Requests Section */}
+                            {pendingRequests.length > 0 && (
+                                <div style={{ marginBottom: 30 }}>
+                                    <h4 style={{ fontSize: 16, borderBottom: "2px solid #e2e8f0", paddingBottom: 8, marginBottom: 12, color: "#f59e0b", display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span>⏳</span> Vật tư đã yêu cầu (Khởi tạo)
+                                    </h4>
+                                    <div style={{ overflowX: "auto", borderRadius: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.07)" }}>
+                                        <table className="doc-table" style={{ minWidth: 720 }}>
+                                            <thead>
+                                                <tr style={{ background: "#fffbeb" }}>
+                                                    <th style={{ width: 140 }}>MÃ PHIẾU YC</th>
+                                                    <th>CHI TIẾT VẬT TƯ</th>
+                                                    <th>NGÀY YÊU CẦU</th>
+                                                    <th style={{ textAlign: "center" }}>TRẠNG THÁI</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {pendingRequests.map(req => (
+                                                    <tr key={req.id}>
+                                                        <td style={{ fontWeight: 600, color: "#92400e" }}>{req.transaction_code}</td>
+                                                        <td>
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                                                {req.details.map(d => (
+                                                                    <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fef3c7", padding: "4px 10px", borderRadius: 6, fontSize: 13 }}>
+                                                                        <span style={{ fontWeight: 600, color: "#1e293b" }}>📦 {d.product?.name} ({d.product?.sku})</span>
+                                                                        <span style={{ fontWeight: 700, color: "#ea580c" }}>{d.quantity} {d.product?.unit}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ color: "#64748b", fontSize: 13 }}>
+                                                            {new Date(req.created_at).toLocaleString("vi-VN")}
+                                                        </td>
+                                                        <td style={{ textAlign: "center" }}>
+                                                            <span style={{ background: "#fef3c7", color: "#b45309", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                                                                Đang chờ duyệt
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Content */}
                             {vatTuLoading ? (
                                 <div style={{ textAlign: "center", padding: "50px 20px", color: "#64748b" }}>
@@ -1004,11 +1069,15 @@ export default function ChiTietHoSo() {
                                         Chưa có vật tư / thiết bị nào được xuất cho dự án này.
                                     </p>
                                     <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 8 }}>
-                                        Vật tư sẽ hiển thị tại đây khi có phiếu xuất kho (TO_PROJECT) cho dự án.
+                                        Vật tư sẽ hiển thị tại đây khi được kho duyệt yêu cầu cấp vật tư.
                                     </p>
                                 </div>
                             ) : (
-                                <div style={{ overflowX: "auto", borderRadius: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.07)" }}>
+                                <div style={{ marginBottom: 30 }}>
+                                    <h4 style={{ fontSize: 16, borderBottom: "2px solid #e2e8f0", paddingBottom: 8, marginBottom: 12, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span>🏗️</span> Vật tư đang sử dụng
+                                    </h4>
+                                    <div style={{ overflowX: "auto", borderRadius: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.07)" }}>
                                     <table className="doc-table" style={{ minWidth: 720 }}>
                                         <thead>
                                             <tr>
@@ -1089,6 +1158,7 @@ export default function ChiTietHoSo() {
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             )}
                         </section>
