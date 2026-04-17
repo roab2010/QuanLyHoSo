@@ -44,16 +44,7 @@ export default function QuanLyNhaCungCap() {
         setEditingSupplier(null);
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa nhà cung cấp này? Toàn bộ danh sách vật tư và phiếu giá liên quan sẽ bị xóa!")) {
-            try {
-                await axios.delete(`http://127.0.0.1:8000/api/suppliers/${id}`);
-                setSuppliers(suppliers.filter(s => s.id !== id));
-            } catch (error) {
-                alert("Không thể xóa nhà cung cấp này!");
-            }
-        }
-    };
+
 
     const handleAdd = () => {
         setEditingSupplier(null); 
@@ -82,9 +73,8 @@ export default function QuanLyNhaCungCap() {
     // 5. Thống kê
     const stats = [
         { label: "TỔNG NHÀ CUNG CẤP", value: suppliers.length, icon: "👥", color: "#4318FF" },
-        { label: "NCC CHIẾN LƯỢC", value: suppliers.filter(s => s.is_strategic).length, badge: "Vàng", icon: "⭐", color: "#FFB547" },
-        { label: "ĐANG HỢP TÁC", value: suppliers.filter(s => s.status === 'ACTIVE').length, badge: "Active", icon: "🤝", color: "#05CD99" },
-        { label: "ĐIỂM ĐÁNH GIÁ TB", value: (suppliers.reduce((acc, s) => acc + (s.rating_stars || 0), 0) / (suppliers.length || 1)).toFixed(1), badge: "Stars", icon: "📈", color: "#39B8FF" },
+        { label: "ĐANG HỢP TÁC", value: suppliers.filter(s => s.status === 'ACTIVE').length, badge: "Hợp tác", icon: "🤝", color: "#05CD99" },
+        { label: "DỪNG HỢP TÁC", value: suppliers.filter(s => s.status === 'SUSPENDED').length, badge: "Dừng", icon: "⏸️", color: "#64748b" },
     ];
 
     return (
@@ -100,32 +90,29 @@ export default function QuanLyNhaCungCap() {
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="supplier-stats-grid">
-                {stats.map((s, idx) => (
-                    <div key={idx} className="stat-card">
-                        <div className="stat-icon" style={{ backgroundColor: s.color + '15', color: s.color }}>{s.icon}</div>
-                        <div className="stat-info">
-                            <label>{s.label}</label>
-                            <div className="val-row">
-                                <span className="value">{s.value}</span>
-                                {s.badge && <span className="stat-badge">{s.badge}</span>}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Filter Bar */}
-            <div className="filter-bar">
-                <div className="search-box">
+            {/* Filter & Stats Bar */}
+            <div className="filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', padding: '16px', background: '#fff', borderRadius: '16px', marginBottom: '20px' }}>
+                <div className="search-box" style={{ flex: 1 }}>
                     <input 
                         type="text" 
-                        placeholder="Tìm tên nhà cung cấp, mã số thuế..." 
+                        placeholder="Tìm theo tên NCC, MST, mã..." 
                         className="search-supplier"
+                        style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e0e5f2', outline: 'none' }}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    {stats.map((s, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', background: s.color + '10', borderRadius: '10px', border: `1px solid ${s.color}20` }}>
+                            <span style={{ fontSize: '16px' }}>{s.icon}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#a3aed0', textTransform: 'uppercase', lineHeight: '1' }}>{s.label.split(' ')[0]}</span>
+                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#2b3674' }}>{s.value}</span>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
@@ -140,7 +127,6 @@ export default function QuanLyNhaCungCap() {
                                 <th>NHÀ CUNG CẤP</th>
                                 <th>SỐ LƯỢNG VẬT TƯ</th>
                                 <th>LIÊN HỆ</th>
-                                <th>ĐÁNH GIÁ</th>
                                 <th>TRẠNG THÁI</th>
                                 <th style={{ textAlign: 'center' }}>THAO TÁC</th>
                             </tr>
@@ -154,7 +140,6 @@ export default function QuanLyNhaCungCap() {
                                             <div>
                                                 <div className="name">
                                                     {sup.name} 
-                                                    {sup.is_strategic ? <span title="Chiến lược"> ⭐</span> : ""}
                                                 </div>
                                                 <div className="mst">MST: {sup.tax_code} | Mã: {sup.supplier_code}</div>
                                             </div>
@@ -168,34 +153,12 @@ export default function QuanLyNhaCungCap() {
                                     <td>
                                         <div className="contact-info">📞 {sup.phone || 'Chưa cập nhật'}</div>
                                     </td>
-                                   <td>
-                                        {(() => {
-                                            const tagStyles = {
-                                                'TIN_CAY': { class: 'reliable', icon: '✅' },
-                                                'TIEM_NANG': { class: 'potential', icon: '📈' },
-                                                'CAN_XEM_SET': { class: 'review', icon: '⚠️' }
-                                            };
 
-                                            const currentTag = tagStyles[sup.evaluation_tag] || { class: '', icon: '' };
-
-                                            return (
-                                                <div>
-                                                    <span className={`rating-tag ${currentTag.class}`}>
-                                                        {currentTag.icon} {sup.evaluation_tag || 'Chưa đánh giá'}
-                                                    </span>
-                                                    <div className="stars" style={{ marginTop: '4px' }}>
-                                                        {"⭐".repeat(Math.floor(sup.rating_stars || 0))}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-                                    </td>
                                     <td>
                                         {(() => {
                                             const statusConfig = {
                                                 'ACTIVE': { label: 'Đang hợp tác', class: 'active' },
-                                                'SUSPENDED': { label: 'Tạm dừng', class: 'paused' },
-                                                'PENDING': { label: 'Đang chờ', class: 'pending' }
+                                                'SUSPENDED': { label: 'Dừng hợp tác', class: 'paused' }
                                             };
 
                                             const currentStatus = statusConfig[sup.status] || { label: sup.status, class: '' };
@@ -213,7 +176,6 @@ export default function QuanLyNhaCungCap() {
                                                 📋
                                             </button>
                                             <button onClick={() => handleEdit(sup)} className="btn-edit-small" title="Sửa hồ sơ">✏️</button>
-                                            <button onClick={() => handleDelete(sup.id)} className="btn-delete-small" title="Xóa NCC">🗑️</button>
                                         </div>
                                     </td>
                                 </tr>

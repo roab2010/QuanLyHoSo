@@ -583,6 +583,13 @@ export default function ChiTietHoSo() {
             day: "numeric",
         })
         : "—";
+    const expectedEndDateFormatted = project.expected_end_date
+        ? new Date(project.expected_end_date).toLocaleDateString("vi-VN", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+        })
+        : "—";
 
     // Items shown in return modal
     const returnModalItems = singleReturnItem ? [singleReturnItem] : vatTuItems;
@@ -690,6 +697,10 @@ export default function ChiTietHoSo() {
                                         <div className="info-item">
                                             <label>NGÀY KHỞI CÔNG</label>
                                             <p>{startDateFormatted}</p>
+                                        </div>
+                                        <div className="info-item">
+                                            <label>NGÀY HOÀN THÀNH DỰ KIẾN</label>
+                                            <p>{expectedEndDateFormatted}</p>
                                         </div>
                                         <div className="info-item">
                                             <label>CHI PHÍ DỰ KIẾN</label>

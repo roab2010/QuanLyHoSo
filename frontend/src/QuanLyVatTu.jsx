@@ -52,7 +52,7 @@ export default function QuanLyVatTu() {
     const skuRef = useRef(null);
 
     const initialFormState = {
-        name: '', sku: '', unit: 'Cái', type: 'CONSUMABLE', category_name: 'Vật tư tiêu hao',
+        name: '', sku: 'VT-', unit: 'Cái', type: 'CONSUMABLE', category_name: 'Vật tư tiêu hao',
         price: '', current_stock: '', min_stock_level: '10', warehouse_id: '', supplier_id: '',
         status: 1, hsd: '', space_coefficient: '1'
     };
@@ -145,8 +145,12 @@ export default function QuanLyVatTu() {
 
     // ======================== SKU SUGGESTION LOGIC ========================
     const handleSkuChange = (val) => {
+        // Enforce prefix VT-
+        if (!val.toUpperCase().startsWith("VT-")) {
+            val = "VT-" + val.replace(/^VT\-?/i, '');
+        }
         setSkuInput(val);
-        setFormData(prev => ({ ...prev, sku: val, name: prev.name }));
+        setFormData(prev => ({ ...prev, sku: val }));
 
         if (val.trim().length < 1) {
             setSkuSuggestions([]);
@@ -249,7 +253,14 @@ export default function QuanLyVatTu() {
                 loadData();
             }
         } catch (err) {
-            alert("❌ " + (err.response?.data?.message || "Lỗi nhập kho!"));
+            console.error("Import error:", err);
+            if (err.response?.status === 422) {
+                setErrors(err.response.data.errors || {});
+                const firstErrMsg = Object.values(err.response.data.errors)[0][0];
+                alert("❌ Lỗi dữ liệu: " + firstErrMsg);
+            } else {
+                alert("❌ " + (err.response?.data?.message || "Lỗi nhập kho!"));
+            }
         }
     };
 
@@ -384,13 +395,15 @@ export default function QuanLyVatTu() {
     };
 
     const filteredInventory = useMemo(() => {
-        return inventory.filter(item => {
-            const matchesSearch =
-                (item.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-                (item.sku?.toLowerCase() || "").includes(searchTerm.toLowerCase());
-            const matchesWarehouse = filterWarehouse === "ALL" || String(item.warehouse_id) === String(filterWarehouse);
-            return matchesSearch && matchesWarehouse;
-        });
+        return inventory
+            .filter(item => {
+                const matchesSearch =
+                    (item.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+                    (item.sku?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+                const matchesWarehouse = filterWarehouse === "ALL" || String(item.warehouse_id) === String(filterWarehouse);
+                return matchesSearch && matchesWarehouse;
+            })
+            .sort((a, b) => (Number(a.warehouse_id) || 0) - (Number(b.warehouse_id) || 0));
     }, [searchTerm, filterWarehouse, inventory]);
 
     const exportableInventory = useMemo(() => {
@@ -688,41 +701,50 @@ export default function QuanLyVatTu() {
 
                                     {/* Tên vật tư */}
                                     <div className="form-group">
-                                        <label>Tên vật tư</label>
+                                        <label>Tên vật tư <span className="req-mark">*</span></label>
                                         <input
                                             className="form-input"
                                             style={{ borderColor: errors.name ? '#EE5D50' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
                                             value={formData.name}
-                                            onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                                            onChange={e => {
+                                                setFormData(p => ({ ...p, name: e.target.value }));
+                                                if (errors.name) setErrors(prev => ({ ...prev, name: null }));
+                                            }}
                                             placeholder={matchedProduct ? "(tự động từ SKU)" : "Tên vật tư"}
                                             readOnly={!!matchedProduct}
                                         />
-                                        {errors.name && <span className="error-text">{errors.name}</span>}
+                                        {errors.name && <span className="error-text">⚠️ {Array.isArray(errors.name) ? errors.name[0] : errors.name}</span>}
                                     </div>
 
                                     {/* Kho */}
                                     <div className="form-group">
-                                        <label>Kho hàng</label>
+                                        <label>Kho hàng <span className="req-mark">*</span></label>
                                         <select className="form-input" style={{ borderColor: errors.warehouse_id ? '#EE5D50' : '#ddd' }}
-                                            value={formData.warehouse_id} onChange={e => setFormData(p => ({ ...p, warehouse_id: e.target.value }))}>
+                                            value={formData.warehouse_id} onChange={e => {
+                                                setFormData(p => ({ ...p, warehouse_id: e.target.value }));
+                                                if (errors.warehouse_id) setErrors(prev => ({ ...prev, warehouse_id: null }));
+                                            }}>
                                             <option value="">-- Chọn kho --</option>
                                             {warehouses.map(w => {
                                                 const info = getWarehouseInfo(w.id);
                                                 return <option key={w.id} value={w.id}>{w.name} (còn {info.remaining.toFixed(0)} m³)</option>;
                                             })}
                                         </select>
-                                        {errors.warehouse_id && <span className="error-text">{errors.warehouse_id}</span>}
+                                        {errors.warehouse_id && <span className="error-text">⚠️ {errors.warehouse_id}</span>}
                                     </div>
 
                                     {/* NCC */}
                                     <div className="form-group">
-                                        <label>Nhà cung cấp</label>
+                                        <label>Nhà cung cấp <span className="req-mark">*</span></label>
                                         <select className="form-input" style={{ borderColor: errors.supplier_id ? '#EE5D50' : '#ddd' }}
-                                            value={formData.supplier_id} onChange={e => setFormData(p => ({ ...p, supplier_id: e.target.value }))}>
+                                            value={formData.supplier_id} onChange={e => {
+                                                setFormData(p => ({ ...p, supplier_id: e.target.value }));
+                                                if (errors.supplier_id) setErrors(prev => ({ ...prev, supplier_id: null }));
+                                            }}>
                                             <option value="">-- Chọn NCC --</option>
-                                            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            {suppliers.filter(s => s.status === 'ACTIVE').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
-                                        {errors.supplier_id && <span className="error-text">{errors.supplier_id}</span>}
+                                        {errors.supplier_id && <span className="error-text">⚠️ {errors.supplier_id}</span>}
                                     </div>
 
                                     {/* Vật tư của NCC (Nếu có) */}
@@ -798,10 +820,13 @@ export default function QuanLyVatTu() {
 
                                     {/* Số lượng */}
                                     <div className="form-group">
-                                        <label>Số lượng nhập</label>
-                                        <input type="number" className="form-input" style={{ borderColor: errors.current_stock ? '#EE5D50' : '#ddd' }}
-                                            value={formData.current_stock} onChange={e => setFormData(p => ({ ...p, current_stock: e.target.value }))} />
-                                        {errors.current_stock && <span className="error-text">{errors.current_stock}</span>}
+                                        <label>Số lượng nhập <span className="req-mark">*</span></label>
+                                        <input type="number" step="0.01" min="0.01" className="form-input" style={{ borderColor: errors.current_stock ? '#EE5D50' : '#ddd' }}
+                                            value={formData.current_stock} onChange={e => {
+                                                setFormData(p => ({ ...p, current_stock: e.target.value }));
+                                                if (errors.current_stock) setErrors(prev => ({ ...prev, current_stock: null }));
+                                            }} />
+                                        {errors.current_stock && <span className="error-text">⚠️ {errors.current_stock}</span>}
                                     </div>
 
                                     {/* Min stock */}
@@ -814,9 +839,12 @@ export default function QuanLyVatTu() {
                                     {/* Giá */}
                                     <div className="form-group">
                                         <label>Giá nhập (đ)</label>
-                                        <input type="number" className="form-input" style={{ borderColor: errors.price ? '#EE5D50' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
-                                            value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} />
-                                        {errors.price && <span className="error-text">{errors.price}</span>}
+                                        <input type="number" min="0" className="form-input" style={{ borderColor: errors.price ? '#EE5D50' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
+                                            value={formData.price} onChange={e => {
+                                                setFormData(p => ({ ...p, price: e.target.value }));
+                                                if (errors.price) setErrors(prev => ({ ...prev, price: null }));
+                                            }} />
+                                        {errors.price && <span className="error-text">⚠️ {errors.price}</span>}
                                     </div>
 
                                     {/* Đơn vị */}
