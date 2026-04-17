@@ -198,12 +198,8 @@ export default function ChiTietHoSo() {
     const handleDrop = async (e, targetStatus) => {
         e.preventDefault();
         const task = dragItem.current;
+        // Cho phép Admin thay đổi trạng thái tự do
         if (!task || task.status === targetStatus) return;
-        const curOrd = TASK_ORDER[task.status];
-        const newOrd = TASK_ORDER[targetStatus];
-        if (newOrd < curOrd) return toast.warning("Không được kéo ngược trạng thái!");
-        if (newOrd > curOrd + 1)
-            return toast.warning("Chỉ được chuyển sang trạng thái kế tiếp!");
 
         setProject(prev => {
             const newTasks = prev.tasks.map(t =>
@@ -450,6 +446,34 @@ export default function ChiTietHoSo() {
 
                 {/* Nội dung chính */}
                 <div className="detail-main">
+                    {/* Thêm style v3 cục bộ cho Kanban */}
+                    <style>{`
+                        .kb-v3-board { display: flex; gap: 20px; margin-top: 20px; overflow-x: auto; padding-bottom: 20px; }
+                        .kb-v3-col { flex: 1; min-width: 280px; background: #f8fafc; border-radius: 20px; padding: 16px; border: 1px solid #e2e8f0; transition: 0.3s; }
+                        .kb-v3-col.drag-over { background: #eff6ff; border-color: var(--primary); transform: scale(1.02); }
+                        .kb-v3-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 0 4px; }
+                        .kb-v3-dot { width: 8px; height: 8px; border-radius: 50%; }
+                        .kb-v3-title { font-size: 13px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .kb-v3-count { margin-left: auto; font-size: 11px; background: #e2e8f0; color: #64748b; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+                        
+                        .kb-v3-task { 
+                            background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; 
+                            border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); 
+                            cursor: grab; transition: 0.2s; position: relative;
+                        }
+                        .kb-v3-task:hover { box-shadow: 0 10px 15px rgba(0,0,0,0.05); transform: translateY(-2px); border-color: var(--primary); }
+                        .kb-v3-task:active { cursor: grabbing; transform: scale(0.98); opacity: 0.8; }
+                        .kb-v3-task.dragging { opacity: 0.4; }
+                        
+                        .kb-v3-task-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: block; line-height: 1.4; }
+                        .kb-v3-task-meta { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #94a3b8; font-weight: 600; }
+                        .kb-v3-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: 0.2s; }
+                        .kb-v3-task:hover .kb-v3-actions { opacity: 1; }
+                        .kb-v3-btn { width: 28px; height: 28px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+                        .kb-v3-btn.edit { background: #eff6ff; color: #2563eb; }
+                        .kb-v3-btn.del { background: #fef2f2; color: #ef4444; }
+                        .kb-v3-btn:hover { transform: scale(1.1); }
+                    `}</style>
 
                     {/* ═══ TAB: THÔNG TIN CHUNG (DASHBOARD) ═══ */}
                     {activeTab === "thong-tin" && (
@@ -560,37 +584,51 @@ export default function ChiTietHoSo() {
                                             Xem chi tiết →
                                         </button>
                                     </div>
-                                    <div className="kanban-preview">
+                                    <div className="kb-v3-board">
                                         {TASK_COLS.map((col) => {
                                             const colTasks = tasks.filter((t) => t.status === col.id);
                                             return (
-                                                <div className="kanban-preview-col" key={col.id}>
-                                                    <div className="kanban-col-header">
-                                                        <span
-                                                            className="kanban-dot"
-                                                            style={{ background: col.color }}
-                                                        ></span>
-                                                        <span className="kanban-col-title">
-                                                            {col.title}
-                                                        </span>
-                                                        <span className="kanban-col-count">
-                                                            {colTasks.length}
-                                                        </span>
+                                                <div 
+                                                    className="kb-v3-col" 
+                                                    key={col.id}
+                                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                                    onDragLeave={(e) => e.currentTarget.classList.remove('drag-over')}
+                                                    onDrop={(e) => { e.currentTarget.classList.remove('drag-over'); handleDrop(e, col.id); }}
+                                                >
+                                                    <div className="kb-v3-header">
+                                                        <span className="kb-v3-dot" style={{ background: col.color }}></span>
+                                                        <span className="kb-v3-title">{col.title}</span>
+                                                        <span className="kb-v3-count">{colTasks.length}</span>
                                                     </div>
-                                                    {colTasks.slice(0, 2).map((t) => (
-                                                        <div className="kanban-mini-card" key={t.id}>
-                                                            {t.task_name}
-                                                        </div>
-                                                    ))}
-                                                    {colTasks.length > 2 && (
-                                                        <span className="kanban-more">
-                                                            +{colTasks.length - 2} khác
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                    <div className="kb-v3-list">
+                                                        {colTasks.slice(0, 5).map((t) => (
+                                                            <div 
+                                                                className="kb-v3-task" 
+                                                                key={t.id}
+                                                                draggable
+                                                                onDragStart={(e) => handleDragStart(e, t)}
+                                                            >
+                                                                <span className="kb-v3-task-name">{t.task_name}</span>
+                                                                <div className="kb-v3-task-meta">
+                                                                    {t.work_volume > 0 && <span>📊 {t.work_volume} KL</span>}
+                                                                    <span>#{t.id.toString().slice(-4)}</span>
+                                                                </div>
+                                                                <div className="kb-v3-actions">
+                                                                    <button className="kb-v3-btn edit" onClick={() => handleEditTask(t)}>✎</button>
+                                                                    <button className="kb-v3-btn del" onClick={() => handleDeleteTask(t.id)}>🗑</button>
+                                                                </div>
+                                                            </div>
+                                                         ))}
+                                                         {colTasks.length > 5 && (
+                                                             <div className="kb-v3-more" onClick={() => setActiveTab("tien-do")} style={{ textAlign: 'center', padding: '10px', fontSize: '12px', color: '#3b82f6', fontWeight: '700', cursor: 'pointer' }}>
+                                                                 +{colTasks.length - 5} công việc khác
+                                                             </div>
+                                                         )}
+                                                     </div>
+                                                 </div>
+                                             );
+                                         })}
+                                     </div>
                                 </section>
                             </div>
 
@@ -983,63 +1021,47 @@ export default function ChiTietHoSo() {
                                 </span>
                             </div>
 
-                            {/* Kanban Board */}
-                            <div className="kanban-board">
+                            {/* Kanban Board v3 Upgrade */}
+                            <div className="kb-v3-board" style={{ minHeight: '600px' }}>
                                 {TASK_COLS.map((col) => {
                                     const colTasks = tasks.filter((t) => t.status === col.id);
                                     return (
                                         <div
-                                            className="kanban-column"
+                                            className="kb-v3-col"
                                             key={col.id}
-                                            onDragOver={handleDragOver}
-                                            onDrop={(e) => handleDrop(e, col.id)}
+                                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                            onDragLeave={(e) => e.currentTarget.classList.remove('drag-over')}
+                                            onDrop={(e) => { e.currentTarget.classList.remove('drag-over'); handleDrop(e, col.id); }}
                                         >
-                                            <div className="kanban-col-header">
-                                                <span
-                                                    className="kanban-dot"
-                                                    style={{ background: col.color }}
-                                                ></span>
-                                                <span className="kanban-col-title">{col.title}</span>
-                                                <span className="kanban-col-count">
-                                                    {colTasks.length}
-                                                </span>
+                                            <div className="kb-v3-header">
+                                                <span className="kb-v3-dot" style={{ background: col.color }}></span>
+                                                <span className="kb-v3-title">{col.title}</span>
+                                                <span className="kb-v3-count">{colTasks.length}</span>
                                             </div>
-                                            <div className="kanban-cards">
+                                            <div className="kb-v3-list" style={{ minHeight: '400px' }}>
                                                 {colTasks.map((task) => (
                                                     <div
-                                                        className="kanban-task-card"
+                                                        className="kb-v3-task"
                                                         key={task.id}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, task)}
                                                     >
-                                                        <div className="task-card-top">
-                                                            <span className="task-name">
-                                                                {task.task_name}
-                                                            </span>
+                                                        <span className="kb-v3-task-name">{task.task_name}</span>
+                                                        <div className="kb-v3-task-meta">
+                                                            {task.work_volume > 0 && <span>📊 Khối lượng: {task.work_volume}</span>}
+                                                            <span>ID: #{task.id}</span>
                                                         </div>
-                                                        {task.work_volume > 0 && (
-                                                            <span className="task-volume">
-                                                                KL: {task.work_volume}
-                                                            </span>
-                                                        )}
-                                                        <div className="task-card-actions">
-                                                            <button
-                                                                className="task-btn task-btn-edit"
-                                                                onClick={() => handleEditTask(task)}
-                                                                title="Sửa"
-                                                            >
-                                                                ✎
-                                                            </button>
-                                                            <button
-                                                                className="task-btn task-btn-del"
-                                                                onClick={() => handleDeleteTask(task.id)}
-                                                                title="Xóa"
-                                                            >
-                                                                🗑
-                                                            </button>
+                                                        <div className="kb-v3-actions">
+                                                            <button className="kb-v3-btn edit" onClick={() => handleEditTask(task)}>✎</button>
+                                                            <button className="kb-v3-btn del" onClick={() => handleDeleteTask(task.id)}>🗑</button>
                                                         </div>
                                                     </div>
                                                 ))}
+                                                {colTasks.length === 0 && (
+                                                    <div style={{ padding: '60px 10px', textAlign: 'center', color: '#cbd5e1', border: '2px dashed #e2e8f0', borderRadius: '16px', fontSize: '13px' }}>
+                                                        Chưa có công việc
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
