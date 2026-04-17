@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import axios from "axios";
-import { X, PackagePlus, Save, History, Tag, Edit3, Trash2 } from "lucide-react";
+import { X, PackagePlus, Save, History, Tag, Edit3, Trash2, Upload } from "lucide-react";
+import * as XLSX from "xlsx";
 
 export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
     const [materials, setMaterials] = useState(supplier.materials || []);
@@ -16,6 +17,8 @@ export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
 
     // States for viewing history
     const [historyMaterialId, setHistoryMaterialId] = useState(null);
+    
+    const fileInputRef = useRef(null);
 
     const handleAddSubmit = async (e) => {
         e.preventDefault();
@@ -62,6 +65,79 @@ export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
         }
     };
 
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setLoading(true);
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                // Lọc và chuẩn hóa data (Làm cho việc nhận diện cột linh hoạt hơn)
+                const payload = jsonData.map(row => {
+                    // Chuẩn hóa tất cả key (tiêu đề cột) về chữ thường và xóa khoảng trắng thừa
+                    const normalizedRow = {};
+                    Object.keys(row).forEach(key => {
+                        const normalizedKey = String(key).trim().toLowerCase();
+                        normalizedRow[normalizedKey] = row[key];
+                    });
+
+                    // Hàm tìm giá trị dựa trên danh sách các tên cột khả thi
+                    const findValue = (possibleNames) => {
+                        for (let name of possibleNames) {
+                            if (normalizedRow[name] !== undefined && normalizedRow[name] !== "") {
+                                return normalizedRow[name];
+                            }
+                        }
+                        return "";
+                    };
+
+                    const nameStr = findValue(['tên vật tư', 'tên', 'tên sản phẩm', 'vật tư', 'material', 'name', 'material name']);
+                    const unitStr = findValue(['đơn vị', 'đơn vị tính', 'đv', 'dvt', 'unit']);
+                    const priceValue = findValue(['giá', 'giá tiền', 'giá hiện tại', 'đơn giá', 'price', 'rate']);
+                    
+                    // Xử lý giá tiền (xóa ký tự không phải số như VNĐ, dấu phẩy...)
+                    const cleanPrice = String(priceValue).replace(/[^0-9.]/g, "");
+                    
+                    return {
+                        material_name: String(nameStr).trim(),
+                        unit: String(unitStr).trim() || "Cái",
+                        current_price: cleanPrice ? Number(cleanPrice) : 0,
+                        changed_at: new Date().toISOString()
+                    };
+                }).filter(item => item.material_name.length > 0);
+
+                if (payload.length === 0) {
+                    alert("Không tìm thấy dữ liệu hợp lệ! Vui lòng kiểm tra tiêu đề các cột (Tên vật tư, Đơn vị, Giá).");
+                    setLoading(false);
+                    return;
+                }
+
+                const res = await axios.post(`http://127.0.0.1:8000/api/suppliers/${supplier.id}/materials/bulk`, {
+                    materials: payload
+                });
+
+                alert(res.data.message);
+                setMaterials(res.data.data.materials || []);
+                if (onRefresh) onRefresh();
+
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi xử lý file Excel: " + (err.response?.data?.message || err.message));
+            } finally {
+                setLoading(false);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
     const formatCurrency = (val) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
     };
@@ -94,12 +170,29 @@ export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
                         <div style={{ fontWeight: 700, color: '#1b2559' }}>
                             Tổng số: {materials.length} vật tư
                         </div>
-                        <button 
-                            onClick={() => setShowAddForm(!showAddForm)}
-                            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13px' }}
-                        >
-                            <PackagePlus size={16} /> Thêm vật tư mới
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <input 
+                                type="file" 
+                                accept=".xlsx, .xls, .csv" 
+                                style={{ display: 'none' }} 
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={loading}
+                                style={{ background: '#fff', color: '#2563eb', border: '1px solid #2563eb', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13px' }}
+                            >
+                                <Upload size={16} /> Import Excel/CSV
+                            </button>
+                            <button 
+                                onClick={() => setShowAddForm(!showAddForm)}
+                                disabled={loading}
+                                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '13px' }}
+                            >
+                                <PackagePlus size={16} /> Nhập thủ công
+                            </button>
+                        </div>
                     </div>
 
                     {/* Add Form */}

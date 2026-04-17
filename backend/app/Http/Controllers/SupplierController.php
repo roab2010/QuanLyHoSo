@@ -123,6 +123,80 @@ class SupplierController extends Controller
         return response()->json(['message' => 'Đã thêm vật tư', 'data' => $material->load('priceHistories')]);
     }
 
+    // Nhập vật tư / giá hàng loạt
+    public function bulkAddMaterials(Request $request, $supplierId)
+    {
+        $request->validate([
+            'materials' => 'required|array',
+            'materials.*.material_name' => 'required|string|max:150',
+            'materials.*.unit' => 'nullable|string|max:50',
+            'materials.*.current_price' => 'nullable|numeric|min:0',
+            'materials.*.changed_at' => 'nullable|date'
+        ]);
+
+        $supplier = Supplier::findOrFail($supplierId);
+        $addedCount = 0;
+        $updatedCount = 0;
+
+        foreach ($request->materials as $matData) {
+            $name = trim($matData['material_name']);
+            if (empty($name)) continue;
+
+            $unit = isset($matData['unit']) && !empty(trim($matData['unit'])) ? trim($matData['unit']) : 'Cái';
+            $price = isset($matData['current_price']) ? floatval($matData['current_price']) : 0;
+            $changedAt = isset($matData['changed_at']) ? $matData['changed_at'] : now();
+
+            $existingMaterial = SupplierMaterial::where('supplier_id', $supplier->id)
+                ->where('material_name', $name)->first();
+
+            if ($existingMaterial) {
+                // Update existing
+                if (floatval($existingMaterial->current_price) !== $price) {
+                    SupplierPriceHistory::create([
+                        'supplier_material_id' => $existingMaterial->id,
+                        'old_price' => $existingMaterial->current_price,
+                        'new_price' => $price,
+                        'note' => 'Cập nhật từ file Excel/CSV',
+                        'changed_at' => $changedAt
+                    ]);
+                    $existingMaterial->current_price = $price;
+                }
+                
+                if (isset($matData['unit']) && !empty(trim($matData['unit']))) {
+                    $existingMaterial->unit = trim($matData['unit']);
+                }
+                
+                $existingMaterial->save();
+                $updatedCount++;
+            } else {
+                // Create new
+                $newMat = SupplierMaterial::create([
+                    'supplier_id' => $supplier->id,
+                    'material_name' => $name,
+                    'unit' => $unit,
+                    'current_price' => $price
+                ]);
+                
+                SupplierPriceHistory::create([
+                    'supplier_material_id' => $newMat->id,
+                    'old_price' => 0,
+                    'new_price' => $price,
+                    'note' => 'Khởi tạo từ file Excel/CSV',
+                    'changed_at' => $changedAt
+                ]);
+                
+                $addedCount++;
+            }
+        }
+
+        return response()->json([
+            'message' => "Đã xử lý file! Thêm mới: $addedCount, Cập nhật: $updatedCount",
+            'data' => $supplier->load(['materials.priceHistories' => function($q){
+                $q->orderBy('changed_at', 'desc');
+            }])
+        ]);
+    }
+
     // Cập nhật giá vật tư (lưu lịch sử)
     public function updatePrice(Request $request, $materialId)
     {
