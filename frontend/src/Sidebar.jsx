@@ -124,6 +124,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             if (label === "Quản lý khách hàng" || label === "Quản lý nhân viên") return hasPermission("hr");
             if (label === "Quản lý kho") return hasPermission("inventory");
             if (label === "Báo cáo" || label === "Quản lý tài liệu") return hasPermission("documents");
+            if (label === "Nhật ký hệ thống") return admin?.role === 'admin';
             return true;
         });
     };
@@ -161,7 +162,8 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                                             label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
                                                 label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
                                                     label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
-                                                        label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
+                                                        label === "Nhật ký hệ thống" ? <FileText size={20} color="#10b981" /> :
+                                                            label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
                                                             label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
                                                                 <FolderOpen size={20} />}
                         </span>

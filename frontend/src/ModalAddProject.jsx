@@ -21,7 +21,8 @@ export default function ModalAddProject({ onClose, onSubmit }) {
         supervisor_id: 1,
         status: "DRAFT",
         estimated_budget: 0,
-        contract_value: 0
+        contract_value: 0,
+        expected_end_date: ""
     });
 
     useEffect(() => {
@@ -33,11 +34,9 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                     getAllCustomers()
                 ]);
 
-                // Xử lý dữ liệu linh hoạt: lấy mảng trực tiếp hoặc từ .data
                 const finalCats = Array.isArray(catRes) ? catRes : (catRes?.data || []);
                 const finalCusts = Array.isArray(custRes) ? custRes : (custRes?.data || []);
 
-                // Lọc chỉ giữ lại các danh mục Đang hoạt động (status = 1)
                 setCategories(finalCats.filter(cat => cat.status === 1));
                 setCustomers(finalCusts);
             } catch (e) {
@@ -51,14 +50,10 @@ export default function ModalAddProject({ onClose, onSubmit }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
-        // Kiểm tra bắt buộc chọn Khách hàng và Loại dự án
         if (!formData.customer_id || !formData.category_id) {
             alert("Vui lòng chọn đầy đủ Khách hàng và Loại dự án!");
             return;
         }
-
-        // Gửi toàn bộ formData đã chuẩn hóa tên cột sang App.jsx -> HoSo.js
         onSubmit(formData);
     };
 
@@ -87,8 +82,6 @@ export default function ModalAddProject({ onClose, onSubmit }) {
             animation: 'slideUp 0.4s cubic-bezier(0.2, 1, 0.3, 1)',
             maxHeight: '95vh',
             overflowY: 'auto',
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE 10+
         },
         header: {
             marginBottom: '32px',
@@ -189,7 +182,6 @@ export default function ModalAddProject({ onClose, onSubmit }) {
 
                 <form onSubmit={handleSubmit}>
                     <div style={modernStyles.formGrid}>
-                        {/* Hàng 1: Tên dự án */}
                         <div style={{ ...modernStyles.formGroup, ...modernStyles.fullWidth }}>
                             <label style={modernStyles.label}>Tên dự án hoặc tên gọi hồ sơ *</label>
                             <input
@@ -202,7 +194,6 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             />
                         </div>
 
-                        {/* Hàng 2: Mã và Ngày */}
                         <div style={modernStyles.formGroup}>
                             <label style={modernStyles.label}>Mã hồ sơ tự động</label>
                             <input
@@ -220,8 +211,17 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                                 onChange={e => setFormData({ ...formData, start_date: e.target.value })}
                             />
                         </div>
+                        <div style={modernStyles.formGroup}>
+                            <label style={modernStyles.label}>Ngày hoàn thành dự kiến</label>
+                            <input
+                                style={modernStyles.input}
+                                type="date"
+                                min={formData.start_date}
+                                value={formData.expected_end_date}
+                                onChange={e => setFormData({ ...formData, expected_end_date: e.target.value })}
+                            />
+                        </div>
 
-                        {/* Hàng 3: Khách hàng và Danh mục */}
                         <div style={modernStyles.formGroup}>
                             <label style={modernStyles.label}>Chủ đầu tư / Khách hàng *</label>
                             <select
@@ -237,7 +237,7 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             </select>
                         </div>
                         <div style={modernStyles.formGroup}>
-                            <label style={modernStyles.label}>Phân loại quy trình *</label>
+                            <label style={modernStyles.label}>Danh mục dự án (Loại dự án) *</label>
                             <select
                                 style={modernStyles.input}
                                 required
@@ -251,7 +251,6 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             </select>
                         </div>
 
-                        {/* Hàng 4: Ưu tiên và Công suất */}
                         <div style={modernStyles.formGroup}>
                             <label style={modernStyles.label}>Mức độ ưu tiên *</label>
                             <select
@@ -276,7 +275,6 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             />
                         </div>
 
-                        {/* Hàng 5: Chi phí và Giá trị */}
                         <div style={modernStyles.formGroup}>
                             <label style={modernStyles.label}>Chi phí dự kiến (VNĐ)</label>
                             <input
@@ -298,7 +296,6 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             />
                         </div>
 
-                        {/* Hàng 6: Địa chỉ */}
                         <div style={{ ...modernStyles.formGroup, ...modernStyles.fullWidth }}>
                             <label style={modernStyles.label}>Địa chỉ triển khai công trình *</label>
                             <textarea
@@ -313,13 +310,13 @@ export default function ModalAddProject({ onClose, onSubmit }) {
 
                     <footer style={modernStyles.footer}>
                         <button type="button" style={modernStyles.btnCancel} onClick={onClose} disabled={loading}>Hủy bỏ</button>
-                        <button 
-                            type="submit" 
-                            style={{ 
-                                ...modernStyles.btnSave, 
+                        <button
+                            type="submit"
+                            style={{
+                                ...modernStyles.btnSave,
                                 opacity: loading ? 0.7 : 1,
                                 cursor: loading ? 'not-allowed' : 'pointer'
-                            }} 
+                            }}
                             disabled={loading}
                         >
                             {loading ? "Đang xử lý..." : "Khởi tạo dự án ngay"}
@@ -328,16 +325,18 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                 </form>
 
                 <style>{`
-                    @keyframes fadeIn {
-                        from { opacity: 0; }
-                        to { opacity: 1; }
-                    }
-                    @keyframes slideUp {
-                        from { opacity: 0; transform: translateY(40px) scale(0.95); }
-                        to { opacity: 1; transform: translateY(0) scale(1); }
+                    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                    @keyframes slideUp { 
+                        from { opacity: 0; transform: translateY(40px) scale(0.95); } 
+                        to { opacity: 1; transform: translateY(0) scale(1); } 
                     }
                     div::-webkit-scrollbar { display: none; }
-                    select { appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20width%3D"14"%20height%3D"8"%20viewBox%3D"0%200%2014%208"%20fill%3D"none"%20xmlns%3D"http%3A//www.w3.org/2000/svg"><path%20d%3D"M1%201L7%207L13%201"%20stroke%3D"%2394A3B8"%20stroke-width%3D"2"%20stroke-linecap%3D"round"%20stroke-linejoin%3D"round"/></svg>'); background-repeat: no-repeat; background-position: right 20px center; }
+                    select { 
+                        appearance: none; 
+                        background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20width%3D"14"%20height%3D"8"%20viewBox%3D"0%200%2014%208"%20fill%3D"none"%20xmlns%3D"http%3A//www.w3.org/2000/svg"><path%20d%3D"M1%201L7%207L13%201"%20stroke%3D"%2394A3B8"%20stroke-width%3D"2"%20stroke-linecap%3D"round"%20stroke-linejoin%3D"round"/></svg>'); 
+                        background-repeat: no-repeat; 
+                        background-position: right 20px center; 
+                    }
                 `}</style>
             </div>
         </div>

@@ -57,6 +57,7 @@ class ProjectController extends Controller
             'max_warehouse_capacity' => 'required|numeric',
             'estimated_budget' => 'nullable|numeric',
             'contract_value' => 'nullable|numeric',
+            'expected_end_date' => 'nullable|date',
         ], [
             'required' => ':attribute không được để trống.',
             'date' => ':attribute không đúng định dạng ngày.',
@@ -71,6 +72,7 @@ class ProjectController extends Controller
             'max_warehouse_capacity' => 'Công suất kho',
             'estimated_budget' => 'Chi phí dự kiến',
             'contract_value' => 'Giá trị hợp đồng',
+            'expected_end_date' => 'Ngày hoàn thành dự kiến',
         ]);
 
         if ($validator->fails()) {
@@ -103,8 +105,8 @@ class ProjectController extends Controller
             }
 
             // 3. TẠO HỒ SƠ
-            $id = DB::table('projects')->insertGetId([
-                'project_code' => $projectCode, // Sử dụng mã tự sinh
+            $project = Project::create([
+                'project_code' => $projectCode,
                 'category_id' => $categoryId,
                 'name' => $request->name,
                 'customer_id' => $request->customer_id,
@@ -113,12 +115,14 @@ class ProjectController extends Controller
                 'start_date' => $request->start_date,
                 'status' => $request->status ?? 'DRAFT',
                 'priority' => $request->priority ?? 'MEDIUM',
-                'created_at' => now(),
                 'max_warehouse_capacity' => $request->max_warehouse_capacity ?? 0,
                 'estimated_budget' => $request->estimated_budget ?? 0,
                 'contract_value' => $request->contract_value ?? 0,
+                'expected_end_date' => $request->expected_end_date,
                 'status_updated_at' => now(),
             ]);
+
+            $id = $project->id;
 
             // 4. TỰ ĐỘNG HÓA: COPY QUY TRÌNH MẪU
             if ($categoryId) {
@@ -128,40 +132,72 @@ class ProjectController extends Controller
                     ->get();
                 
                 if ($templates->isNotEmpty()) {
-                    $tasksToInsert = [];
                     foreach ($templates as $template) {
-                        $tasksToInsert[] = [
+                        \App\Models\ProjectTask::create([
                             'project_id'    => $id,
                             'task_name'     => $template->task_name,
                             'work_volume'   => $template->work_volume,
                             'status'        => 'TODO',
                             'sort_order'    => $template->sort_order,
-                            'created_at'    => now(),
+                        ]);
+                    }
+                }
+
+                // TỰ ĐỘNG HÓA: COPY TÀI LIỆU MẪU (Link từ category_document_templates)
+                $docTemplates = DB::table('category_document_templates')
+                    ->where('category_id', $categoryId)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+                
+                if ($docTemplates->isNotEmpty()) {
+                    $docsToInsert = [];
+                    foreach ($docTemplates as $docTemplate) {
+                        $docsToInsert[] = [
+                            'project_id'    => $id,
+                            'document_name' => $docTemplate->document_name,
+                            'category_name' => $docTemplate->category_name ?? 'Khác',
+                            'status'        => 'PENDING',
+                            'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                            'uploaded_at'   => now(),
+                            'file_url'      => null
                         ];
                     }
-                    DB::table('project_tasks')->insert($tasksToInsert);
+                    DB::table('project_documents')->insert($docsToInsert);
+                }
+            }
+
+            // Lấy tên người thực hiện
+            $userId = request()->header('X-User-ID') ?? auth()->id();
+            $actorName = 'Hệ thống tự động';
+            if ($userId) {
+                $user = \App\Models\User::find($userId);
+                if ($user) {
+                    $actorName = $user->full_name ?? $user->username;
                 }
             }
 
             // 5. LOG LỊCH SỬ
             DB::table('project_histories')->insert([
                 'project_id' => $id,
+                'actor' => $actorName,
                 'action' => 'Khởi tạo hồ sơ mới',
                 'created_at' => now(),
             ]);
 
             DB::commit();
 
-            $newProject = DB::table('projects')->where('id', $id)->first();
+            // Trả về dữ liệu đầy đủ kèm quan hệ để Frontend hiển thị đúng (category name...)
+            $newProject = Project::with(['category', 'customer'])->find($id);
 
             return response()->json([
-                'message' => 'Tạo hồ sơ thành công!',
+                'status' => 'success',
                 'data' => $newProject
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            \Illuminate\Support\Facades\Log::error('Lỗi tạo hồ sơ: ' . $e->getMessage());
-            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+            \Log::error("Error in ProjectController@store: " . $e->getMessage());
+            return response()->json(['error' => 'Lỗi tạo hồ sơ: ' . $e->getMessage()], 500);
         }
     }
 
@@ -206,8 +242,16 @@ class ProjectController extends Controller
             $project->contract_value = $request->contract_value;
         }
 
+        if ($request->has('start_date')) {
+            $project->start_date = $request->start_date;
+        }
+
         if ($request->has('max_warehouse_capacity')) {
             $project->max_warehouse_capacity = $request->max_warehouse_capacity;
+        }
+        
+        if ($request->has('expected_end_date')) {
+            $project->expected_end_date = $request->expected_end_date;
         }
 
         // 4. THÔNG MINH HÓA: Nếu đổi danh mục, tự động nạp quy trình mới
@@ -223,6 +267,7 @@ class ProjectController extends Controller
                 // Xóa các công việc TODO cũ (nếu có) để tránh bị rác dữ liệu
                 DB::table('project_tasks')->where('project_id', $project->id)->delete();
 
+                // KHÔI PHỤC LẠI TASKS THEO DANH MỤC MỚI
                 $templates = DB::table('category_task_templates')
                     ->where('category_id', $request->category_id)
                     ->orderBy('sort_order', 'asc')
@@ -243,16 +288,59 @@ class ProjectController extends Controller
                     DB::table('project_tasks')->insert($tasksToInsert);
                 }
             }
+
+            // Đồng bộ: Đổi hồ sơ cũng nên đổi lại tài liệu nếu chưa up tài liệu nào
+            $uploadedDocs = DB::table('project_documents')
+                ->where('project_id', $project->id)
+                ->whereNotNull('file_url')
+                ->count();
+                
+            if ($uploadedDocs === 0) {
+                // Xóa tài liệu pending cũ
+                DB::table('project_documents')->where('project_id', $project->id)->delete();
+                
+                $docTemplates = DB::table('category_document_templates')
+                    ->where('category_id', $request->category_id)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+                
+                if ($docTemplates->isNotEmpty()) {
+                    $docsToInsert = [];
+                    foreach ($docTemplates as $docTemplate) {
+                        $docsToInsert[] = [
+                            'project_id'    => $project->id,
+                            'document_name' => $docTemplate->document_name,
+                            'category_name' => $docTemplate->category_name ?? 'Khác',
+                            'status'        => 'PENDING',
+                            'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                            'uploaded_at'   => now(),
+                            'file_url'      => null
+                        ];
+                    }
+                    DB::table('project_documents')->insert($docsToInsert);
+                }
+            }
+
             $project->category_id = $request->category_id;
         }
 
         // Lưu xuống Database
         $project->save();
 
+        // Lấy tên người thực hiện
+        $userId = request()->header('X-User-ID') ?? auth()->id();
+        $actorName = 'Quản trị viên';
+        if ($userId) {
+            $user = \App\Models\User::find($userId);
+            if ($user) {
+                $actorName = $user->full_name ?? $user->username;
+            }
+        }
+
         foreach ($actions as $action) {
             DB::table('project_histories')->insert([
                 'project_id' => $project->id,
-                'actor' => 'Nguyễn Văn A',
+                'actor' => $actorName,
                 'action' => $action,
                 'created_at' => now()
             ]);
@@ -326,7 +414,7 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Hồ sơ không tồn tại'], 404);
         }
 
-        // SELF-HEALING: Nếu hồ sơ trống quy trình nhưng danh mục có quy trình mẫu -> Tự động copy
+        // SELF-HEALING TASKS: Nếu hồ sơ trống quy trình nhưng danh mục có quy trình mẫu -> Tự động copy
         if ($project->tasks->isEmpty() && $project->category_id) {
             $templates = DB::table('category_task_templates')
                 ->where('category_id', $project->category_id)
@@ -335,19 +423,53 @@ class ProjectController extends Controller
 
             if ($templates->isNotEmpty()) {
                 $tasksToInsert = [];
+                $cumulativeDays = 0;
+                
                 foreach ($templates as $template) {
+                    // Cộng dồn số ngày từ các task trước
+                    if ($template->estimated_completion_date && $template->estimated_completion_date > 0) {
+                        $cumulativeDays += $template->estimated_completion_date;
+                    }
+                    
                     $tasksToInsert[] = [
                         'project_id'    => $id,
                         'task_name'     => $template->task_name,
                         'work_volume'   => $template->work_volume,
                         'status'        => 'TODO',
                         'sort_order'    => $template->sort_order,
+                        'estimated_completion_date' => $cumulativeDays > 0 ? $cumulativeDays : null,
                         'created_at'    => now(),
                     ];
                 }
                 DB::table('project_tasks')->insert($tasksToInsert);
                 // Load lại tasks sau khi copy để trả về cho UI
                 $project->load(['tasks' => function($q) { $q->orderBy('sort_order'); }]);
+            }
+        }
+
+        // SELF-HEALING DOCUMENTS: Nếu hồ sơ chưa có tài liệu nào, tự động nạp từ mẫu
+        if ($project->documents->isEmpty() && $project->category_id) {
+            $docTemplates = DB::table('category_document_templates')
+                ->where('category_id', $project->category_id)
+                ->orderBy('sort_order', 'asc')
+                ->get();
+
+            if ($docTemplates->isNotEmpty()) {
+                $docsToInsert = [];
+                foreach ($docTemplates as $docTemplate) {
+                    $docsToInsert[] = [
+                        'project_id'    => $id,
+                        'document_name' => $docTemplate->document_name,
+                        'category_name' => $docTemplate->category_name ?? 'Khác',
+                        'status'        => 'PENDING',
+                        'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                        'uploaded_at'   => now(),
+                        'file_url'      => null
+                    ];
+                }
+                DB::table('project_documents')->insert($docsToInsert);
+                // Load lại documents sau khi copy rỗng
+                $project->load(['documents' => function ($q) { $q->orderBy('uploaded_at', 'desc'); }]);
             }
         }
 
@@ -374,6 +496,7 @@ class ProjectController extends Controller
                 'work_volume' => $request->work_volume ?? 0,
                 'status' => 'TODO',
                 'sort_order' => $request->sort_order ?? 0,
+                'estimated_completion_date' => $request->estimated_completion_date ?? null,
                 'created_at' => now(),
             ]);
 
@@ -405,6 +528,8 @@ class ProjectController extends Controller
             $updateData['work_volume'] = $request->work_volume;
         if ($request->has('sort_order'))
             $updateData['sort_order'] = $request->sort_order;
+        if ($request->has('estimated_completion_date'))
+            $updateData['estimated_completion_date'] = $request->estimated_completion_date ?: null;
 
         if ($request->has('status')) {
             // Kiểm tra logic chỉ cho phép chuyển trạng thái tiến lên
@@ -425,9 +550,13 @@ class ProjectController extends Controller
             }
         }
 
-        DB::table('project_tasks')
-            ->where('id', $taskId)
-            ->update($updateData);
+        $taskModel = \App\Models\ProjectTask::where('id', $taskId)
+            ->where('project_id', $projectId)
+            ->first();
+
+        if ($taskModel) {
+            $taskModel->update($updateData);
+        }
 
         $updated = DB::table('project_tasks')->where('id', $taskId)->first();
         return response()->json(['data' => $updated]);
@@ -455,8 +584,7 @@ class ProjectController extends Controller
      */
     public function updateDocument(Request $request, $projectId, $docId)
     {
-        $doc = DB::table('project_documents')
-            ->where('id', $docId)
+        $doc = \App\Models\ProjectDocument::where('id', $docId)
             ->where('project_id', $projectId)
             ->first();
 
@@ -464,18 +592,11 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Không tìm thấy tài liệu'], 404);
         }
 
-        $updateData = [];
-        if ($request->has('status'))
-            $updateData['status'] = $request->status;
-        if ($request->has('note'))
-            $updateData['note'] = $request->note;
+        if ($request->has('status')) $doc->status = $request->status;
+        if ($request->has('note')) $doc->note = $request->note;
+        $doc->save();
 
-        DB::table('project_documents')
-            ->where('id', $docId)
-            ->update($updateData);
-
-        $updated = DB::table('project_documents')->where('id', $docId)->first();
-        return response()->json(['data' => $updated]);
+        return response()->json(['data' => $doc]);
     }
 
     /**
@@ -484,29 +605,31 @@ class ProjectController extends Controller
     public function addMember(Request $request, $projectId)
     {
         try {
-            $id = DB::table('project_members')->insertGetId([
+            $member = \App\Models\ProjectMember::create([
                 'project_id' => $projectId,
                 'employee_id' => $request->employee_id,
                 'project_position_id' => $request->project_position_id ?? null,
             ]);
 
-            $member = DB::table('project_members')
-                ->join('employees', 'project_members.employee_id', '=', 'employees.id')
-                ->leftJoin('project_position_titles', 'project_members.project_position_id', '=', 'project_position_titles.id')
-                ->where('project_members.id', $id)
-                ->select(
-                    'project_members.*', 
-                    'employees.full_name', 
-                    'employees.email', 
-                    'employees.job_title', 
-                    'employees.phone', 
-                    'employees.avatar', 
-                    'employees.status',
-                    'project_position_titles.title_name'
-                )
-                ->first();
+            // Load extra info for response format matching
+            $fullMember = \App\Models\ProjectMember::with(['employee', 'position'])
+                ->find($member->id);
 
-            return response()->json(['data' => $member], 201);
+            $response = [
+                'id' => $fullMember->id,
+                'project_id' => $fullMember->project_id,
+                'employee_id' => $fullMember->employee_id,
+                'project_position_id' => $fullMember->project_position_id,
+                'full_name' => $fullMember->employee->full_name ?? '',
+                'email' => $fullMember->employee->email ?? '',
+                'job_title' => $fullMember->employee->job_title ?? '',
+                'phone' => $fullMember->employee->phone ?? '',
+                'avatar' => $fullMember->employee->avatar ?? '',
+                'status' => $fullMember->employee->status ?? '',
+                'title_name' => $fullMember->position->title_name ?? ''
+            ];
+
+            return response()->json(['data' => $response], 201);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -517,15 +640,15 @@ class ProjectController extends Controller
      */
     public function removeMember($projectId, $memberId)
     {
-        $deleted = DB::table('project_members')
-            ->where('id', $memberId)
+        $member = \App\Models\ProjectMember::where('id', $memberId)
             ->where('project_id', $projectId)
-            ->delete();
+            ->first();
 
-        if (!$deleted) {
+        if (!$member) {
             return response()->json(['message' => 'Không tìm thấy thành viên'], 404);
         }
 
+        $member->delete();
         return response()->json(['message' => 'Đã xóa thành viên']);
     }
 
@@ -534,19 +657,19 @@ class ProjectController extends Controller
      */
     public function getEmployees()
     {
-        $employees = DB::table('employees')
-            ->leftJoin('users', 'employees.user_id', '=', 'users.id')
-            ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
-            ->where('employees.status', 'WORKING')
-            ->select(
-                'employees.id', 
-                'employees.full_name', 
-                \DB::raw('IFNULL(employees.email, users.email) as email'), 
-                \DB::raw('IFNULL(employees.phone, users.phone) as phone'),
-                'roles.name as role_name', 
-                'roles.color as role_color'
-            )
-            ->get();
+        $employees = \App\Models\Employee::with(['user.role'])
+            ->where('status', 'WORKING')
+            ->get()
+            ->map(function($emp) {
+                return [
+                    'id' => $emp->id,
+                    'full_name' => $emp->full_name,
+                    'email' => $emp->email ?? $emp->user->email ?? '',
+                    'phone' => $emp->phone ?? $emp->user->phone ?? '',
+                    'role_name' => $emp->user->role->name ?? '',
+                    'role_color' => $emp->user->role->color ?? ''
+                ];
+            });
 
         return response()->json($employees);
     }
@@ -559,6 +682,7 @@ class ProjectController extends Controller
         $positions = \App\Models\ProjectPositionTitle::orderBy('id', 'asc')->get();
         return response()->json($positions);
     }
+
     /**
      * Khách hàng tự upload tài liệu/ảnh lên hồ sơ
      */
@@ -567,6 +691,7 @@ class ProjectController extends Controller
         $request->validate([
             'file' => 'required|file|max:10240', // 10MB limit
             'name' => 'required|string|max:255',
+            'document_id' => 'nullable|integer'
         ]);
 
         try {
@@ -578,17 +703,34 @@ class ProjectController extends Controller
             }
             $file->move($path, $filename);
 
-            $docId = DB::table('project_documents')->insertGetId([
-                'project_id'    => $projectId,
-                'document_name' => $request->name,
-                'file_url'      => url('uploads/documents/' . $filename),
-                'uploaded_at'   => now(),
-                'status'        => 'PENDING',
-                'category_name' => 'Khách hàng gửi',
-                'note'          => 'Tài liệu do khách hàng cung cấp'
-            ]);
+            $fileUrl = url('uploads/documents/' . $filename);
 
-            $doc = DB::table('project_documents')->where('id', $docId)->first();
+            if ($request->filled('document_id')) {
+                // TRƯỜNG HỢP: Khách hàng nộp file vào slot (Pending) đã có sẵn
+                $doc = \App\Models\ProjectDocument::where('id', $request->document_id)
+                    ->where('project_id', $projectId)
+                    ->first();
+                
+                if ($doc) {
+                    $doc->update([
+                        'file_url'      => $fileUrl,
+                        'uploaded_at'   => now(),
+                        'status'        => 'PENDING',
+                        'note'          => 'Khách hàng đã nộp tài liệu theo yêu cầu.'
+                    ]);
+                }
+            } else {
+                // TRƯỜNG HỢP: Khách hàng tự upload thêm tài liệu mới ngoài mẫu
+                $doc = \App\Models\ProjectDocument::create([
+                    'project_id'    => $projectId,
+                    'document_name' => $request->name,
+                    'file_url'      => $fileUrl,
+                    'uploaded_at'   => now(),
+                    'status'        => 'PENDING',
+                    'category_name' => 'Khách hàng gửi',
+                    'note'          => 'Tài liệu do khách hàng cung cấp'
+                ]);
+            }
 
             return response()->json([
                 'status' => 'success',

@@ -58,13 +58,15 @@ class ProjectDocumentController extends Controller
         try {
             $file = $request->file('file');
             $fileName = time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('documents', $fileName, 'public');
+            
+            // Lưu trực tiếp vào public/uploads/documents để có thể push lên Git
+            $file->move(public_path('uploads/documents'), $fileName);
 
             $document = ProjectDocument::create([
                 'project_id'    => $request->project_id,
                 'document_name' => $request->document_name,
                 'category_name' => $request->category_name,
-                'file_url'      => '/storage/' . $filePath,
+                'file_url'      => '/uploads/documents/' . $fileName,
                 'note'          => $request->note,
                 'status'        => 'PENDING',
                 'uploaded_at'   => now(),
@@ -94,6 +96,7 @@ class ProjectDocumentController extends Controller
 
         try {
             $document = ProjectDocument::findOrFail($id);
+            Log::info("Đang cập nhật tài liệu ID: " . $id);
 
             $updateData = [
                 'project_id'    => $request->project_id,
@@ -104,21 +107,41 @@ class ProjectDocumentController extends Controller
 
             // Nếu người dùng chọn file mới -> Xóa file cũ, upload file mới
             if ($request->hasFile('file')) {
-                // Xóa file cũ
+                Log::info("Có tệp tin mới được gửi lên.");
+                // Xóa file cũ (Hỗ trợ cả 2 đường dẫn cũ và mới)
                 if ($document->file_url) {
-                    $oldFilePath = str_replace('/storage/', '', $document->file_url);
-                    if (Storage::disk('public')->exists($oldFilePath)) {
-                        Storage::disk('public')->delete($oldFilePath);
+                    $oldUrl = $document->file_url;
+                    $oldPath = null;
+                    if (str_starts_with($oldUrl, '/storage/')) {
+                        $oldPath = storage_path('app/public/' . str_replace('/storage/', '', $oldUrl));
+                    } else {
+                        $oldPath = public_path(ltrim($oldUrl, '/'));
+                    }
+
+                    if ($oldPath && file_exists($oldPath)) {
+                        Log::info("Đang xóa tệp cũ: " . $oldPath);
+                        @unlink($oldPath);
                     }
                 }
 
-                // Lưu file mới
+                // Lưu file mới vào public/uploads
                 $file = $request->file('file');
                 $fileName = time() . '_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('documents', $fileName, 'public');
+                $destPath = public_path('uploads/documents');
                 
-                $updateData['file_url'] = '/storage/' . $filePath;
+                // Đảm bảo thư mục tồn tại
+                if (!file_exists($destPath)) {
+                    mkdir($destPath, 0777, true);
+                }
+
+                $file->move($destPath, $fileName);
+                $newFileUrl = '/uploads/documents/' . $fileName;
+                Log::info("Đã di chuyển tệp mới đến: " . $destPath . '/' . $fileName);
+                
+                $updateData['file_url'] = $newFileUrl;
                 $updateData['uploaded_at'] = now();
+            } else {
+                Log::info("Không có tệp tin đính kèm, chỉ cập nhật thông tin.");
             }
 
             $document->update($updateData);
@@ -141,10 +164,19 @@ class ProjectDocumentController extends Controller
         try {
             $document = ProjectDocument::findOrFail($id);
 
-            // Xóa tệp vật lý
-            $filePath = str_replace('/storage/', '', $document->file_url);
-            if (Storage::disk('public')->exists($filePath)) {
-                Storage::disk('public')->delete($filePath);
+            // Xóa tệp vật lý (Hỗ trợ cả 2 đường dẫn cũ và mới)
+            if ($document->file_url) {
+                $oldUrl = $document->file_url;
+                $oldPath = null;
+                if (str_starts_with($oldUrl, '/storage/')) {
+                    $oldPath = storage_path('app/public/' . str_replace('/storage/', '', $oldUrl));
+                } else {
+                    $oldPath = public_path(ltrim($oldUrl, '/'));
+                }
+
+                if ($oldPath && file_exists($oldPath)) {
+                    @unlink($oldPath);
+                }
             }
 
             $document->delete();
@@ -182,5 +214,73 @@ class ProjectDocumentController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Tải xuống tài liệu (fix lỗi CORS và trình duyệt)
+     */
+    public function downloadFile(Request $request)
+    {
+        $fileUrl = $request->query('url');
+        if (!$fileUrl) {
+            return response()->json(['error' => 'Thiếu URL'], 400);
+        }
+
+        // Tách đường dẫn từ URL (đề phòng fileUrl là dạng http://domain.com/uploads/...)
+        $parsedUrl = parse_url($fileUrl, PHP_URL_PATH);
+
+        $fullPath = null;
+        if (str_starts_with($parsedUrl, '/storage/')) {
+            $filePath = str_replace('/storage/', '', $parsedUrl);
+            $fullPath = storage_path('app/public/' . $filePath);
+        } elseif (str_starts_with($parsedUrl, '/uploads/')) {
+            $filePath = str_replace('/uploads/', '', $parsedUrl);
+            $fullPath = public_path('uploads/' . $filePath);
+        } else {
+            $fullPath = public_path(ltrim($parsedUrl, '/'));
+        }
+
+        if (!$fullPath || !file_exists($fullPath)) {
+            return response()->json(['error' => 'Tài liệu vật lý không tồn tại trên máy của bạn (có thể do người khác tải lên và chưa được đồng bộ file).'], 404);
+        }
+
+        return response()->download($fullPath, basename($fullPath), [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Expose-Headers' => 'Content-Disposition'
+        ]);
+    }
+
+    /**
+     * Xem trực tiếp file (Preview) - fix lỗi symlink và đồng bộ
+     */
+    public function viewFile(Request $request)
+    {
+        $fileUrl = $request->query('url');
+        if (!$fileUrl) {
+            return response()->json(['error' => 'Thiếu URL'], 400);
+        }
+
+        $parsedUrl = parse_url($fileUrl, PHP_URL_PATH);
+        $fullPath = null;
+        
+        if (str_starts_with($parsedUrl, '/storage/')) {
+            $filePath = str_replace('/storage/', '', $parsedUrl);
+            $fullPath = storage_path('app/public/' . $filePath);
+        } elseif (str_starts_with($parsedUrl, '/uploads/')) {
+            $filePath = str_replace('/uploads/', '', $parsedUrl);
+            $fullPath = public_path('uploads/' . $filePath);
+        } else {
+            $fullPath = public_path(ltrim($parsedUrl, '/'));
+        }
+
+        if (!$fullPath || !file_exists($fullPath)) {
+            // Trả về ảnh mặc định "Error" hoặc 404
+            return response()->json(['error' => 'File không tồn tại'], 404);
+        }
+
+        return response()->file($fullPath, [
+            'Access-Control-Allow-Origin' => '*',
+            'Content-Disposition' => 'inline'
+        ]);
     }
 }

@@ -52,7 +52,7 @@ export default function QuanLyVatTu() {
     const skuRef = useRef(null);
 
     const initialFormState = {
-        name: '', sku: '', unit: 'Cái', type: 'CONSUMABLE', category_name: 'Vật tư tiêu hao',
+        name: '', sku: 'VT-', unit: 'Cái', type: 'CONSUMABLE', category_name: 'Vật tư tiêu hao',
         price: '', current_stock: '', min_stock_level: '10', warehouse_id: '', supplier_id: '',
         status: 1, hsd: '', space_coefficient: '1'
     };
@@ -145,12 +145,18 @@ export default function QuanLyVatTu() {
 
     // ======================== SKU SUGGESTION LOGIC ========================
     const handleSkuChange = (val) => {
+        // Enforce prefix VT-
+        if (!val.toUpperCase().startsWith("VT-")) {
+            val = "VT-" + val.replace(/^VT\-?/i, '');
+        }
         setSkuInput(val);
-        setFormData(prev => ({ ...prev, sku: val, name: prev.name }));
+        setFormData(prev => ({ ...prev, sku: val }));
 
-        if (val.trim().length < 1) {
+        // Khi người dùng đang gõ mã mới, tự động mở khóa các trường (bỏ chọn matchedProduct)
+        setMatchedProduct(null);
+
+        if (val.trim().length <= 3) { // Chỉ chứa "VT-"
             setSkuSuggestions([]);
-            setMatchedProduct(null);
             setShowSkuDropdown(false);
             return;
         }
@@ -160,25 +166,6 @@ export default function QuanLyVatTu() {
         );
         setSkuSuggestions(suggestions);
         setShowSkuDropdown(suggestions.length > 0);
-
-        // Kiểm tra SKU khớp chính xác
-        const exact = inventory.find(item => item.sku?.toLowerCase() === val.toLowerCase());
-        if (exact) {
-            setMatchedProduct(exact);
-            setFormData(prev => ({
-                ...prev,
-                sku: exact.sku,
-                name: exact.name,
-                unit: exact.unit || 'Cái',
-                type: exact.type || 'CONSUMABLE',
-                category_name: exact.category_name || '',
-                price: exact.price || '',
-                space_coefficient: exact.space_coefficient || '1',
-                warehouse_id: prev.warehouse_id,
-            }));
-        } else {
-            setMatchedProduct(null);
-        }
     };
 
     const handlePickSuggestion = (item) => {
@@ -249,7 +236,14 @@ export default function QuanLyVatTu() {
                 loadData();
             }
         } catch (err) {
-            alert("❌ " + (err.response?.data?.message || "Lỗi nhập kho!"));
+            console.error("Import error:", err);
+            if (err.response?.status === 422) {
+                setErrors(err.response.data.errors || {});
+                const firstErrMsg = Object.values(err.response.data.errors)[0][0];
+                alert("❌ Lỗi dữ liệu: " + firstErrMsg);
+            } else {
+                alert("❌ " + (err.response?.data?.message || "Lỗi nhập kho!"));
+            }
         }
     };
 
@@ -384,13 +378,15 @@ export default function QuanLyVatTu() {
     };
 
     const filteredInventory = useMemo(() => {
-        return inventory.filter(item => {
-            const matchesSearch =
-                (item.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-                (item.sku?.toLowerCase() || "").includes(searchTerm.toLowerCase());
-            const matchesWarehouse = filterWarehouse === "ALL" || String(item.warehouse_id) === String(filterWarehouse);
-            return matchesSearch && matchesWarehouse;
-        });
+        return inventory
+            .filter(item => {
+                const matchesSearch =
+                    (item.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+                    (item.sku?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+                const matchesWarehouse = filterWarehouse === "ALL" || String(item.warehouse_id) === String(filterWarehouse);
+                return matchesSearch && matchesWarehouse;
+            })
+            .sort((a, b) => (Number(a.warehouse_id) || 0) - (Number(b.warehouse_id) || 0));
     }, [searchTerm, filterWarehouse, inventory]);
 
     const exportableInventory = useMemo(() => {
@@ -655,7 +651,14 @@ export default function QuanLyVatTu() {
                                             style={{ borderColor: errors.sku ? '#EE5D50' : matchedProduct ? '#05CD99' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
                                             value={skuInput}
                                             onChange={e => handleSkuChange(e.target.value)}
-                                            onBlur={() => setTimeout(() => setShowSkuDropdown(false), 150)}
+                                            onBlur={() => {
+                                                setTimeout(() => setShowSkuDropdown(false), 150);
+                                                // Nếu gõ đầy đủ mã chính xác và rời ô, tự động khớp
+                                                const exact = inventory.find(item => item.sku?.toLowerCase() === skuInput.toLowerCase());
+                                                if (exact) {
+                                                    handlePickSuggestion(exact);
+                                                }
+                                            }}
                                             placeholder="VD: SKU-001"
                                             autoComplete="off"
                                             readOnly={!!matchedProduct}
@@ -688,41 +691,65 @@ export default function QuanLyVatTu() {
 
                                     {/* Tên vật tư */}
                                     <div className="form-group">
-                                        <label>Tên vật tư</label>
+                                        <label>Tên vật tư <span className="req-mark">*</span></label>
                                         <input
                                             className="form-input"
                                             style={{ borderColor: errors.name ? '#EE5D50' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
                                             value={formData.name}
-                                            onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                                            onChange={e => {
+                                                setFormData(p => ({ ...p, name: e.target.value }));
+                                                if (errors.name) setErrors(prev => ({ ...prev, name: null }));
+                                            }}
                                             placeholder={matchedProduct ? "(tự động từ SKU)" : "Tên vật tư"}
                                             readOnly={!!matchedProduct}
                                         />
-                                        {errors.name && <span className="error-text">{errors.name}</span>}
+                                        {/* Cảnh báo tên không khớp báo giá NCC (Chỉ hiện khi chưa có lỗi từ backend để tránh trùng lặp) */}
+                                        {!matchedProduct && !errors.name && formData.name && formData.supplier_id && (
+                                            (() => {
+                                                const supplier = suppliers.find(s => String(s.id) === String(formData.supplier_id));
+                                                const isValid = supplier?.materials?.some(m => m.material_name === formData.name.trim());
+                                                if (!isValid) {
+                                                    return <span style={{ color: '#FF9500', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                                                        ⚠️ Tên này chưa có trong báo giá của {supplier?.name || 'NCC'}
+                                                    </span>;
+                                                }
+                                                return <span style={{ color: '#05CD99', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                                                    ✅ Tên khớp với báo giá NCC
+                                                </span>;
+                                            })()
+                                        )}
+                                        {errors.name && <span className="error-text">⚠️ {Array.isArray(errors.name) ? errors.name[0] : errors.name}</span>}
                                     </div>
 
                                     {/* Kho */}
                                     <div className="form-group">
-                                        <label>Kho hàng</label>
+                                        <label>Kho hàng <span className="req-mark">*</span></label>
                                         <select className="form-input" style={{ borderColor: errors.warehouse_id ? '#EE5D50' : '#ddd' }}
-                                            value={formData.warehouse_id} onChange={e => setFormData(p => ({ ...p, warehouse_id: e.target.value }))}>
+                                            value={formData.warehouse_id} onChange={e => {
+                                                setFormData(p => ({ ...p, warehouse_id: e.target.value }));
+                                                if (errors.warehouse_id) setErrors(prev => ({ ...prev, warehouse_id: null }));
+                                            }}>
                                             <option value="">-- Chọn kho --</option>
                                             {warehouses.map(w => {
                                                 const info = getWarehouseInfo(w.id);
                                                 return <option key={w.id} value={w.id}>{w.name} (còn {info.remaining.toFixed(0)} m³)</option>;
                                             })}
                                         </select>
-                                        {errors.warehouse_id && <span className="error-text">{errors.warehouse_id}</span>}
+                                        {errors.warehouse_id && <span className="error-text">⚠️ {errors.warehouse_id}</span>}
                                     </div>
 
                                     {/* NCC */}
                                     <div className="form-group">
-                                        <label>Nhà cung cấp</label>
+                                        <label>Nhà cung cấp <span className="req-mark">*</span></label>
                                         <select className="form-input" style={{ borderColor: errors.supplier_id ? '#EE5D50' : '#ddd' }}
-                                            value={formData.supplier_id} onChange={e => setFormData(p => ({ ...p, supplier_id: e.target.value }))}>
+                                            value={formData.supplier_id} onChange={e => {
+                                                setFormData(p => ({ ...p, supplier_id: e.target.value }));
+                                                if (errors.supplier_id) setErrors(prev => ({ ...prev, supplier_id: null }));
+                                            }}>
                                             <option value="">-- Chọn NCC --</option>
-                                            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            {suppliers.filter(s => s.status === 'ACTIVE').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
-                                        {errors.supplier_id && <span className="error-text">{errors.supplier_id}</span>}
+                                        {errors.supplier_id && <span className="error-text">⚠️ {errors.supplier_id}</span>}
                                     </div>
 
                                     {/* Vật tư của NCC (Nếu có) */}
@@ -798,10 +825,13 @@ export default function QuanLyVatTu() {
 
                                     {/* Số lượng */}
                                     <div className="form-group">
-                                        <label>Số lượng nhập</label>
-                                        <input type="number" className="form-input" style={{ borderColor: errors.current_stock ? '#EE5D50' : '#ddd' }}
-                                            value={formData.current_stock} onChange={e => setFormData(p => ({ ...p, current_stock: e.target.value }))} />
-                                        {errors.current_stock && <span className="error-text">{errors.current_stock}</span>}
+                                        <label>Số lượng nhập <span className="req-mark">*</span></label>
+                                        <input type="number" step="0.01" min="0.01" className="form-input" style={{ borderColor: errors.current_stock ? '#EE5D50' : '#ddd' }}
+                                            value={formData.current_stock} onChange={e => {
+                                                setFormData(p => ({ ...p, current_stock: e.target.value }));
+                                                if (errors.current_stock) setErrors(prev => ({ ...prev, current_stock: null }));
+                                            }} />
+                                        {errors.current_stock && <span className="error-text">⚠️ {errors.current_stock}</span>}
                                     </div>
 
                                     {/* Min stock */}
@@ -813,17 +843,46 @@ export default function QuanLyVatTu() {
 
                                     {/* Giá */}
                                     <div className="form-group">
-                                        <label>Giá nhập (đ)</label>
-                                        <input type="number" className="form-input" style={{ borderColor: errors.price ? '#EE5D50' : '#ddd', background: matchedProduct ? '#f8f9fa' : '#fff' }}
-                                            value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} />
-                                        {errors.price && <span className="error-text">{errors.price}</span>}
+                                        <label>
+                                            Giá nhập (đ) 
+                                            {matchedProduct && <span style={{ color: '#a3aed0', fontSize: '10px', marginLeft: '8px', fontWeight: 'normal' }}>(Giá cố định theo SKU)</span>}
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            className="form-input" 
+                                            style={{ 
+                                                borderColor: errors.price ? '#EE5D50' : '#ddd', 
+                                                background: matchedProduct ? '#f8f9fa' : '#fff',
+                                                cursor: matchedProduct ? 'not-allowed' : 'text'
+                                            }}
+                                            value={formData.price} 
+                                            onChange={e => {
+                                                if (matchedProduct) return;
+                                                setFormData(p => ({ ...p, price: e.target.value }));
+                                                if (errors.price) setErrors(prev => ({ ...prev, price: null }));
+                                            }} 
+                                            readOnly={!!matchedProduct}
+                                        />
+                                        {errors.price && <span className="error-text">⚠️ {errors.price}</span>}
                                     </div>
 
                                     {/* Đơn vị */}
                                     <div className="form-group">
                                         <label>Đơn vị tính</label>
-                                        <input className="form-input" value={formData.unit}
-                                            onChange={e => setFormData(p => ({ ...p, unit: e.target.value }))} />
+                                        <input 
+                                            className="form-input" 
+                                            style={{ 
+                                                background: matchedProduct ? '#f8f9fa' : '#fff',
+                                                cursor: matchedProduct ? 'not-allowed' : 'text'
+                                            }}
+                                            value={formData.unit}
+                                            onChange={e => {
+                                                if (matchedProduct) return;
+                                                setFormData(p => ({ ...p, unit: e.target.value }));
+                                            }} 
+                                            readOnly={!!matchedProduct}
+                                        />
                                     </div>
 
                                     {/* HSD */}
@@ -916,22 +975,27 @@ export default function QuanLyVatTu() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {projectItems.map(item => (
-                                                        <tr key={item.product_id} style={{ borderTop: '1px solid #f4f7fe' }}>
-                                                            <td style={{ padding: '10px' }}>
-                                                                <div style={{ fontWeight: 'bold', color: '#2b3674', fontSize: '13px' }}>{item.product_name}</div>
-                                                                <div style={{ fontSize: '11px', color: '#a3aed0' }}>{item.sku}</div>
-                                                            </td>
-                                                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>{item.qty_at_project} {item.unit}</td>
-                                                            <td style={{ padding: '10px', textAlign: 'right' }}>
-                                                                <input type="number" min="0" max={item.qty_at_project} step="1"
-                                                                    style={{ width: '80px', padding: '6px', borderRadius: '8px', border: '1px solid #ddd', textAlign: 'right' }}
-                                                                    value={importProjectSelections[item.product_id] || ''}
-                                                                    onChange={e => setImportProjectSelections(prev => ({ ...prev, [item.product_id]: e.target.value }))}
-                                                                />
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                    {projectItems.map(item => {
+                                                        const qty = importProjectSelections[item.product_id] || '';
+                                                        const isOver = qty && Number(qty) > Number(item.qty_at_project);
+                                                        return (
+                                                            <tr key={item.product_id} style={{ borderTop: '1px solid #f4f7fe', background: isOver ? '#fff5f5' : 'transparent' }}>
+                                                                <td style={{ padding: '10px' }}>
+                                                                    <div style={{ fontWeight: 'bold', color: '#2b3674', fontSize: '13px' }}>{item.product_name}</div>
+                                                                    <div style={{ fontSize: '11px', color: '#a3aed0' }}>{item.sku}</div>
+                                                                </td>
+                                                                <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>{item.qty_at_project} {item.unit}</td>
+                                                                <td style={{ padding: '10px', textAlign: 'right' }}>
+                                                                    <input type="number" min="0" max={item.qty_at_project} step="1"
+                                                                        style={{ width: '80px', padding: '6px', borderRadius: '8px', border: `1px solid ${isOver ? '#EE5D50' : '#ddd'}`, textAlign: 'right', outline: 'none' }}
+                                                                        value={qty}
+                                                                        onChange={e => setImportProjectSelections(prev => ({ ...prev, [item.product_id]: e.target.value }))}
+                                                                    />
+                                                                    {isOver && <div style={{ fontSize: '10px', color: '#EE5D50', marginTop: '3px' }}>Vượt giới hạn!</div>}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>

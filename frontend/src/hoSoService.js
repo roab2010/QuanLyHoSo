@@ -278,9 +278,8 @@ export const getAllProjectPositions = async () => {
 };
 export const getTemplatesByCategoryId = async (categoryId) => {
   try {
-    const response = await axios.get(
-      `${API_URL}/template-tasks/category/${categoryId}`,
-    );
+    const response = await api.get(`/template-tasks/category/${categoryId}`);
+
     // Vì Controller trả về { status: 'success', data: [...] }
     // nên ta lấy response.data (là cục JSON) để Modal tự xử lý tiếp
     return response.data;
@@ -292,7 +291,7 @@ export const getTemplatesByCategoryId = async (categoryId) => {
 
 export const createTemplateTask = async (payload) => {
   try {
-    const response = await axios.post(`${API_URL}/template-tasks`, payload);
+    const response = await api.post(`/template-tasks`, payload);
     return response.data;
   } catch (error) {
     throw error;
@@ -301,10 +300,7 @@ export const createTemplateTask = async (payload) => {
 
 export const updateTemplateTask = async (id, payload) => {
   try {
-    const response = await axios.put(
-      `${API_URL}/template-tasks/${id}`,
-      payload,
-    );
+    const response = await api.put(`/template-tasks/${id}`, payload);
     return response.data;
   } catch (error) {
     throw error;
@@ -313,7 +309,47 @@ export const updateTemplateTask = async (id, payload) => {
 
 export const deleteTemplateTask = async (id) => {
   try {
-    const response = await axios.delete(`${API_URL}/template-tasks/${id}`);
+    const response = await api.delete(`/template-tasks/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * --- PHẦN TÀI LIỆU MẪU (THUỘC VỀ DANH MỤC) ---
+ */
+export const getTemplateDocsByCategoryId = async (categoryId) => {
+  try {
+    const response = await api.get(`/template-documents/category/${categoryId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi API getTemplateDocs:", error);
+    throw error;
+  }
+};
+
+export const createTemplateDoc = async (payload) => {
+  try {
+    const response = await api.post(`/template-documents`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateTemplateDoc = async (id, payload) => {
+  try {
+    const response = await api.put(`/template-documents/${id}`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteTemplateDoc = async (id) => {
+  try {
+    const response = await api.delete(`/template-documents/${id}`);
     return response.data;
   } catch (error) {
     throw error;

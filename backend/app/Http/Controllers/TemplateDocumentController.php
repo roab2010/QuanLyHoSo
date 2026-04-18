@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\CategoryDocumentTemplate;
 
 class TemplateDocumentController extends Controller
 {
@@ -41,18 +42,17 @@ class TemplateDocumentController extends Controller
         ]);
 
         try {
-            $id = DB::table('category_document_templates')->insertGetId([
+            $model = CategoryDocumentTemplate::create([
                 'category_id'   => $request->category_id,
                 'document_name' => $request->document_name,
                 'category_name' => $request->category_name ?? 'Khác',
                 'is_required'   => $request->is_required ?? true,
                 'sort_order'    => $request->sort_order,
-                'created_at'    => now(),
             ]);
 
             return response()->json([
                 'message' => 'Thêm mẫu tài liệu thành công',
-                'id' => $id
+                'id' => $model->id
             ], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi database: ' . $e->getMessage()], 500);
@@ -72,12 +72,12 @@ class TemplateDocumentController extends Controller
         ]);
 
         try {
-            DB::table('category_document_templates')->where('id', $id)->update([
+            $model = CategoryDocumentTemplate::findOrFail($id);
+            $model->update([
                 'document_name' => $request->document_name,
                 'category_name' => $request->category_name ?? 'Khác',
                 'is_required'   => $request->is_required ?? true,
                 'sort_order'    => $request->sort_order,
-                'updated_at'    => now(),
             ]);
 
             return response()->json(['message' => 'Cập nhật thành công'], 200);
@@ -92,7 +92,8 @@ class TemplateDocumentController extends Controller
     public function destroy($id)
     {
         try {
-            DB::table('category_document_templates')->where('id', $id)->delete();
+            $model = CategoryDocumentTemplate::findOrFail($id);
+            $model->delete();
             return response()->json(['message' => 'Xóa thành công'], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);

@@ -87,9 +87,7 @@ export default function ProjectDocuments() {
         formData.append('note', newDoc.note);
 
         try {
-            const res = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await axios.post(`${API_BASE_URL}/documents/upload`, formData);
             alert(res.data.message);
             setShowUploadModal(false);
             setNewDoc({ name: '', project_id: '', type: '', note: '', file: null });
@@ -124,9 +122,7 @@ export default function ProjectDocuments() {
         formData.append('note', newDoc.note);
 
         try {
-            const res = await axios.post(`${API_BASE_URL}/documents/${editDocId}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await axios.post(`${API_BASE_URL}/documents/${editDocId}`, formData);
             alert(res.data.message);
             setShowEditModal(false);
             setEditDocId(null);
@@ -149,9 +145,37 @@ export default function ProjectDocuments() {
         }
     };
 
-    const handleDownload = (fileUrl) => {
-        // fileUrl thường có dạng /storage/documents/...
-        window.open(`http://127.0.0.1:8000${fileUrl}`, '_blank');
+    const handleDownload = async (doc) => {
+        if (!window.confirm(`Bạn muốn tải về tài liệu "${doc.document_name}" này chứ?`)) return;
+
+        try {
+            const url = `${API_BASE_URL}/documents/download-file?url=${encodeURIComponent(doc.file_url)}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                alert(errorData.error || "Tài liệu không tồn tại hoặc có lỗi hệ thống!");
+                return;
+            }
+            
+            const blob = await response.blob();
+            const extMatch = doc.file_url.match(/\.([^.]+)$/);
+            const ext = extMatch ? `.${extMatch[1]}` : "";
+            let safeName = doc.document_name.replace(/[<>:"\/\\|?*]+/g, '_');
+            
+            // Sử dụng Browser API gốc để tải file, loại bỏ sự phụ thuộc vào file-saver
+            const urlObj = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlObj;
+            a.download = `${safeName}${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(urlObj);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Lỗi khi tải xuống:", error);
+            alert("Lỗi kết nối khi tải tài liệu!");
+        }
     };
 
     return (
@@ -250,7 +274,7 @@ export default function ProjectDocuments() {
                         documents.map((doc, index) => (
                             <tr key={doc.id}>
                                 <td>{index + 1}</td>
-                                <td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: '280px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={{ fontWeight: '600', color: '#1e293b' }}>{doc.document_name}</span>
                                         {doc.note && <small style={{ color: '#64748b', fontSize: '12px' }}>{doc.note}</small>}
@@ -263,23 +287,45 @@ export default function ProjectDocuments() {
                                     <span style={{ color: '#64748b' }}>{doc.category_name}</span>
                                 </td>
                                 <td style={{textAlign: 'center'}}>
-                                    <span className={`status-badge ${doc.status === 'COMPLETED' ? "active" : "inactive"}`}>
-                                        {doc.status === 'COMPLETED' ? "Hoàn thành" : doc.status === 'PENDING' ? "Chờ duyệt" : doc.status === 'PROCESSING' ? "Đang xử lý" : "Cần sửa"}
+                                    <span className={`status-badge ${
+                                        doc.status === 'COMPLETED' ? "active" : 
+                                        (doc.status === 'PENDING' && !doc.file_url) ? "" : "inactive"
+                                    }`} style={
+                                        (doc.status === 'PENDING' && !doc.file_url) 
+                                            ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, fontSize: '13px' } 
+                                            : {}
+                                    }>
+                                        {doc.status === 'COMPLETED' ? "Hoàn thành" 
+                                            : doc.status === 'PENDING' 
+                                                ? (doc.file_url ? "Chờ duyệt" : "Đang thiếu") 
+                                                : doc.status === 'PROCESSING' ? "Đang xử lý" : "Cần sửa"}
                                     </span>
                                 </td>
                                 <td className="action-cell" style={{ verticalAlign: 'middle' }}>
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                                         {doc.file_url && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setPreviewUrl(`http://127.0.0.1:8000${doc.file_url}`)}
-                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
-                                                title="Xem"
-                                                onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}
-                                                onMouseOut={(e) => e.currentTarget.style.background = '#e0f2fe'}
-                                            >
-                                                <img src="https://cdn-icons-png.flaticon.com/512/159/159604.png" width="18" alt="View" style={{ filter: "opacity(0.8)" }} />
-                                            </button>
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewUrl(`${API_BASE_URL}/documents/view-file?url=${encodeURIComponent(doc.file_url)}`)}
+                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
+                                                    title="Xem"
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = '#e0f2fe'}
+                                                >
+                                                    <img src="https://cdn-icons-png.flaticon.com/512/159/159604.png" width="18" alt="View" style={{ filter: "opacity(0.8)" }} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDownload(doc)}
+                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#dcfce7', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
+                                                    title="Tải xuống"
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#bbf7d0'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = '#dcfce7'}
+                                                >
+                                                    <img src="https://cdn-icons-png.flaticon.com/512/2926/2926214.png" width="18" alt="Download" style={{ filter: "opacity(0.8)" }} />
+                                                </button>
+                                            </>
                                         )}
                                         <button
                                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}

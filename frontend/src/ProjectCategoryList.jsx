@@ -6,14 +6,14 @@ import {
   deleteCategory,
 } from "./hoSoService";
 import ModalCategory from "./ModalCategory";
-import ModalTemplateManagement from "./ModalTemplateManagement";
+import ModalDocumentTemplate from "./ModalDocumentTemplate";
 import { useToast } from "./Toast";
 
 export default function ProjectCategoryList() {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showDocModal, setShowDocModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const toast = useToast();
 
@@ -30,9 +30,9 @@ export default function ProjectCategoryList() {
     loadData();
   }, []);
 
-  const handleManageTemplate = (cat) => {
+  const handleManageDocTemplate = (cat) => {
     setSelectedCategory(cat);
-    setShowTemplateModal(true);
+    setShowDocModal(true);
   };
 
   const handleSave = async (payload) => {
@@ -120,8 +120,8 @@ export default function ProjectCategoryList() {
 
                 <button
                   className="btn-template"
-                  onClick={() => handleManageTemplate(cat)}
-                  title="Quản lý Template"
+                  onClick={() => handleManageDocTemplate(cat)}
+                  title="Quản lý Tài liệu mẫu"
                   style={{
                     margin: "0 10px",
                     background: "none",
@@ -130,9 +130,9 @@ export default function ProjectCategoryList() {
                   }}
                 >
                   <img
-                    src="https://cdn-icons-png.flaticon.com/512/2666/2666505.png"
+                    src="https://cdn-icons-png.flaticon.com/512/2912/2912648.png"
                     width="20"
-                    alt="Template"
+                    alt="Document Template"
                   />
                 </button>
 
@@ -161,11 +161,11 @@ export default function ProjectCategoryList() {
         />
       )}
 
-      {showTemplateModal && (
-        <ModalTemplateManagement
+      {showDocModal && (
+        <ModalDocumentTemplate
           categoryId={selectedCategory?.id}
           categoryName={selectedCategory?.name}
-          onClose={() => setShowTemplateModal(false)}
+          onClose={() => setShowDocModal(false)}
         />
       )}
     </div>

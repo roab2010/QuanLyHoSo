@@ -16,6 +16,7 @@ export default function ModalTemplateManagement({
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskVolume, setNewTaskVolume] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("");
+  const [newTaskEstimatedDate, setNewTaskEstimatedDate] = useState("");
   const [editingTaskId, setEditingTaskId] = useState(null);
   const toast = useToast();
 
@@ -47,6 +48,7 @@ export default function ModalTemplateManagement({
         task_name: newTaskName,
         work_volume: Number(newTaskVolume),
         sort_order: Number(newTaskPriority),
+        estimated_completion_date: newTaskEstimatedDate || null,
       };
 
       if (editingTaskId) {
@@ -68,6 +70,7 @@ export default function ModalTemplateManagement({
     setNewTaskName("");
     setNewTaskVolume("");
     setNewTaskPriority("");
+    setNewTaskEstimatedDate("");
     setEditingTaskId(null);
   };
 
@@ -75,6 +78,7 @@ export default function ModalTemplateManagement({
     setNewTaskName(task.task_name);
     setNewTaskVolume(task.work_volume);
     setNewTaskPriority(task.sort_order);
+    setNewTaskEstimatedDate(task.estimated_completion_date || "");
     setEditingTaskId(task.id);
   };
 
@@ -134,6 +138,16 @@ export default function ModalTemplateManagement({
                 onChange={(e) => setNewTaskPriority(e.target.value)}
               />
             </div>
+            <div className="template-form-item">
+              <label className="form-label">Ngày dự kiến hoàn thành (số ngày)</label>
+              <input
+                className="form-input"
+                type="number"
+                placeholder="0"
+                value={newTaskEstimatedDate}
+                onChange={(e) => setNewTaskEstimatedDate(e.target.value)}
+              />
+            </div>
             <div className="template-form-item template-form-actions">
               <button className="btn-submit" onClick={handleSubmit}>
                 {editingTaskId ? "💾 Lưu" : "➕ Thêm"}
@@ -152,6 +166,7 @@ export default function ModalTemplateManagement({
               <thead>
                 <tr>
                   <th style={{ width: "80px" }}>Thứ tự</th>
+                  <th style={{ width: "150px" }}>Số ngày DKH</th>
                   <th>Tên công việc quy trình mẫu</th>
                   <th style={{ width: "120px" }}>Khối lượng</th>
                   <th style={{ width: "150px" }}>Thao tác</th>
@@ -162,6 +177,11 @@ export default function ModalTemplateManagement({
                   tasks.map((task) => (
                     <tr key={task.id}>
                       <td style={{ textAlign: "center", fontWeight: 700 }}>{task.sort_order}</td>
+                      <td style={{ textAlign: "center" }}>
+                        {task.estimated_completion_date && task.estimated_completion_date > 0
+                          ? `${task.estimated_completion_date} ngày`
+                          : "-"}
+                      </td>
                       <td>{task.task_name}</td>
                       <td>
                         <span className="volume-badge">{task.work_volume}%</span>
@@ -180,13 +200,20 @@ export default function ModalTemplateManagement({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="empty-template">
+                    <td colSpan="5" className="empty-template">
                       📭 Chưa có quy trình mẫu nào cho danh mục này
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+            {tasks.length > 0 && (
+              <div style={{ padding: "16px", background: "#f0f4f8", borderRadius: "8px", marginTop: "12px", display: "flex", justifyContent: "flex-end", fontWeight: "700", fontSize: "15px" }}>
+                <span style={{ marginRight: "20px" }}>
+                  📅 Tổng số ngày DKH: <span style={{ color: "#2563eb" }}>{tasks.reduce((sum, task) => sum + (task.estimated_completion_date && task.estimated_completion_date > 0 ? task.estimated_completion_date : 0), 0)} ngày</span>
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

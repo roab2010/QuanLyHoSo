@@ -59,6 +59,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'timezone' => env('DB_TIMEZONE', 'Asia/Ho_Chi_Minh'),
             // 'options' => [
             //     PDO::MYSQL_ATTR_SSL_CA => base_path('cacert.pem'),
                 

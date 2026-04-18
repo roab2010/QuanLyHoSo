@@ -46,6 +46,7 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                         <th style={{ textAlign: 'left' }}>TÊN HỒ SƠ</th>
                         <th style={{ textAlign: 'left' }}>DANH MỤC</th>
                         <th style={{ textAlign: 'left' }}>NGÀY TẠO</th>
+                        <th style={{ textAlign: 'left' }}>DỰ KIẾN</th>
                         <th style={{ textAlign: 'center' }}>TRẠNG THÁI</th>
                         <th style={{ textAlign: 'center' }}>THAO TÁC</th>
                     </tr>
@@ -68,6 +69,9 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                             <td>{item.category_name}</td>
                             <td>
                                 {item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : '—'}
+                            </td>
+                            <td>
+                                {item.expected_end_date ? new Date(item.expected_end_date).toLocaleDateString('vi-VN') : '—'}
                             </td>
                             <td style={{ textAlign: 'center' }}>
                                 <span style={{

@@ -10,6 +10,10 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ProjectDocumentController;
+use App\Http\Controllers\SystemAuditLogController;
+
+// SYSTEM AUDIT LOGS
+Route::get('/audit-logs', [SystemAuditLogController::class, 'index']);
 
 // AUTH ROUTES
 Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)
@@ -42,6 +46,8 @@ Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::cl
 // TÀI LIỆU DỰ ÁN (PROJECT DOCUMENTS)
 Route::get('/all-documents', [ProjectDocumentController::class, 'index']);
 Route::get('/documents-metadata', [ProjectDocumentController::class, 'getMetadata']);
+Route::get('/documents/download-file', [ProjectDocumentController::class, 'downloadFile']);
+Route::get('/documents/view-file', [ProjectDocumentController::class, 'viewFile']);
 Route::post('/documents/upload', [ProjectDocumentController::class, 'store']);
 Route::post('/documents/{id}', [ProjectDocumentController::class, 'update']);
 Route::delete('/documents/{id}', [ProjectDocumentController::class, 'destroy']);
@@ -60,6 +66,14 @@ Route::get('/template-tasks/category/{categoryId}', [TemplateTaskController::cla
 Route::post('/template-tasks', [TemplateTaskController::class, 'store']);
 Route::put('/template-tasks/{id}', [TemplateTaskController::class, 'update']);
 Route::delete('/template-tasks/{id}', [TemplateTaskController::class, 'destroy']);
+
+// TÀI LIỆU MẪU (TEMPLATE DOCUMENTS)
+use App\Http\Controllers\TemplateDocumentController;
+
+Route::get('/template-documents/category/{categoryId}', [TemplateDocumentController::class, 'index']);
+Route::post('/template-documents', [TemplateDocumentController::class, 'store']);
+Route::put('/template-documents/{id}', [TemplateDocumentController::class, 'update']);
+Route::delete('/template-documents/{id}', [TemplateDocumentController::class, 'destroy']);
 
 // KHÁCH HÀNG (Admin chọn khi thêm hồ sơ)
 // Cấu trúc chuẩn cho nhóm Route khách hàng

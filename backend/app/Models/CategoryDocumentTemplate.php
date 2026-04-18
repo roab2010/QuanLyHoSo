@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class CategoryDocumentTemplate extends Model
 {
+    use Auditable;
+
     protected $table = 'category_document_templates';
 
     protected $fillable = [

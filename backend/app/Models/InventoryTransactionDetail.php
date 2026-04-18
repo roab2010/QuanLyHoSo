@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class InventoryTransactionDetail extends Model
 {
+    use Auditable;
+
     public $timestamps = false;
     protected $fillable = [
         'inventory_transaction_id', 

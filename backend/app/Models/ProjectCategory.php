@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class ProjectCategory extends Model
 {
+    use Auditable;
     protected $table = 'project_categories'; // Trỏ đúng tên bảng
     public $timestamps = false; // Bảng này không dùng created_at
 

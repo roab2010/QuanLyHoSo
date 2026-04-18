@@ -19,6 +19,8 @@ import CustomerDashboard from "./CustomerDashboard";
 import QuanLyKhachHang from "./QuanLyKhachHang";
 import QuanLyNhanVien from "./QuanLyNhanVien";
 import ProjectDocuments from "./ProjectDocuments";
+import SystemLog from "./SystemLog";
+import { useToast } from "./Toast";
 
 const COLUMNS = [
     { id: "new", title: "Mới tạo", color: "#6b7280" },
@@ -26,7 +28,7 @@ const COLUMNS = [
     { id: "done", title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho"];
+const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho", "Nhật ký hệ thống"];
 
 const styles = {
     logoutBtn: {
@@ -135,6 +137,8 @@ const AdminLayout = ({
                         <ProjectDocuments />
                     ) : activeNav === "Tin tức" ? (
                         <News />
+                    ) : activeNav === "Nhật ký hệ thống" ? (
+                        <SystemLog />
                     ) : activeNav === "Quản lý kho" ? (
                         inventoryView === "selection" ? (
                             <InventoryDashboard onSelect={setInventoryView} />
@@ -172,6 +176,7 @@ export default function App() {
 
     const location = useLocation();
     const navigate = useNavigate();
+    const toast = useToast();
 
     // Đọc user từ localStorage (Không dùng memo [] để đảm bảo cập nhật khi chuyển trang)
     const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
@@ -236,8 +241,12 @@ export default function App() {
 
     const handleSaveProject = async (formData) => {
         const result = await themHoSo(formData);
-        if (result.ok) setShowModal(false);
-        else alert(result.message || "Không thể tạo hồ sơ");
+        if (result.ok) {
+            setShowModal(false);
+            toast.success("Khởi tạo hồ sơ dự án mới thành công!");
+        } else {
+            toast.error(result.message || "Không thể tạo hồ sơ");
+        }
     };
 
     const adminProps = {

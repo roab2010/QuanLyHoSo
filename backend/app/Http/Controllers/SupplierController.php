@@ -14,22 +14,24 @@ class SupplierController extends Controller
     {
         return response()->json(Supplier::with(['materials', 'materials.priceHistories' => function($q){
             $q->orderBy('changed_at', 'desc');
-        }])->orderBy('is_strategic', 'desc')->orderBy('id', 'desc')->get());
+        }])->orderBy('id', 'desc')->get());
     }
 
     // Thêm mới
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'supplier_code'      => 'required|unique:suppliers',
-            'name'               => 'required|string',
-            'tax_code'           => 'nullable|string',
-            'phone'              => 'required|string',
+            'supplier_code'      => 'required|unique:suppliers|regex:/^NCC\-/i',
+            'name'               => ['required', 'string', 'min:3', 'regex:/[\p{L}]/u'],
+            'tax_code'           => 'nullable|regex:/^[0-9\-]{10,14}$/',
+            'phone'              => 'required|regex:/^(0)[0-9]{9}$/',
             'email'              => 'nullable|email',
-            'status'             => 'required|in:ACTIVE,SUSPENDED,PENDING',
-            'is_strategic'       => 'boolean',
-            'rating_stars'       => 'nullable|integer|min:1|max:5',
-            'evaluation_tag'     => 'nullable|string'
+            'status'             => 'required|in:ACTIVE,SUSPENDED'
+        ], [
+            'supplier_code.regex' => 'Mã nhà cung cấp phải bắt đầu bằng NCC-',
+            'phone.regex' => 'Số điện thoại không đúng định dạng (10 số, bắt đầu bằng số 0)',
+            'name.regex' => 'Tên nhà cung cấp phải chứa ít nhất một chữ cái',
+            'tax_code.regex' => 'Mã số thuế không đúng định dạng (10-13 số)'
         ]);
 
         // Materials: expected to be a comma-separated string or array
@@ -60,22 +62,18 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
         
         $validated = $request->validate([
-            'name'               => 'sometimes|required|string',
-            'tax_code'           => 'nullable|string',
-            'phone'              => 'required|string',
+            'name'               => ['sometimes', 'required', 'string', 'min:3', 'regex:/[\p{L}]/u'],
+            'tax_code'           => 'nullable|regex:/^[0-9\-]{10,14}$/',
+            'phone'              => 'required|regex:/^(0)[0-9]{9}$/',
             'email'              => 'nullable|email',
-            'status'             => 'required|in:ACTIVE,SUSPENDED,PENDING',
-            'is_strategic'       => 'boolean',
-            'rating_stars'       => 'nullable|integer|min:1|max:5',
-            'evaluation_tag'     => 'nullable|string'
+            'status'             => 'required|in:ACTIVE,SUSPENDED'
+        ], [
+            'phone.regex' => 'Số điện thoại không đúng định dạng (10 số, bắt đầu bằng số 0)',
+            'name.regex' => 'Tên nhà cung cấp phải chứa ít nhất một chữ cái',
+            'tax_code.regex' => 'Mã số thuế không đúng định dạng (10-13 số)'
         ]);
 
-        if (isset($validated['rating_stars'])) {
-            $stars = $validated['rating_stars'];
-            if ($stars >= 5) $validated['evaluation_tag'] = "TIN_CAY";
-            elseif ($stars >= 3) $validated['evaluation_tag'] = "TIEM_NANG";
-            else $validated['evaluation_tag'] = "CAN_XEM_SET";
-        }
+
 
         unset($validated['supplier_code']);
         $supplier->update($validated);
@@ -97,8 +95,8 @@ class SupplierController extends Controller
     {
         $request->validate([
             'material_name' => 'required|string|max:150',
-            'unit' => 'nullable|string|max:50',
-            'current_price' => 'nullable|numeric|min:0'
+            'unit' => 'required|string|max:50',
+            'current_price' => 'required|numeric|min:0'
         ]);
 
         $supplier = Supplier::findOrFail($supplierId);
