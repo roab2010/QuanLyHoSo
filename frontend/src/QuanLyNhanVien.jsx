@@ -36,10 +36,16 @@ export default function QuanLyNhanVien({ admin }) {
         }
     }, [admin]);
 
-    const hasPermission = (module) => {
+    const hasPermission = (permKey) => {
         if (!admin) return false;
         if (admin.role === 'admin') return true;
-        return userPermissions.includes(module);
+        // Exact match
+        if (userPermissions.includes(permKey)) return true;
+        // Prefix match: hasPermission("projects") matches "projects.view", "projects.edit", etc.
+        if (!permKey.includes('.')) {
+            return userPermissions.some(p => p.startsWith(permKey + '.'));
+        }
+        return false;
     };
 
     if (!hasPermission("hr")) {
@@ -57,14 +63,84 @@ export default function QuanLyNhanVien({ admin }) {
     // Cấu hình PREMIUM font: Áp dụng Be Vietnam Pro cho toàn bộ trang
     const FONT_PREMIUM = "'Be Vietnam Pro', sans-serif";
 
-    const ALL_MODULES = [
-        { id: "projects", name: "Xem & Quản lý Dự án", desc: "Cho phép thành viên xem danh sách và chi tiết các dự án của công ty." },
-        { id: "create_project", name: "Tạo Dự án Mới", desc: "Quyền hạn khởi tạo hồ sơ công trình mới vào hệ thống." },
-        { id: "documents", name: "Duyệt hồ sơ & Tài liệu", desc: "Cho phép tải lên, chỉnh sửa và phê duyệt các văn bản pháp lý." },
-        { id: "inventory", name: "Quản lý vật tư & Kho", desc: "Toàn quyền kiểm soát nhập/xuất vật tư và tồn kho công trình." },
-        { id: "hr", name: "Quản lý nhân sự", desc: "Quyền admin cấp phát tài khoản và thiết lập chức vụ cho nhân viên mới." },
-        { id: "kanban", name: "Kéo thả Kanban", desc: "Cho phép thay đổi trạng thái tiến độ công việc trên bảng Kanban." }
+    const PERMISSION_GROUPS = [
+        {
+            group: "📁 Hồ sơ dự án",
+            modules: [
+                { id: "projects.view", name: "Xem dự án", desc: "Xem danh sách và chi tiết các hồ sơ dự án công trình." },
+                { id: "projects.create", name: "Tạo dự án mới", desc: "Khởi tạo hồ sơ công trình mới vào hệ thống." },
+                { id: "projects.edit", name: "Chỉnh sửa dự án", desc: "Sửa thông tin, cập nhật tiến độ và trạng thái hồ sơ." },
+                { id: "projects.delete", name: "Xóa dự án", desc: "Xóa vĩnh viễn hồ sơ dự án khỏi hệ thống. Hành động nguy hiểm." },
+            ]
+        },
+        {
+            group: "📂 Danh mục dự án",
+            modules: [
+                { id: "categories.view", name: "Xem danh mục", desc: "Xem danh sách các loại danh mục dự án." },
+                { id: "categories.manage", name: "Thêm/Sửa danh mục", desc: "Tạo mới hoặc chỉnh sửa thông tin danh mục dự án." },
+                { id: "categories.delete", name: "Xóa danh mục", desc: "Xóa danh mục dự án. Hành động nguy hiểm." },
+            ]
+        },
+        {
+            group: "📄 Tài liệu",
+            modules: [
+                { id: "documents.view", name: "Xem & Tải tài liệu", desc: "Xem và tải xuống các tài liệu pháp lý, kỹ thuật." },
+                { id: "documents.upload", name: "Tải lên tài liệu", desc: "Upload tài liệu mới vào hồ sơ dự án." },
+                { id: "documents.edit", name: "Chỉnh sửa tài liệu", desc: "Sửa thông tin, cập nhật lại nội dung tài liệu." },
+                { id: "documents.delete", name: "Xóa tài liệu", desc: "Xóa tài liệu khỏi hệ thống. Hành động nguy hiểm." },
+            ]
+        },
+        {
+            group: "📦 Kho & Vật tư",
+            modules: [
+                { id: "inventory.view", name: "Xem kho", desc: "Xem tồn kho, danh sách vật tư và thiết bị." },
+                { id: "inventory.manage", name: "Nhập/Xuất kho", desc: "Thực hiện nhập xuất vật tư, duyệt yêu cầu cấp phát." },
+                { id: "inventory.delete", name: "Xóa vật tư", desc: "Xóa sản phẩm/vật tư khỏi hệ thống kho." },
+            ]
+        },
+        {
+            group: "🏭 Nhà cung cấp",
+            modules: [
+                { id: "suppliers.view", name: "Xem nhà cung cấp", desc: "Xem danh sách nhà cung cấp và bảng giá." },
+                { id: "suppliers.manage", name: "Thêm/Sửa NCC", desc: "Thêm mới, cập nhật thông tin nhà cung cấp." },
+                { id: "suppliers.delete", name: "Xóa nhà cung cấp", desc: "Xóa nhà cung cấp khỏi hệ thống." },
+            ]
+        },
+        {
+            group: "👥 Nhân sự",
+            modules: [
+                { id: "hr.view", name: "Xem nhân viên", desc: "Xem danh sách nhân viên và thông tin cơ bản." },
+                { id: "hr.manage", name: "Thêm/Sửa nhân viên", desc: "Cấp phát tài khoản, cập nhật thông tin nhân viên." },
+                { id: "hr.roles", name: "Quản lý chức vụ", desc: "Tạo, sửa chức vụ và phân quyền hệ thống. Chỉ dành cho cấp quản lý." },
+                { id: "hr.delete", name: "Xóa nhân viên", desc: "Xóa nhân viên và thu hồi tài khoản. Hành động nguy hiểm." },
+            ]
+        },
+        {
+            group: "🤝 Khách hàng",
+            modules: [
+                { id: "customers.view", name: "Xem khách hàng", desc: "Xem danh sách và thông tin khách hàng." },
+                { id: "customers.manage", name: "Thêm/Sửa khách hàng", desc: "Cập nhật thông tin, tạo tài khoản khách hàng mới." },
+            ]
+        },
+        {
+            group: "⚙️ Vận hành",
+            modules: [
+                { id: "kanban.drag", name: "Kéo thả Kanban", desc: "Thay đổi trạng thái tiến độ trên bảng Kanban." },
+                { id: "tasks.manage", name: "Quản lý công việc", desc: "Thêm, sửa công việc trong dự án." },
+                { id: "tasks.delete", name: "Xóa công việc", desc: "Xóa công việc khỏi dự án." },
+                { id: "members.manage", name: "Quản lý thành viên", desc: "Phân công, gỡ thành viên khỏi dự án." },
+            ]
+        },
+        {
+            group: "🔒 Hệ thống",
+            modules: [
+                { id: "system_log.view", name: "Nhật ký hệ thống", desc: "Xem lịch sử hoạt động và nhật ký kiểm toán toàn hệ thống." },
+            ]
+        },
     ];
+
+    // Flatten for backward compatibility
+    const ALL_MODULES = PERMISSION_GROUPS.flatMap(g => g.modules);
 
     const fetchData = async () => {
         setLoading(true);
@@ -247,6 +323,28 @@ export default function QuanLyNhanVien({ admin }) {
         }
     };
 
+    const handleUpdateEmployeeRole = async (empId, newRoleId) => {
+        try {
+            const res = await api.put(`/manage/employees/${empId}`, { role_id: newRoleId });
+            if (res.status === 200) {
+                toast.success('Cập nhật chức vụ thành công!');
+                // Update local list
+                fetchData();
+                
+                // Update selected employee object to reflect change in the current open modal
+                const updatedRole = roles.find(r => String(r.id) === String(newRoleId));
+                setSelectedEmployee(prev => ({
+                    ...prev,
+                    role_id: newRoleId,
+                    role_name: updatedRole ? updatedRole.name : prev.role_name,
+                    role_color: updatedRole ? updatedRole.color : prev.role_color
+                }));
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Lỗi cập nhật chức vụ');
+        }
+    };
+
     const STATUS_COLORS = {
         'Chờ duyệt': { bg: '#fee2e2', color: '#dc2626' },
         'Đang xử lý': { bg: '#ffedd5', color: '#ea580c' },
@@ -284,11 +382,13 @@ export default function QuanLyNhanVien({ admin }) {
                     <button onClick={() => setActiveTab("members")} style={{ background: 'none', border: 'none', fontSize: '15px', fontWeight: '700', color: activeTab === 'members' ? '#0f172a' : '#94a3b8', cursor: 'pointer', borderBottom: activeTab === 'members' ? '4px solid #0f172a' : '4px solid transparent', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s', fontFamily: FONT_PREMIUM }}>
                         <Users size={18} /> NHÂN VIÊN
                     </button>
+                    {hasPermission("hr.roles") && (
                     <button onClick={() => setActiveTab("roles")} style={{ background: 'none', border: 'none', fontSize: '15px', fontWeight: '700', color: activeTab === 'roles' ? '#0f172a' : '#94a3b8', cursor: 'pointer', borderBottom: activeTab === 'roles' ? '4px solid #0f172a' : '4px solid transparent', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s', fontFamily: FONT_PREMIUM }}>
                         <ShieldCheck size={18} /> CHỨC VỤ HỆ THỐNG
                     </button>
+                    )}
                 </div>
-                {activeTab === 'members' && (
+                {activeTab === 'members' && hasPermission("hr.manage") && (
                     <button className="btn-submit" style={{ padding: '12px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setShowMemberModal(true)}>
                         <UserPlus size={18} /> THÊM NHÂN VIÊN
                     </button>
@@ -319,7 +419,7 @@ export default function QuanLyNhanVien({ admin }) {
                                             <div style={{ background: (emp.role_color || '#94a3b8') + '20', color: emp.role_color || '#64748b', padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase' }}>
                                                 {emp.role_name || 'KHÔNG CÓ QUYỀN'}
                                             </div>
-                                            {emp.role_name !== 'admin' && (
+                                            {emp.role_name !== 'admin' && hasPermission("hr.delete") && (
                                                 <button 
                                                     onClick={(e) => handleDeleteEmployee(emp.id, emp.full_name, e)}
                                                     style={{ background: '#fee2e2', color: '#ef4444', border: 'none', width: '30px', height: '30px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', zIndex: 10 }}
@@ -399,13 +499,35 @@ export default function QuanLyNhanVien({ admin }) {
                                     ) : (
                                         <div style={{ maxWidth: '800px' }}>
                                             <div style={{ position: 'relative', marginBottom: '32px' }}><Search style={{ position: 'absolute', left: '16px', top: '14px', color: '#94a3b8' }} size={20} /><input placeholder="Lọc quyền hạn nhanh..." style={{ width: '100%', padding: '14px 18px 14px 50px', borderRadius: '16px', border: '2px solid #f1f5f9', background: '#f8fafc', outline: 'none', fontWeight: '600', fontSize: '15px', fontFamily: FONT_PREMIUM }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '12px' }}>
-                                                {ALL_MODULES.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())).map(mod => (
-                                                    <div key={mod.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderRadius: '18px', border: '2px solid #f1f5f9', background: '#fff', transition: 'all 0.2s' }}>
-                                                        <div style={{ flex: 1, paddingRight: '40px' }}><div style={{ color: '#0f172a', fontSize: '16px', fontWeight: '800', marginBottom: '4px' }}>{mod.name}</div><div style={{ color: '#64748b', fontSize: '13px', lineHeight: '1.5', fontWeight: '500' }}>{mod.desc}</div></div>
-                                                        <Switch checked={editRoleData.name === 'admin' || (editRoleData.permissions && editRoleData.permissions.includes(mod.id))} onChange={() => togglePermission(mod.id)} disabled={editRoleData.name === 'admin' && !editRoleData.isNew} />
-                                                    </div>
-                                                ))}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                                                {PERMISSION_GROUPS.map(group => {
+                                                    const filtered = group.modules.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+                                                    if (filtered.length === 0) return null;
+                                                    return (
+                                                        <div key={group.group}>
+                                                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#475569', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {group.group}
+                                                            </div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                {filtered.map(mod => {
+                                                                    const isDanger = mod.id.endsWith('.delete');
+                                                                    return (
+                                                                        <div key={mod.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderRadius: '14px', border: isDanger ? '2px solid #fecaca' : '2px solid #f1f5f9', background: isDanger ? '#fef2f2' : '#fff', transition: 'all 0.2s' }}>
+                                                                            <div style={{ flex: 1, paddingRight: '40px' }}>
+                                                                                <div style={{ color: isDanger ? '#dc2626' : '#0f172a', fontSize: '15px', fontWeight: '800', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                    {mod.name}
+                                                                                    {isDanger && <span style={{ fontSize: '10px', background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>NGUY HIỂM</span>}
+                                                                                </div>
+                                                                                <div style={{ color: '#64748b', fontSize: '12px', lineHeight: '1.5', fontWeight: '500' }}>{mod.desc}</div>
+                                                                            </div>
+                                                                            <Switch checked={editRoleData.name === 'admin' || (editRoleData.permissions && editRoleData.permissions.includes(mod.id))} onChange={() => togglePermission(mod.id)} disabled={editRoleData.name === 'admin' && !editRoleData.isNew} />
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -490,7 +612,25 @@ export default function QuanLyNhanVien({ admin }) {
                                 <h3 style={{ margin: '0 0 4px', fontSize: '24px', fontWeight: '900', color: '#0f172a' }}>{selectedEmployee.full_name}</h3>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>#{selectedEmployee.employee_code}</span>
-                                    <span style={{ background: (selectedEmployee.role_color || '#94a3b8') + '20', color: selectedEmployee.role_color || '#64748b', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>{selectedEmployee.role_name || 'KHÔNG CÓ QUYỀN'}</span>
+                                    {hasPermission('hr.manage') ? (
+                                        <select 
+                                            value={selectedEmployee.role_id || ''}
+                                            onChange={(e) => handleUpdateEmployeeRole(selectedEmployee.id, e.target.value)}
+                                            style={{
+                                                background: (selectedEmployee.role_color || '#94a3b8') + '20',
+                                                color: selectedEmployee.role_color || '#64748b',
+                                                padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '800',
+                                                border: `1px solid ${selectedEmployee.role_color || '#64748b'}`,
+                                                textTransform: 'uppercase', outline: 'none', cursor: 'pointer'
+                                            }}
+                                        >
+                                            {roles.filter(r => r.id !== 'temp').map(r => (
+                                                <option key={r.id} value={r.id} style={{ color: '#000', textTransform: 'none' }}>{r.name}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <span style={{ background: (selectedEmployee.role_color || '#94a3b8') + '20', color: selectedEmployee.role_color || '#64748b', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>{selectedEmployee.role_name || 'KHÔNG CÓ QUYỀN'}</span>
+                                    )}
                                 </div>
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px', color: '#475569', fontWeight: '500' }}>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} color="#94a3b8" /> {selectedEmployee.email || 'Chưa cập nhật'}</span>

@@ -6,6 +6,22 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
     const navigate = useNavigate();
     const toast = useToast();
 
+    // Đọc admin từ localStorage để kiểm tra quyền
+    const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
+
+    const hasPermission = (permKey) => {
+        if (!admin) return false;
+        if (admin.role === 'admin') return true;
+        try {
+            const perms = JSON.parse(admin.permissions || '[]');
+            if (perms.includes(permKey)) return true;
+            if (!permKey.includes('.')) {
+                return perms.some(p => p.startsWith(permKey + '.'));
+            }
+            return false;
+        } catch (e) { return false; }
+    };
+
     const STATUS_LABELS = {
         'DRAFT': 'Chờ duyệt',
         'PENDING': 'Chờ duyệt',
@@ -18,9 +34,9 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
     };
 
     const STATUS_COLORS = {
-        'Chờ duyệt': { bg: '#fee2e2', color: '#dc2626' }, // Đỏ
-        'Đang xử lý': { bg: '#ffedd5', color: '#ea580c' }, // Cam
-        'Hoàn thành': { bg: '#dcfce7', color: '#16a34a' } // Xanh lá
+        'Chờ duyệt': { bg: '#fee2e2', color: '#dc2626' },
+        'Đang xử lý': { bg: '#ffedd5', color: '#ea580c' },
+        'Hoàn thành': { bg: '#dcfce7', color: '#16a34a' }
     };
 
     if (loading) return <div className="state-banner loading">⏳ Đang xử lý...</div>;
@@ -38,6 +54,9 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
         }
     };
 
+    const canEdit = hasPermission("projects.edit");
+    const canDelete = hasPermission("projects.delete");
+
     return (
         <div className="list-wrapper" style={{ padding: '20px' }}>
             <table className="doc-table">
@@ -48,7 +67,7 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                         <th style={{ textAlign: 'left' }}>NGÀY TẠO</th>
                         <th style={{ textAlign: 'left' }}>DỰ KIẾN</th>
                         <th style={{ textAlign: 'center' }}>TRẠNG THÁI</th>
-                        <th style={{ textAlign: 'center' }}>THAO TÁC</th>
+                        {(canEdit || canDelete) && <th style={{ textAlign: 'center' }}>THAO TÁC</th>}
                     </tr>
                 </thead>
                 <tbody>
@@ -57,9 +76,7 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                             key={item.id}
                             data-status={item.trang_thai}
                             onClick={() => navigate(`/ho-so/${item.id}`)}
-                            style={{
-                                cursor: 'pointer'
-                            }}
+                            style={{ cursor: 'pointer' }}
                             className="hoverable-row"
                         >
                             <td>
@@ -88,7 +105,9 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                                     {STATUS_LABELS[item.trang_thai] || 'Chờ duyệt'}
                                 </span>
                             </td>
+                            {(canEdit || canDelete) && (
                             <td style={{ textAlign: 'center' }}>
+                                {canEdit && (
                                 <button
                                     className="btn-icon"
                                     onClick={(e) => { e.stopPropagation(); navigate(`/admin/ho-so/${item.id}/edit`); }}
@@ -97,6 +116,8 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                                 >
                                     ✎
                                 </button>
+                                )}
+                                {canDelete && (
                                 <button
                                     className="btn-icon"
                                     onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
@@ -105,11 +126,13 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                                 >
                                     🗑
                                 </button>
+                                )}
                             </td>
+                            )}
                         </tr>
                     )) : (
                         <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Không có hồ sơ nào.</td>
+                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Không có hồ sơ nào.</td>
                         </tr>
                     )}
                 </tbody>

@@ -90,6 +90,7 @@ use App\Http\Controllers\EmployeeController;
     Route::get('/manage/employees', [EmployeeController::class, 'index']);
     Route::get('/manage/employees/{id}/projects', [EmployeeController::class, 'getEmployeeProjects']);
     Route::post('/manage/employees', [EmployeeController::class, 'store']);
+    Route::put('/manage/employees/{id}', [EmployeeController::class, 'update']);
     Route::delete('/manage/employees/{id}', [EmployeeController::class, 'destroy']);
     Route::get('/roles', [EmployeeController::class, 'getRoles']);
 Route::post('/roles', [EmployeeController::class, 'storeRole']);
