@@ -29,8 +29,11 @@ const SystemLog = () => {
             }
             return "Cập nhật nội dung";
         }
+        if (log.action_type === 'APPROVE_OUT') return "Duyệt phiếu yêu cầu";
+        if (log.action_type === 'REJECT_OUT') return "Từ chối phiếu yêu cầu";
         return log.action_type;
     };
+
 
     const getActionColor = (log) => {
         if (log.action_type === 'CREATE') return "#10b981"; // Green
@@ -41,8 +44,11 @@ const SystemLog = () => {
             }
             return "#3b82f6"; // Blue
         }
+        if (log.action_type === 'APPROVE_OUT') return "#10b981"; // Green
+        if (log.action_type === 'REJECT_OUT') return "#ef4444"; // Red
         return "#6b7280";
     };
+
 
     const getModuleName = (module) => {
         const mapping = {

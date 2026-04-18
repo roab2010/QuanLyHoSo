@@ -183,4 +183,38 @@ class ProjectDocumentController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Tải xuống tài liệu (fix lỗi CORS và trình duyệt)
+     */
+    public function downloadFile(Request $request)
+    {
+        $fileUrl = $request->query('url');
+        if (!$fileUrl) {
+            return response()->json(['error' => 'Thiếu URL'], 400);
+        }
+
+        // Tách đường dẫn từ URL (đề phòng fileUrl là dạng http://domain.com/uploads/...)
+        $parsedUrl = parse_url($fileUrl, PHP_URL_PATH);
+
+        $fullPath = null;
+        if (str_starts_with($parsedUrl, '/storage/')) {
+            $filePath = str_replace('/storage/', '', $parsedUrl);
+            $fullPath = storage_path('app/public/' . $filePath);
+        } elseif (str_starts_with($parsedUrl, '/uploads/')) {
+            $filePath = str_replace('/uploads/', '', $parsedUrl);
+            $fullPath = public_path('uploads/' . $filePath);
+        } else {
+            $fullPath = public_path(ltrim($parsedUrl, '/'));
+        }
+
+        if (!$fullPath || !file_exists($fullPath)) {
+            return response()->json(['error' => 'Tài liệu vật lý không tồn tại trên máy của bạn (có thể do người khác tải lên và chưa được đồng bộ file).'], 404);
+        }
+
+        return response()->download($fullPath, basename($fullPath), [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Expose-Headers' => 'Content-Disposition'
+        ]);
+    }
 }

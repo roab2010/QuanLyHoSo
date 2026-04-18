@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class CategoryTaskTemplate extends Model
 {
+    use Auditable;
+
     protected $table = 'category_task_templates';
     public $timestamps = false;
 

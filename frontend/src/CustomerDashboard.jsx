@@ -161,6 +161,7 @@ export default function CustomerDashboard() {
         'Chờ duyệt': { bg: '#fff7ed', color: '#c2410c' },
         'Đang xử lý': { bg: '#eff6ff', color: '#1d4ed8' },
         'Đã duyệt': { bg: '#f0fdf4', color: '#15803d' },
+        'Yêu cầu nộp': { bg: '#fef2f2', color: '#dc2626' }, // Màu đỏ cảnh báo cho slot trống
         'Từ chối': { bg: '#fef2f2', color: '#b91c1c' }
     };
 
@@ -225,28 +226,50 @@ export default function CustomerDashboard() {
         return /\.(jpg|jpeg|png|webp|avif|gif|svg)$/.test(url.toLowerCase());
     };
 
-    const handleProjectFileUpload = async (projectId, file) => {
+    const handleProjectFileUpload = async (projectId, file, documentId = null) => {
         if (!file) return;
         const formData = new FormData();
         formData.append('file', file);
         formData.append('name', file.name);
+        if (documentId) {
+            formData.append('document_id', documentId);
+        }
 
         try {
             const res = await axios.post(`http://127.0.0.1:8000/api/customer/projects/${projectId}/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             if (res.data.status === "success") {
-                toast.success("Đã gửi hồ sơ/ảnh thành công! Hồ sơ này sẽ được kĩ sư duyệt.");
-                // Update local state to show the new document immediately
+                toast.success(documentId ? "Đã nộp tài liệu theo yêu cầu!" : "Đã gửi hồ sơ/ảnh thành công!");
+                
+                // Cập nhật state cục bộ
                 setProjects(prev => prev.map(p => {
                     if (p.id === projectId) {
-                        return {
-                            ...p,
-                            documents: [res.data.data, ...(p.documents || [])]
-                        };
+                        let updatedDocs;
+                        if (documentId) {
+                            // Cập nhật slot cũ
+                            updatedDocs = (p.documents || []).map(d => d.id === documentId ? res.data.data : d);
+                        } else {
+                            // Thêm mới vào đầu
+                            updatedDocs = [res.data.data, ...(p.documents || [])];
+                        }
+                        return { ...p, documents: updatedDocs };
                     }
                     return p;
                 }));
+
+                // Nếu đang ở trang chi tiết, cập nhật selectedProject
+                if (selectedProject && selectedProject.id === projectId) {
+                    setSelectedProject(prev => {
+                        let updatedDocs;
+                        if (documentId) {
+                            updatedDocs = (prev.documents || []).map(d => d.id === documentId ? res.data.data : d);
+                        } else {
+                            updatedDocs = [res.data.data, ...(prev.documents || [])];
+                        }
+                        return { ...prev, documents: updatedDocs };
+                    });
+                }
             }
         } catch (err) {
             toast.error("Lỗi khi gửi hồ sơ: " + (err.response?.data?.error || "Lỗi hệ thống"));
@@ -416,11 +439,14 @@ export default function CustomerDashboard() {
                                                                     </label>
                                                                     <div className="v3-file-grid">
                                                                         {proj.documents.map((doc) => {
-                                                                            const docLabel = DOC_STATUS_LABELS[doc.status] || 'Chờ duyệt';
+                                                                            const isPendingSlot = !doc.file_url;
+                                                                            const docLabel = isPendingSlot ? 'Yêu cầu nộp' : (DOC_STATUS_LABELS[doc.status] || 'Chờ duyệt');
                                                                             const docColors = DOC_STATUS_COLORS[docLabel] || DOC_STATUS_COLORS['Chờ duyệt'];
+                                                                            
                                                                             return (
-                                                                                <div key={doc.id} className="v3-file-card" onClick={(e) => {
+                                                                                <div key={doc.id} className={`v3-file-card ${isPendingSlot ? 'v3-slot-required' : ''}`} onClick={(e) => {
                                                                                     e.stopPropagation();
+                                                                                    if (isPendingSlot) return; 
                                                                                     if (isImage(doc.file_url)) {
                                                                                         setPreviewingImage(doc.file_url);
                                                                                     } else {
@@ -428,7 +454,16 @@ export default function CustomerDashboard() {
                                                                                     }
                                                                                 }}>
                                                                                     <div className="v3-file-preview">
-                                                                                        {isImage(doc.file_url) ? (
+                                                                                        {isPendingSlot ? (
+                                                                                            <div className="v3-file-icon slot" style={{ position: 'relative' }}>
+                                                                                                <span className="material-symbols-outlined">upload_file</span>
+                                                                                                <input 
+                                                                                                    type="file" 
+                                                                                                    style={{position:'absolute', inset:0, opacity:0, cursor:'pointer'}} 
+                                                                                                    onChange={(e) => handleProjectFileUpload(proj.id, e.target.files[0], doc.id)}
+                                                                                                />
+                                                                                            </div>
+                                                                                        ) : isImage(doc.file_url) ? (
                                                                                             <img src={doc.file_url} alt={doc.document_name} />
                                                                                         ) : (
                                                                                             <div className="v3-file-icon">
@@ -440,8 +475,8 @@ export default function CustomerDashboard() {
                                                                                         </span>
                                                                                     </div>
                                                                                     <div className="v3-file-info">
-                                                                                        <p title={doc.document_name}>{doc.document_name}</p>
-                                                                                        <span>{doc.uploaded_at}</span>
+                                                                                        <p title={doc.document_name} style={{ color: isPendingSlot ? '#dc2626' : 'inherit', fontWeight: isPendingSlot ? '700' : 'normal' }}>{doc.document_name}</p>
+                                                                                        <span>{isPendingSlot ? 'Cần bổ sung' : (doc.uploaded_at || 'Mới đây')}</span>
                                                                                     </div>
                                                                                 </div>
                                                                             );
@@ -745,6 +780,7 @@ export default function CustomerDashboard() {
                                                 )}
                                             </div>
                                         </div>
+
 
                                     </div>
                                 </div>
@@ -1102,10 +1138,21 @@ export default function CustomerDashboard() {
                     display: flex;
                     flex-direction: column;
                 }
+                .v3-file-card.v3-slot-required {
+                    background: #fffafa;
+                    border: 1.5px dashed #fee2e2;
+                }
+                .v3-file-card.v3-slot-required:hover {
+                    border-color: #dc2626;
+                    background: #fef2f2;
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 20px rgba(220, 38, 38, 0.05);
+                }
                 .v3-file-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-color: var(--primary); }
                 .v3-file-preview { position: relative; width: 100%; height: 90px; overflow: hidden; }
                 .v3-file-preview img { width: 100%; height: 100%; object-fit: cover; }
                 .v3-file-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e2e8f0; color: #64748b; }
+                .v3-file-icon.slot { background: #fef2f2; color: #dc2626; }
                 .v3-file-icon span { font-size: 32px; }
                 .v3-file-st { 
                     position: absolute; 
@@ -1159,6 +1206,14 @@ export default function CustomerDashboard() {
                 .side-doc-list { display: flex; flex-direction: column; gap: 16px; }
                 .side-doc-item { display: flex; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; }
                 .side-doc-item:hover { background: #f8fafc; border-color: var(--primary); }
+                .side-doc-item.slot-required {
+                    background: #fffafa;
+                    border: 1.2px dashed #fee2e2;
+                }
+                .side-doc-item.slot-required:hover {
+                    background: #fef2f2;
+                    border-color: #dc2626;
+                }
                 .side-doc-item span { color: var(--primary); font-size: 32px; }
                 .doc-meta { flex: 1; overflow: hidden; }
                 .doc-meta strong { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

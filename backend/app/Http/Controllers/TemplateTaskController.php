@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\CategoryTaskTemplate;
 
 class TemplateTaskController extends Controller
 {
@@ -40,17 +41,16 @@ class TemplateTaskController extends Controller
         ]);
 
         try {
-            $id = DB::table('category_task_templates')->insertGetId([
+            $model = CategoryTaskTemplate::create([
                 'category_id' => $request->category_id,
                 'task_name'   => $request->task_name,
                 'work_volume' => $request->work_volume,
                 'sort_order'  => $request->sort_order,
-
             ]);
 
             return response()->json([
                 'message' => 'Thêm mẫu thành công',
-                'id' => $id
+                'id' => $model->id
             ], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi database: ' . $e->getMessage()], 500);
@@ -69,11 +69,11 @@ class TemplateTaskController extends Controller
         ]);
 
         try {
-            DB::table('category_task_templates')->where('id', $id)->update([
+            $model = CategoryTaskTemplate::findOrFail($id);
+            $model->update([
                 'task_name'   => $request->task_name,
                 'work_volume' => $request->work_volume,
                 'sort_order'  => $request->sort_order,
-
             ]);
 
             return response()->json(['message' => 'Cập nhật thành công'], 200);
@@ -88,7 +88,8 @@ class TemplateTaskController extends Controller
     public function destroy($id)
     {
         try {
-            DB::table('category_task_templates')->where('id', $id)->delete();
+            $model = CategoryTaskTemplate::findOrFail($id);
+            $model->delete();
             return response()->json(['message' => 'Xóa thành công'], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);

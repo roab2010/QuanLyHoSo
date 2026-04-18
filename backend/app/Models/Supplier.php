@@ -10,6 +10,7 @@ class Supplier extends Model
 {
     use HasFactory, Auditable;
 
+
     // 1. Chỉ định tên bảng (nếu bảng của ông là 'suppliers' thì không cần, 
     // nhưng cứ viết vào cho chắc chắn)
     protected $table = 'suppliers';

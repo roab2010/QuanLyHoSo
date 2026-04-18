@@ -86,9 +86,13 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, onDelete, onMoveCard,
         const cardId = Number(e.dataTransfer.getData("cardId"));
         const fromColId = e.dataTransfer.getData("fromColId");
 
-        // Cho phép kéo thả giữa các cột khác nhau
+        // Kiểm tra quy tắc kéo thả: CHỈ TỪ 'new' SANG 'processing'
         if (fromColId !== targetColId) {
-            onMoveCard(cardId, targetColId);
+            if (fromColId === 'new' && targetColId === 'processing') {
+                onMoveCard(cardId, targetColId);
+            } else {
+                toast.error("Không thể thực hiện thao tác! Bạn chỉ được phép chuyển từ 'Mới tạo' sang 'Đang xử lý'.");
+            }
         }
     };
 

@@ -40,7 +40,9 @@ class SystemAuditLog extends Model
     public static function log($module, $actionType, $tableName, $recordId = null, $oldValues = null, $newValues = null)
     {
         // Try to get user ID from header first (for local non-auth dev environments)
-        $userId = request()->header('X-User-ID') ?? auth()->id();
+        // Fallback to 1 if no valid user_id is found, stopping Integrity Constraint Violation
+        $userId = request()->header('X-User-ID') ?? auth()->id() ?? 1;
+
         
         return self::create([
             'user_id' => $userId,

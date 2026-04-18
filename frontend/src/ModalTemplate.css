@@ -1,4 +1,4 @@
-/* Làm mờ nền phía sau /
+/* Làm mờ nền phía sau */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -9,10 +9,10 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999; / Đảm bảo nó nổi lên trên cùng /
+    z-index: 9999; /* Đảm bảo nó nổi lên trên cùng */
 }
 
-/ Khung trắng chứa nội dung bảng /
+/* Khung trắng chứa nội dung bảng */
 .modal-content.template-modal {
     background: white;
     padding: 25px;
@@ -29,7 +29,7 @@
     font-weight: bold;
 }
 
-/ Định dạng khu vực nhập liệu */
+/* Định dạng khu vực nhập liệu */
 .template-form {
     display: flex;
     gap: 15px;

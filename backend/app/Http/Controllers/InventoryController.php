@@ -116,14 +116,40 @@ class InventoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'sku'          => 'required',
-            'name'         => 'required',
+            'sku'          => 'required|regex:/^VT\-/i',
+            'name'         => ['required', 'string', 'min:2', 'regex:/[\p{L}]/u'],
             'warehouse_id' => 'required|exists:warehouses,id',
             'supplier_id'  => 'required|exists:suppliers,id',
+            'current_stock'=> 'required|numeric|min:0.01',
+            'price'        => 'nullable|numeric|min:0',
+            'hsd'          => 'nullable|date|after_or_equal:today',
+        ], [
+            'sku.regex' => 'Mã vật tư phải bắt đầu bằng VT-',
+            'current_stock.min' => 'Số lượng nhập phải lớn hơn 0',
+            'price.min' => 'Giá nhập không được âm',
+            'hsd.after_or_equal' => 'Hạn sử dụng không được là ngày trong quá khứ',
+            'name.regex' => 'Tên vật tư phải chứa ít nhất một chữ cái',
         ]);
 
         try {
             return DB::transaction(function () use ($request) {
+                // 1. Kiểm tra Nhà cung cấp có đang hoạt động không
+                $supplier = \App\Models\Supplier::findOrFail($request->supplier_id);
+                if ($supplier->status !== 'ACTIVE') {
+                    throw new Exception("Nhà cung cấp '{$supplier->name}' đang bị tạm dừng hợp tác!");
+                }
+
+                // 2. Kiểm tra tính nhất quán SKU trên toàn hệ thống (Global SKU Consistency)
+                $anyExistingProduct = Product::where('sku', $request->sku)->first();
+                if ($anyExistingProduct) {
+                    if (trim(mb_strtolower($anyExistingProduct->name)) !== trim(mb_strtolower($request->name))) {
+                        throw new Exception("Mã SKU '{$request->sku}' đã tồn tại với tên khác: '{$anyExistingProduct->name}'. Vui lòng nhập đúng tên để đồng bộ.");
+                    }
+                    if ($anyExistingProduct->unit !== $request->unit) {
+                        throw new Exception("Mã SKU '{$request->sku}' đã tồn tại với đơn vị tính khác: '{$anyExistingProduct->unit}'. Vui lòng đồng bộ đơn vị tính.");
+                    }
+                }
+
                 $warehouse   = Warehouse::findOrFail($request->warehouse_id);
                 $capacity    = (float) $warehouse->capacity;
                 $spaceCoef   = (float) ($request->space_coefficient ?? 1);
@@ -462,6 +488,16 @@ class InventoryController extends Controller
                 if ($request->action === 'REJECT') {
                     $transaction->status = 'REJECTED';
                     $transaction->save();
+                    
+                    \App\Models\SystemAuditLog::log(
+                        'inventory',
+                        'REJECT_OUT',
+                        'inventory_transactions',
+                        $transaction->id,
+                        ['status' => 'PENDING'],
+                        ['status' => 'REJECTED']
+                    );
+                    
                     return response()->json(['success' => true, 'message' => 'Đã từ chối phiếu yêu cầu!']);
                 }
 
@@ -494,6 +530,15 @@ class InventoryController extends Controller
 
                 $transaction->status = 'COMPLETED';
                 $transaction->save();
+
+                \App\Models\SystemAuditLog::log(
+                    'inventory',
+                    'APPROVE_OUT',
+                    'inventory_transactions',
+                    $transaction->id,
+                    ['status' => 'PENDING'],
+                    ['status' => 'COMPLETED']
+                );
 
                 return response()->json(['success' => true, 'message' => 'Duyệt phiếu yêu cầu thành công!']);
             });
@@ -627,7 +672,11 @@ class InventoryController extends Controller
 
                 // Chốt sổ: Khấu trừ phần dư thừa (hao hụt thi công)
                 if ($request->is_final_return) {
-                    DB::table('projects')->where('id', $request->project_id)->update(['is_return_closed' => true]);
+                    $projectModel = \App\Models\Project::find($request->project_id);
+                    if ($projectModel) {
+                        $projectModel->is_return_closed = true;
+                        $projectModel->save();
+                    }
 
                     // Tính lại dư nợ tương tự getProjectExportedItems
                     $exported = InventoryTransactionDetail::whereHas('transaction', function ($q) use ($request) {

@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class InventoryTransaction extends Model
 {
+    use Auditable;
+
     // Để timestamps = true vì phiếu nhập cần biết chính xác ngày giờ tạo
     protected $fillable = [
         'transaction_code', 
