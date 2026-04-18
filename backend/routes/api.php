@@ -10,6 +10,10 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ProjectDocumentController;
+use App\Http\Controllers\SystemAuditLogController;
+
+// SYSTEM AUDIT LOGS
+Route::get('/audit-logs', [SystemAuditLogController::class, 'index']);
 
 // AUTH ROUTES
 Route::post('/login', [AuthController::class, 'loginCustomer']); // Khách hàng đăng nhập (email)

@@ -2,31 +2,34 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\Auditable;
 
 class Project extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     // Tên bảng (đảm bảo đúng tên bảng trong database)
     protected $table = 'projects';
 public $timestamps = false;
     // Các cột cho phép lưu/cập nhật hàng loạt
-   protected $fillable = [
-    'project_code', 
-    'name', 
-    'status', // BẮT BUỘC PHẢI CÓ
-    'priority', 
-    'address', 
-    'start_date',
-    'category_id',
-    'customer_id',
-    'estimated_budget',
-    'contract_value',
-    'max_warehouse_capacity',
-    'expected_end_date'
-];
+    protected $fillable = [
+        'project_code',
+        'name',
+        'status',
+        'priority',
+        'address',
+        'start_date',
+        'category_id',
+        'customer_id',
+        'supervisor_id',
+        'estimated_budget',
+        'contract_value',
+        'max_warehouse_capacity',
+        'expected_end_date',
+        'status_updated_at'
+    ];
 
     /**
      * Tự động ép kiểu dữ liệu khi lấy ra/lưu vào

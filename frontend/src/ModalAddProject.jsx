@@ -248,7 +248,7 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             </select>
                         </div>
                         <div style={modernStyles.formGroup}>
-                            <label style={modernStyles.label}>Phân loại quy trình *</label>
+                            <label style={modernStyles.label}>Danh mục dự án *</label>
                             <select
                                 style={modernStyles.input}
                                 required
@@ -324,13 +324,13 @@ export default function ModalAddProject({ onClose, onSubmit }) {
 
                     <footer style={modernStyles.footer}>
                         <button type="button" style={modernStyles.btnCancel} onClick={onClose} disabled={loading}>Hủy bỏ</button>
-                        <button 
-                            type="submit" 
-                            style={{ 
-                                ...modernStyles.btnSave, 
+                        <button
+                            type="submit"
+                            style={{
+                                ...modernStyles.btnSave,
                                 opacity: loading ? 0.7 : 1,
                                 cursor: loading ? 'not-allowed' : 'pointer'
-                            }} 
+                            }}
                             disabled={loading}
                         >
                             {loading ? "Đang xử lý..." : "Khởi tạo dự án ngay"}

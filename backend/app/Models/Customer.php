@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Traits\Auditable;
 
 class Customer extends Model
 {
+    use Auditable;
     // Khai báo các cột được phép thêm/sửa nhanh
    protected $fillable = [
     'customer_code',

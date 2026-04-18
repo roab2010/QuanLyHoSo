@@ -105,8 +105,8 @@ class ProjectController extends Controller
             }
 
             // 3. TẠO HỒ SƠ
-            $id = DB::table('projects')->insertGetId([
-                'project_code' => $projectCode, // Sử dụng mã tự sinh
+            $project = Project::create([
+                'project_code' => $projectCode,
                 'category_id' => $categoryId,
                 'name' => $request->name,
                 'customer_id' => $request->customer_id,
@@ -115,13 +115,14 @@ class ProjectController extends Controller
                 'start_date' => $request->start_date,
                 'status' => $request->status ?? 'DRAFT',
                 'priority' => $request->priority ?? 'MEDIUM',
-                'created_at' => now(),
                 'max_warehouse_capacity' => $request->max_warehouse_capacity ?? 0,
                 'estimated_budget' => $request->estimated_budget ?? 0,
                 'contract_value' => $request->contract_value ?? 0,
                 'expected_end_date' => $request->expected_end_date,
                 'status_updated_at' => now(),
             ]);
+
+            $id = $project->id;
 
             // 4. TỰ ĐỘNG HÓA: COPY QUY TRÌNH MẪU
             if ($categoryId) {
@@ -131,18 +132,15 @@ class ProjectController extends Controller
                     ->get();
                 
                 if ($templates->isNotEmpty()) {
-                    $tasksToInsert = [];
                     foreach ($templates as $template) {
-                        $tasksToInsert[] = [
+                        \App\Models\ProjectTask::create([
                             'project_id'    => $id,
                             'task_name'     => $template->task_name,
                             'work_volume'   => $template->work_volume,
                             'status'        => 'TODO',
                             'sort_order'    => $template->sort_order,
-                            'created_at'    => now(),
-                        ];
+                        ]);
                     }
-                    DB::table('project_tasks')->insert($tasksToInsert);
                 }
             }
 
@@ -155,16 +153,18 @@ class ProjectController extends Controller
 
             DB::commit();
 
-            $newProject = DB::table('projects')->where('id', $id)->first();
+            // Trả về dữ liệu đầy đủ kèm quan hệ để Frontend hiển thị đúng (category name...)
+            $newProject = Project::with(['category', 'customer'])->find($id);
 
             return response()->json([
-                'message' => 'Tạo hồ sơ thành công!',
+                'status' => 'success',
                 'data' => $newProject
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            \Illuminate\Support\Facades\Log::error('Lỗi tạo hồ sơ: ' . $e->getMessage());
-            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+            \Log::error("Error in ProjectController@store: " . $e->getMessage());
+            return response()->json(['error' => 'Lỗi tạo hồ sơ: ' . $e->getMessage()], 500);
         }
     }
 
@@ -466,8 +466,7 @@ class ProjectController extends Controller
      */
     public function updateDocument(Request $request, $projectId, $docId)
     {
-        $doc = DB::table('project_documents')
-            ->where('id', $docId)
+        $doc = \App\Models\ProjectDocument::where('id', $docId)
             ->where('project_id', $projectId)
             ->first();
 
@@ -475,18 +474,11 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Không tìm thấy tài liệu'], 404);
         }
 
-        $updateData = [];
-        if ($request->has('status'))
-            $updateData['status'] = $request->status;
-        if ($request->has('note'))
-            $updateData['note'] = $request->note;
+        if ($request->has('status')) $doc->status = $request->status;
+        if ($request->has('note')) $doc->note = $request->note;
+        $doc->save();
 
-        DB::table('project_documents')
-            ->where('id', $docId)
-            ->update($updateData);
-
-        $updated = DB::table('project_documents')->where('id', $docId)->first();
-        return response()->json(['data' => $updated]);
+        return response()->json(['data' => $doc]);
     }
 
     /**
@@ -495,29 +487,31 @@ class ProjectController extends Controller
     public function addMember(Request $request, $projectId)
     {
         try {
-            $id = DB::table('project_members')->insertGetId([
+            $member = \App\Models\ProjectMember::create([
                 'project_id' => $projectId,
                 'employee_id' => $request->employee_id,
                 'project_position_id' => $request->project_position_id ?? null,
             ]);
 
-            $member = DB::table('project_members')
-                ->join('employees', 'project_members.employee_id', '=', 'employees.id')
-                ->leftJoin('project_position_titles', 'project_members.project_position_id', '=', 'project_position_titles.id')
-                ->where('project_members.id', $id)
-                ->select(
-                    'project_members.*', 
-                    'employees.full_name', 
-                    'employees.email', 
-                    'employees.job_title', 
-                    'employees.phone', 
-                    'employees.avatar', 
-                    'employees.status',
-                    'project_position_titles.title_name'
-                )
-                ->first();
+            // Load extra info for response format matching
+            $fullMember = \App\Models\ProjectMember::with(['employee', 'position'])
+                ->find($member->id);
 
-            return response()->json(['data' => $member], 201);
+            $response = [
+                'id' => $fullMember->id,
+                'project_id' => $fullMember->project_id,
+                'employee_id' => $fullMember->employee_id,
+                'project_position_id' => $fullMember->project_position_id,
+                'full_name' => $fullMember->employee->full_name ?? '',
+                'email' => $fullMember->employee->email ?? '',
+                'job_title' => $fullMember->employee->job_title ?? '',
+                'phone' => $fullMember->employee->phone ?? '',
+                'avatar' => $fullMember->employee->avatar ?? '',
+                'status' => $fullMember->employee->status ?? '',
+                'title_name' => $fullMember->position->title_name ?? ''
+            ];
+
+            return response()->json(['data' => $response], 201);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -528,15 +522,15 @@ class ProjectController extends Controller
      */
     public function removeMember($projectId, $memberId)
     {
-        $deleted = DB::table('project_members')
-            ->where('id', $memberId)
+        $member = \App\Models\ProjectMember::where('id', $memberId)
             ->where('project_id', $projectId)
-            ->delete();
+            ->first();
 
-        if (!$deleted) {
+        if (!$member) {
             return response()->json(['message' => 'Không tìm thấy thành viên'], 404);
         }
 
+        $member->delete();
         return response()->json(['message' => 'Đã xóa thành viên']);
     }
 
@@ -545,19 +539,19 @@ class ProjectController extends Controller
      */
     public function getEmployees()
     {
-        $employees = DB::table('employees')
-            ->leftJoin('users', 'employees.user_id', '=', 'users.id')
-            ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
-            ->where('employees.status', 'WORKING')
-            ->select(
-                'employees.id', 
-                'employees.full_name', 
-                \DB::raw('IFNULL(employees.email, users.email) as email'), 
-                \DB::raw('IFNULL(employees.phone, users.phone) as phone'),
-                'roles.name as role_name', 
-                'roles.color as role_color'
-            )
-            ->get();
+        $employees = \App\Models\Employee::with(['user.role'])
+            ->where('status', 'WORKING')
+            ->get()
+            ->map(function($emp) {
+                return [
+                    'id' => $emp->id,
+                    'full_name' => $emp->full_name,
+                    'email' => $emp->email ?? $emp->user->email ?? '',
+                    'phone' => $emp->phone ?? $emp->user->phone ?? '',
+                    'role_name' => $emp->user->role->name ?? '',
+                    'role_color' => $emp->user->role->color ?? ''
+                ];
+            });
 
         return response()->json($employees);
     }
@@ -570,6 +564,7 @@ class ProjectController extends Controller
         $positions = \App\Models\ProjectPositionTitle::orderBy('id', 'asc')->get();
         return response()->json($positions);
     }
+
     /**
      * Khách hàng tự upload tài liệu/ảnh lên hồ sơ
      */
@@ -589,7 +584,7 @@ class ProjectController extends Controller
             }
             $file->move($path, $filename);
 
-            $docId = DB::table('project_documents')->insertGetId([
+            $doc = \App\Models\ProjectDocument::create([
                 'project_id'    => $projectId,
                 'document_name' => $request->name,
                 'file_url'      => url('uploads/documents/' . $filename),
@@ -598,8 +593,6 @@ class ProjectController extends Controller
                 'category_name' => 'Khách hàng gửi',
                 'note'          => 'Tài liệu do khách hàng cung cấp'
             ]);
-
-            $doc = DB::table('project_documents')->where('id', $docId)->first();
 
             return response()->json([
                 'status' => 'success',

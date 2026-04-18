@@ -3,15 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class ProjectMember extends Model
 {
+    use Auditable;
     protected $table = 'project_members';
     public $timestamps = false;
 
     protected $fillable = ['project_id', 'employee_id', 'project_position_id'];
 
     public function projectPositionTitle()
+    {
+        return $this->belongsTo(ProjectPositionTitle::class, 'project_position_id');
+    }
+
+    public function position()
     {
         return $this->belongsTo(ProjectPositionTitle::class, 'project_position_id');
     }
