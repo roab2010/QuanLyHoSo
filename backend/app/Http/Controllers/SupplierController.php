@@ -95,8 +95,8 @@ class SupplierController extends Controller
     {
         $request->validate([
             'material_name' => 'required|string|max:150',
-            'unit' => 'nullable|string|max:50',
-            'current_price' => 'nullable|numeric|min:0'
+            'unit' => 'required|string|max:50',
+            'current_price' => 'required|numeric|min:0'
         ]);
 
         $supplier = Supplier::findOrFail($supplierId);

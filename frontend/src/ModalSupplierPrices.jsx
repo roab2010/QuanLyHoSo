@@ -9,7 +9,7 @@ export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
     
     // States for adding new material
     const [showAddForm, setShowAddForm] = useState(false);
-    const [newMaterial, setNewMaterial] = useState({ material_name: "", unit: "", current_price: 0 });
+    const [newMaterial, setNewMaterial] = useState({ material_name: "", unit: "", current_price: "" });
 
     // States for editing price
     const [editingMaterialId, setEditingMaterialId] = useState(null);
@@ -27,7 +27,7 @@ export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
             const res = await axios.post(`http://127.0.0.1:8000/api/suppliers/${supplier.id}/materials`, newMaterial);
             setMaterials([...materials, res.data.data]);
             setShowAddForm(false);
-            setNewMaterial({ material_name: "", unit: "", current_price: 0 });
+            setNewMaterial({ material_name: "", unit: "", current_price: "" });
             if (onRefresh) onRefresh();
         } catch (error) {
             alert("Lỗi thêm vật tư: " + (error.response?.data?.message || ""));
@@ -195,25 +195,86 @@ export default function ModalSupplierPrices({ supplier, onClose, onRefresh }) {
                         </div>
                     </div>
 
-                    {/* Add Form */}
+                    {/* Add Form Refined - Using DIV instead of FORM to bypass global CSS overrides */}
                     {showAddForm && (
-                        <form onSubmit={handleAddSubmit} style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e0e5f2', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-                            <div style={{ flex: 2 }}>
-                                <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Tên vật tư *</label>
-                                <input required className="form-input" style={{ width: '100%', marginTop: '4px' }} placeholder="VD: Thép xây dựng D10" value={newMaterial.material_name} onChange={e => setNewMaterial({...newMaterial, material_name: e.target.value})} />
+                        <div style={{ 
+                            background: '#fff', 
+                            padding: '24px', 
+                            borderRadius: '16px', 
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+                            border: '1px solid #e2e8f0', 
+                            marginBottom: '24px',
+                            display: 'grid',
+                            gridTemplateColumns: '2fr 1fr 1fr 100px',
+                            gap: '20px',
+                            alignItems: 'flex-end',
+                            width: '100%',
+                            boxSizing: 'border-box'
+                        }}>
+                            <div className="input-group-premium" style={{ marginBottom: 0 }}>
+                                <label style={{ fontSize: '13px', fontWeight: 700, color: '#1b2559', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                    <Tag size={14} /> Tên vật tư <span style={{ color: '#ee5d50' }}>*</span>
+                                </label>
+                                <input 
+                                    required 
+                                    className="form-input" 
+                                    style={{ width: '100%', height: '42px', paddingLeft: '14px' }} 
+                                    placeholder="VD: Thép xây dựng D10" 
+                                    value={newMaterial.material_name} 
+                                    onChange={e => setNewMaterial({...newMaterial, material_name: e.target.value})} 
+                                />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Đơn vị tính</label>
-                                <input className="form-input" style={{ width: '100%', marginTop: '4px' }} placeholder="VD: kg, cây..." value={newMaterial.unit} onChange={e => setNewMaterial({...newMaterial, unit: e.target.value})} />
+                            <div className="input-group-premium" style={{ marginBottom: 0 }}>
+                                <label style={{ fontSize: '13px', fontWeight: 700, color: '#1b2559', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                    Đơn vị tính <span style={{ color: '#ee5d50' }}>*</span>
+                                </label>
+                                <input 
+                                    required 
+                                    className="form-input" 
+                                    style={{ width: '100%', height: '42px', paddingLeft: '14px' }} 
+                                    placeholder="VD: kg, cây..." 
+                                    value={newMaterial.unit} 
+                                    onChange={e => setNewMaterial({...newMaterial, unit: e.target.value})} 
+                                />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Giá khởi tạo</label>
-                                <input type="number" className="form-input" style={{ width: '100%', marginTop: '4px' }} min="0" value={newMaterial.current_price} onChange={e => setNewMaterial({...newMaterial, current_price: e.target.value})} />
+                            <div className="input-group-premium" style={{ marginBottom: 0 }}>
+                                <label style={{ fontSize: '13px', fontWeight: 700, color: '#1b2559', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                    Giá khởi tạo <span style={{ color: '#ee5d50' }}>*</span>
+                                </label>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    className="form-input" 
+                                    style={{ width: '100%', height: '42px', textAlign: 'right', paddingRight: '14px' }} 
+                                    min="0" 
+                                    placeholder="0" 
+                                    value={newMaterial.current_price} 
+                                    onChange={e => setNewMaterial({...newMaterial, current_price: e.target.value})} 
+                                />
                             </div>
-                            <button type="submit" disabled={loading} style={{ background: '#05cd99', color: '#fff', border: 'none', height: '42px', padding: '0 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700 }}>
-                                Thêm
+                            <button 
+                                onClick={handleAddSubmit}
+                                disabled={loading} 
+                                style={{ 
+                                    background: 'linear-gradient(135deg, #05cd99 0%, #04b486 100%)', 
+                                    color: '#fff', 
+                                    border: 'none', 
+                                    height: '42px', 
+                                    width: '100%',
+                                    borderRadius: '12px', 
+                                    cursor: 'pointer', 
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    boxShadow: '0 4px 12px rgba(5, 205, 153, 0.3)',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {loading ? "..." : <><PackagePlus size={18} /> Thêm</>}
                             </button>
-                        </form>
+                        </div>
                     )}
 
                     {/* Table */}
