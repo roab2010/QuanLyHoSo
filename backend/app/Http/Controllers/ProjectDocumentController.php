@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\ProjectDocument;
 use App\Models\Project;
+use App\Models\DocumentType;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,10 @@ class ProjectDocumentController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = ProjectDocument::with('project:id,name');
+            $query = ProjectDocument::with([
+                'project:id,name',
+                'documentType:id,type_name,group_name'
+            ]);
 
             // Lọc theo tên tài liệu
             if ($request->filled('search')) {
@@ -29,9 +33,11 @@ class ProjectDocumentController extends Controller
                 $query->where('project_id', $request->project_id);
             }
 
-            // Lọc theo loại tài liệu
+            // Lọc theo loại tài liệu (theo type_name)
             if ($request->filled('category')) {
-                $query->where('category_name', $request->category);
+                $query->whereHas('documentType', function ($q) use ($request) {
+                    $q->where('type_name', $request->category);
+                });
             }
 
             $documents = $query->orderBy('uploaded_at', 'desc')->get();
@@ -49,32 +55,32 @@ class ProjectDocumentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'document_name' => 'required|string|max:255',
-            'project_id'    => 'required|exists:projects,id',
-            'category_name' => 'required|string',
-            'file'          => 'required|file|max:10240', // Max 10MB
+            'document_name'    => 'required|string|max:255',
+            'project_id'       => 'required|exists:projects,id',
+            'document_type_id' => 'required|exists:document_types,id',
+            'file'             => 'required|file|max:10240', // Max 10MB
         ]);
 
         try {
             $file = $request->file('file');
             $fileName = time() . '_' . $file->getClientOriginalName();
             
-            // Lưu trực tiếp vào public/uploads/documents để có thể push lên Git
+            // Lưu trực tiếp vào public/uploads/documents
             $file->move(public_path('uploads/documents'), $fileName);
 
             $document = ProjectDocument::create([
-                'project_id'    => $request->project_id,
-                'document_name' => $request->document_name,
-                'category_name' => $request->category_name,
-                'file_url'      => '/uploads/documents/' . $fileName,
-                'note'          => $request->note,
-                'status'        => 'PENDING',
-                'uploaded_at'   => now(),
+                'project_id'       => $request->project_id,
+                'document_name'    => $request->document_name,
+                'document_type_id' => $request->document_type_id,
+                'file_url'         => '/uploads/documents/' . $fileName,
+                'note'             => $request->note,
+                'status'           => 'PENDING',
+                'uploaded_at'      => now(),
             ]);
 
             return response()->json([
                 'message' => 'Tải lên tài liệu thành công!',
-                'data'    => $document->load('project:id,name')
+                'data'    => $document->load(['project:id,name', 'documentType:id,type_name,group_name'])
             ], 201);
         } catch (\Exception $e) {
             Log::error('Lỗi tải lên tài liệu: ' . $e->getMessage());
@@ -88,10 +94,10 @@ class ProjectDocumentController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'document_name' => 'required|string|max:255',
-            'project_id'    => 'required|exists:projects,id',
-            'category_name' => 'required|string',
-            'file'          => 'nullable|file|max:10240', // File là tùy chọn
+            'document_name'    => 'required|string|max:255',
+            'project_id'       => 'required|exists:projects,id',
+            'document_type_id' => 'required|exists:document_types,id',
+            'file'             => 'nullable|file|max:10240', // File là tùy chọn
         ]);
 
         try {
@@ -99,10 +105,10 @@ class ProjectDocumentController extends Controller
             Log::info("Đang cập nhật tài liệu ID: " . $id);
 
             $updateData = [
-                'project_id'    => $request->project_id,
-                'document_name' => $request->document_name,
-                'category_name' => $request->category_name,
-                'note'          => $request->note,
+                'project_id'       => $request->project_id,
+                'document_name'    => $request->document_name,
+                'document_type_id' => $request->document_type_id,
+                'note'             => $request->note,
             ];
 
             // Nếu người dùng chọn file mới -> Xóa file cũ, upload file mới
@@ -148,7 +154,7 @@ class ProjectDocumentController extends Controller
 
             return response()->json([
                 'message' => 'Cập nhật tài liệu thành công!',
-                'data'    => $document->load('project:id,name')
+                'data'    => $document->load(['project:id,name', 'documentType:id,type_name,group_name'])
             ], 200);
         } catch (\Exception $e) {
             Log::error('Lỗi cập nhật tài liệu: ' . $e->getMessage());
@@ -195,17 +201,7 @@ class ProjectDocumentController extends Controller
     {
         try {
             $projects = Project::select('id', 'name')->orderBy('name')->get();
-            $types = DB::table('document_types')->select('type_name as name')->get();
-            
-            // Nếu bảng document_types trống, cung cấp dữ liệu mặc định
-            if ($types->isEmpty()) {
-                $types = collect([
-                    ['name' => 'Kỹ thuật'],
-                    ['name' => 'Pháp lý'],
-                    ['name' => 'Hợp đồng'],
-                    ['name' => 'Nghiệm thu']
-                ]);
-            }
+            $types = DocumentType::select('id', 'type_name', 'group_name')->orderBy('group_name')->orderBy('type_name')->get();
 
             return response()->json([
                 'projects' => $projects,

@@ -329,6 +329,16 @@ export const getTemplateDocsByCategoryId = async (categoryId) => {
   }
 };
 
+export const getDocumentTypes = async () => {
+  try {
+    const response = await api.get('/document-types');
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error("Lỗi API getDocumentTypes:", error);
+    return [];
+  }
+};
+
 export const createTemplateDoc = async (payload) => {
   try {
     const response = await api.post(`/template-documents`, payload);

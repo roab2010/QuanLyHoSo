@@ -153,13 +153,13 @@ class ProjectController extends Controller
                     $docsToInsert = [];
                     foreach ($docTemplates as $docTemplate) {
                         $docsToInsert[] = [
-                            'project_id'    => $id,
-                            'document_name' => $docTemplate->document_name,
-                            'category_name' => $docTemplate->category_name ?? 'Khác',
-                            'status'        => 'PENDING',
-                            'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
-                            'uploaded_at'   => now(),
-                            'file_url'      => null
+                            'project_id'       => $id,
+                            'document_name'    => $docTemplate->document_name ?? 'Tài liệu',
+                            'document_type_id' => $docTemplate->document_type_id ?? null,
+                            'status'           => 'PENDING',
+                            'note'             => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                            'uploaded_at'      => now(),
+                            'file_url'         => null
                         ];
                     }
                     DB::table('project_documents')->insert($docsToInsert);
@@ -308,13 +308,13 @@ class ProjectController extends Controller
                     $docsToInsert = [];
                     foreach ($docTemplates as $docTemplate) {
                         $docsToInsert[] = [
-                            'project_id'    => $project->id,
-                            'document_name' => $docTemplate->document_name,
-                            'category_name' => $docTemplate->category_name ?? 'Khác',
-                            'status'        => 'PENDING',
-                            'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
-                            'uploaded_at'   => now(),
-                            'file_url'      => null
+                            'project_id'       => $project->id,
+                            'document_name'    => $docTemplate->document_name ?? 'Tài liệu',
+                            'document_type_id' => $docTemplate->document_type_id ?? null,
+                            'status'           => 'PENDING',
+                            'note'             => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                            'uploaded_at'      => now(),
+                            'file_url'         => null
                         ];
                     }
                     DB::table('project_documents')->insert($docsToInsert);
@@ -400,7 +400,7 @@ class ProjectController extends Controller
                 $q->orderBy('sort_order');
             },
             'documents' => function ($q) {
-                $q->orderBy('uploaded_at', 'desc');
+                $q->with('documentType')->orderBy('uploaded_at', 'desc');
             },
             'members.employee',
             'members.projectPositionTitle',
@@ -458,13 +458,13 @@ class ProjectController extends Controller
                 $docsToInsert = [];
                 foreach ($docTemplates as $docTemplate) {
                     $docsToInsert[] = [
-                        'project_id'    => $id,
-                        'document_name' => $docTemplate->document_name,
-                        'category_name' => $docTemplate->category_name ?? 'Khác',
-                        'status'        => 'PENDING',
-                        'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
-                        'uploaded_at'   => now(),
-                        'file_url'      => null
+                        'project_id'       => $id,
+                        'document_name'    => $docTemplate->document_name ?? 'Tài liệu',
+                        'document_type_id' => $docTemplate->document_type_id ?? null,
+                        'status'           => 'PENDING',
+                        'note'             => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                        'uploaded_at'      => now(),
+                        'file_url'         => null
                     ];
                 }
                 DB::table('project_documents')->insert($docsToInsert);
@@ -727,7 +727,6 @@ class ProjectController extends Controller
                     'file_url'      => $fileUrl,
                     'uploaded_at'   => now(),
                     'status'        => 'PENDING',
-                    'category_name' => 'Khách hàng gửi',
                     'note'          => 'Tài liệu do khách hàng cung cấp'
                 ]);
             }
