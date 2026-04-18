@@ -87,9 +87,7 @@ export default function ProjectDocuments() {
         formData.append('note', newDoc.note);
 
         try {
-            const res = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await axios.post(`${API_BASE_URL}/documents/upload`, formData);
             alert(res.data.message);
             setShowUploadModal(false);
             setNewDoc({ name: '', project_id: '', type: '', note: '', file: null });
@@ -124,9 +122,7 @@ export default function ProjectDocuments() {
         formData.append('note', newDoc.note);
 
         try {
-            const res = await axios.post(`${API_BASE_URL}/documents/${editDocId}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await axios.post(`${API_BASE_URL}/documents/${editDocId}`, formData);
             alert(res.data.message);
             setShowEditModal(false);
             setEditDocId(null);
@@ -153,7 +149,7 @@ export default function ProjectDocuments() {
         if (!window.confirm(`Bạn muốn tải về tài liệu "${doc.document_name}" này chứ?`)) return;
 
         try {
-            const url = `http://127.0.0.1:8000/api/documents/download-file?url=${encodeURIComponent(doc.file_url)}`;
+            const url = `${API_BASE_URL}/documents/download-file?url=${encodeURIComponent(doc.file_url)}`;
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -311,7 +307,7 @@ export default function ProjectDocuments() {
                                             <>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setPreviewUrl(`http://127.0.0.1:8000${doc.file_url}`)}
+                                                    onClick={() => setPreviewUrl(`${API_BASE_URL}/documents/view-file?url=${encodeURIComponent(doc.file_url)}`)}
                                                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#e0f2fe', cursor: 'pointer', border: 'none', transition: 'all 0.2s' }}
                                                     title="Xem"
                                                     onMouseOver={(e) => e.currentTarget.style.background = '#bae6fd'}

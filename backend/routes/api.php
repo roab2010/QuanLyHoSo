@@ -47,6 +47,7 @@ Route::delete('/projects/{projectId}/members/{memberId}', [ProjectController::cl
 Route::get('/all-documents', [ProjectDocumentController::class, 'index']);
 Route::get('/documents-metadata', [ProjectDocumentController::class, 'getMetadata']);
 Route::get('/documents/download-file', [ProjectDocumentController::class, 'downloadFile']);
+Route::get('/documents/view-file', [ProjectDocumentController::class, 'viewFile']);
 Route::post('/documents/upload', [ProjectDocumentController::class, 'store']);
 Route::post('/documents/{id}', [ProjectDocumentController::class, 'update']);
 Route::delete('/documents/{id}', [ProjectDocumentController::class, 'destroy']);
