@@ -27,7 +27,7 @@ return new class extends Migration
         foreach ($products as $product) {
             DB::table('product_batches')->insert([
                 'product_id' => $product->id,
-                'hsd' => $product->hsd,
+                'hsd' => $product->hsd ?? null,
                 'quantity' => $product->current_stock,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -36,9 +36,11 @@ return new class extends Migration
 
         // We will keep the 'hsd' column on products temporarily to avoid random crashes, 
         // but it will be ignored by our new logic. Or we drop it to keep DB clean. Let's drop it!
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('hsd');
-        });
+        if (Schema::hasColumn('products', 'hsd')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->dropColumn('hsd');
+            });
+        }
     }
 
     /**

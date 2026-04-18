@@ -52,6 +52,17 @@ const TASK_COLS = [
 ];
 const TASK_ORDER = { TODO: 1, DOING: 2, DONE: 3 };
 
+const calculateRemainingDays = (createdAt, estimatedDays) => {
+    if (!createdAt || !estimatedDays) return 0;
+    const createdDate = new Date(createdAt);
+    createdDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = today.getTime() - createdDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return estimatedDays - diffDays;
+};
+
 export default function ChiTietHoSo() {
     const toast = useToast();
     const { id } = useParams();
@@ -72,7 +83,7 @@ export default function ChiTietHoSo() {
     // Task modal
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
-    const [taskForm, setTaskForm] = useState({ task_name: "", work_volume: 0 });
+    const [taskForm, setTaskForm] = useState({ task_name: "", work_volume: 0, estimated_completion_date: "" });
 
     // Member modal
     const [showMemberModal, setShowMemberModal] = useState(false);
@@ -109,7 +120,33 @@ export default function ChiTietHoSo() {
     const fetchData = async (showLoading = true) => {
         if (showLoading) setLoading(true);
         const data = await getChiTietHoSo(id);
-        if (data) setProject(data);
+        if (data) {
+            let hasAutoCompleted = false;
+            if (data.tasks) {
+                const updatedTasks = [...data.tasks];
+                for (let i = 0; i < updatedTasks.length; i++) {
+                    const t = updatedTasks[i];
+                    if (t.status === "DOING" && t.estimated_completion_date && t.estimated_completion_date > 0) {
+                        const remaining = calculateRemainingDays(t.created_at, t.estimated_completion_date);
+                        if (remaining <= 0) {
+                            try {
+                                await updateTask(id, t.id, { status: "DONE" });
+                                updatedTasks[i].status = "DONE";
+                                hasAutoCompleted = true;
+                            } catch (e) { console.error(e); }
+                        }
+                    }
+                }
+                if (hasAutoCompleted) {
+                    const totalTasks = updatedTasks.length;
+                    const doneTasks = updatedTasks.filter(task => task.status === "DONE").length;
+                    data.progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+                    data.tasks = updatedTasks;
+                    toast.success("Hệ thống đã tự động hoàn thành các công việc đến hạn!");
+                }
+            }
+            setProject(data);
+        }
         if (showLoading) setLoading(false);
     };
 
@@ -181,12 +218,12 @@ export default function ChiTietHoSo() {
     /* ─── TASK HANDLERS ─── */
     const handleAddTask = () => {
         setEditingTask(null);
-        setTaskForm({ task_name: "", work_volume: 0 });
+        setTaskForm({ task_name: "", work_volume: 0, estimated_completion_date: "" });
         setShowTaskModal(true);
     };
     const handleEditTask = (task) => {
         setEditingTask(task);
-        setTaskForm({ task_name: task.task_name, work_volume: task.work_volume });
+        setTaskForm({ task_name: task.task_name, work_volume: task.work_volume, estimated_completion_date: task.estimated_completion_date || "" });
         setShowTaskModal(true);
     };
     const handleSaveTask = async () => {
@@ -227,6 +264,11 @@ export default function ChiTietHoSo() {
         const task = dragItem.current;
         // Cho phép Admin thay đổi trạng thái tự do
         if (!task || task.status === targetStatus) return;
+
+        if (task.status === "DOING" && targetStatus === "DONE") {
+            toast.error("Không được tự ý kéo sang HOÀN THÀNH. Hệ thống sẽ tự động chuyển khi hết ngày!");
+            return;
+        }
 
         setProject(prev => {
             const newTasks = prev.tasks.map(t =>
@@ -821,6 +863,21 @@ export default function ChiTietHoSo() {
                                                                 <span className="kb-v3-task-name">{t.task_name}</span>
                                                                 <div className="kb-v3-task-meta">
                                                                     {t.work_volume > 0 && <span>📊 {t.work_volume} KL</span>}
+                                                                    {(() => {
+                                                                        if (t.status === "DONE") {
+                                                                            return <span style={{ color: '#16a34a', fontWeight: '600' }}>✅ Đã hoàn thành</span>;
+                                                                        }
+                                                                        if (t.estimated_completion_date && t.estimated_completion_date > 0) {
+                                                                            const remainingDays = calculateRemainingDays(t.created_at, t.estimated_completion_date);
+                                                                            const isLate = remainingDays < 0;
+                                                                            return (
+                                                                                <span style={{ color: isLate ? '#ef4444' : '#16a34a', fontWeight: '600' }}>
+                                                                                    {isLate ? `🚨 Trễ ${Math.abs(remainingDays)} ngày` : `📅 Còn ${remainingDays} ngày`}
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return null;
+                                                                    })()}
                                                                     <span>#{t.id.toString().slice(-4)}</span>
                                                                 </div>
                                                                 <div className="kb-v3-actions">
@@ -1319,6 +1376,9 @@ export default function ChiTietHoSo() {
                                     {tasks.filter((t) => t.status === "DONE").length}/
                                     {tasks.length} công việc)
                                 </span>
+                                <div style={{ marginTop: "12px", fontSize: "14px", color: "#2563eb", fontWeight: "600" }}>
+                                    📅 Tổng số ngày dự kiến: <span style={{ color: "#0f172a" }}>{tasks.filter(t => t.status !== "DONE").reduce((sum, task) => sum + (task.estimated_completion_date && task.estimated_completion_date > 0 ? task.estimated_completion_date : 0), 0)} ngày</span>
+                                </div>
                             </div>
 
                             {/* Kanban Board v3 Upgrade */}
@@ -1349,6 +1409,21 @@ export default function ChiTietHoSo() {
                                                         <span className="kb-v3-task-name">{task.task_name}</span>
                                                         <div className="kb-v3-task-meta">
                                                             {task.work_volume > 0 && <span>📊 Khối lượng: {task.work_volume}</span>}
+                                                            {(() => {
+                                                                if (task.status === "DONE") {
+                                                                    return <span style={{ color: '#16a34a', fontWeight: '600' }}>✅ Đã hoàn thành</span>;
+                                                                }
+                                                                if (task.estimated_completion_date && task.estimated_completion_date > 0) {
+                                                                    const remainingDays = calculateRemainingDays(task.created_at, task.estimated_completion_date);
+                                                                    const isLate = remainingDays < 0;
+                                                                    return (
+                                                                        <span style={{ color: isLate ? '#ef4444' : '#16a34a', fontWeight: '600' }}>
+                                                                            {isLate ? `🚨 Trễ ${Math.abs(remainingDays)} ngày` : `📅 Còn ${remainingDays} ngày`}
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                return null;
+                                                            })()}
                                                             <span>ID: #{task.id}</span>
                                                         </div>
                                                         <div className="kb-v3-actions">
@@ -1403,6 +1478,18 @@ export default function ChiTietHoSo() {
                                 value={taskForm.work_volume}
                                 onChange={(e) =>
                                     setTaskForm({ ...taskForm, work_volume: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Ngày dự kiến hoàn thành (số ngày)</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                placeholder="0"
+                                value={taskForm.estimated_completion_date}
+                                onChange={(e) =>
+                                    setTaskForm({ ...taskForm, estimated_completion_date: e.target.value })
                                 }
                             />
                         </div>

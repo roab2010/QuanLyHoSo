@@ -423,13 +423,21 @@ class ProjectController extends Controller
 
             if ($templates->isNotEmpty()) {
                 $tasksToInsert = [];
+                $cumulativeDays = 0;
+                
                 foreach ($templates as $template) {
+                    // Cộng dồn số ngày từ các task trước
+                    if ($template->estimated_completion_date && $template->estimated_completion_date > 0) {
+                        $cumulativeDays += $template->estimated_completion_date;
+                    }
+                    
                     $tasksToInsert[] = [
                         'project_id'    => $id,
                         'task_name'     => $template->task_name,
                         'work_volume'   => $template->work_volume,
                         'status'        => 'TODO',
                         'sort_order'    => $template->sort_order,
+                        'estimated_completion_date' => $cumulativeDays > 0 ? $cumulativeDays : null,
                         'created_at'    => now(),
                     ];
                 }
@@ -488,6 +496,7 @@ class ProjectController extends Controller
                 'work_volume' => $request->work_volume ?? 0,
                 'status' => 'TODO',
                 'sort_order' => $request->sort_order ?? 0,
+                'estimated_completion_date' => $request->estimated_completion_date ?? null,
                 'created_at' => now(),
             ]);
 
@@ -519,6 +528,8 @@ class ProjectController extends Controller
             $updateData['work_volume'] = $request->work_volume;
         if ($request->has('sort_order'))
             $updateData['sort_order'] = $request->sort_order;
+        if ($request->has('estimated_completion_date'))
+            $updateData['estimated_completion_date'] = $request->estimated_completion_date ?: null;
 
         if ($request->has('status')) {
             // Kiểm tra logic chỉ cho phép chuyển trạng thái tiến lên

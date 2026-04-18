@@ -38,6 +38,7 @@ class TemplateTaskController extends Controller
             'task_name'   => 'required|string|max:255',
             'work_volume' => 'required|numeric',
             'sort_order'  => 'required|integer',
+            'estimated_completion_date' => 'nullable|integer|min:0',
         ]);
 
         try {
@@ -46,6 +47,7 @@ class TemplateTaskController extends Controller
                 'task_name'   => $request->task_name,
                 'work_volume' => $request->work_volume,
                 'sort_order'  => $request->sort_order,
+                'estimated_completion_date' => $request->estimated_completion_date ?? null,
             ]);
 
             return response()->json([
@@ -66,6 +68,7 @@ class TemplateTaskController extends Controller
             'task_name'   => 'required|string|max:255',
             'work_volume' => 'required|numeric',
             'sort_order'  => 'required|integer',
+            'estimated_completion_date' => 'nullable|integer|min:0',
         ]);
 
         try {
@@ -74,6 +77,7 @@ class TemplateTaskController extends Controller
                 'task_name'   => $request->task_name,
                 'work_volume' => $request->work_volume,
                 'sort_order'  => $request->sort_order,
+                'estimated_completion_date' => $request->estimated_completion_date ?? null,
             ]);
 
             return response()->json(['message' => 'Cập nhật thành công'], 200);
