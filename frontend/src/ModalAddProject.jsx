@@ -21,7 +21,8 @@ export default function ModalAddProject({ onClose, onSubmit }) {
         supervisor_id: 1,
         status: "DRAFT",
         estimated_budget: 0,
-        contract_value: 0
+        contract_value: 0,
+        expected_end_date: ""
     });
 
     useEffect(() => {
@@ -220,6 +221,16 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                                 onChange={e => setFormData({ ...formData, start_date: e.target.value })}
                             />
                         </div>
+                        <div style={modernStyles.formGroup}>
+                            <label style={modernStyles.label}>Ngày hoàn thành dự kiến</label>
+                            <input
+                                style={modernStyles.input}
+                                type="date"
+                                min={formData.start_date}
+                                value={formData.expected_end_date}
+                                onChange={e => setFormData({ ...formData, expected_end_date: e.target.value })}
+                            />
+                        </div>
 
                         {/* Hàng 3: Khách hàng và Danh mục */}
                         <div style={modernStyles.formGroup}>
@@ -237,7 +248,7 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             </select>
                         </div>
                         <div style={modernStyles.formGroup}>
-                            <label style={modernStyles.label}>Phân loại quy trình *</label>
+                            <label style={modernStyles.label}>Danh mục dự án (Loại dự án) *</label>
                             <select
                                 style={modernStyles.input}
                                 required

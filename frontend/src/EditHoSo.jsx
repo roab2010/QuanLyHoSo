@@ -34,13 +34,16 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
 
     const [lastUpdated, setLastUpdated] = useState('Chưa rõ');
     const [createdAt, setCreatedAt] = useState('15/10/2023');
+    const [saving, setSaving] = useState(false);
 
     const [formData, setFormData] = useState({
         name: "",
         category_id: "",
         address: "",
         estimated_budget: 0,
-        contract_value: 0
+        contract_value: 0,
+        expected_end_date: "",
+        start_date: ""
     });
 
     const [debouncedAddress, setDebouncedAddress] = useState("");
@@ -67,7 +70,9 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                     category_id: projData.category_id || "",
                     address: projData.address || "",
                     estimated_budget: projData.estimated_budget || 0,
-                    contract_value: projData.contract_value || 0
+                    contract_value: projData.contract_value || 0,
+                    expected_end_date: projData.expected_end_date || "",
+                    start_date: projData.start_date || ""
                 });
 
                 if (projData.status_updated_at) {
@@ -91,10 +96,11 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
     };
 
     const handleSave = async () => {
+        setSaving(true);
         try {
             await updateHoSo(id, formData);
             if (refreshData) refreshData();
-            toast.success("Cập nhật hồ sơ thành công!");
+            toast.success("Cập nhật thông tin hồ sơ thành công!");
 
             const projData = await getChiTietHoSo(id);
             if (projData) {
@@ -107,6 +113,8 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
             }
         } catch (error) {
             toast.error("Lỗi cập nhật: " + (error.response?.data?.message || ""));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -173,8 +181,10 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                         <p style={modernStyles.subtitle}>Mã hệ thống: <span style={{ color: '#0f172a', fontWeight: '600' }}>{project.id}</span> • Khởi tạo: {createdAt}</p>
                     </div>
                     <div>
-                        <button onClick={() => navigate(-1)} style={modernStyles.buttonSecondary}>Hủy bỏ</button>
-                        <button onClick={handleSave} style={modernStyles.buttonPrimary}>Cập nhật hồ sơ</button>
+                        <button onClick={() => navigate(-1)} style={modernStyles.buttonSecondary} disabled={saving}>Hủy bỏ</button>
+                        <button onClick={handleSave} style={{...modernStyles.buttonPrimary, opacity: saving ? 0.7 : 1}} disabled={saving}>
+                            {saving ? "Đang lưu..." : "Cập nhật hồ sơ"}
+                        </button>
                     </div>
                 </header>
 
@@ -225,6 +235,17 @@ export default function EditHoSo({ setActiveAppNav, refreshData }) {
                             <div style={modernStyles.inputGroup}>
                                 <label style={modernStyles.label}>Địa điểm thi công (Địa chỉ đầy đủ)</label>
                                 <input style={modernStyles.input} name="address" value={formData.address} onChange={handleFormChange} />
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                <div style={modernStyles.inputGroup}>
+                                    <label style={modernStyles.label}>Ngày khởi công</label>
+                                    <input style={modernStyles.input} type="date" name="start_date" value={formData.start_date} onChange={handleFormChange} />
+                                </div>
+                                <div style={modernStyles.inputGroup}>
+                                    <label style={modernStyles.label}>Ngày hoàn thành dự kiến</label>
+                                    <input style={modernStyles.input} type="date" name="expected_end_date" min={formData.start_date} value={formData.expected_end_date} onChange={handleFormChange} />
+                                </div>
                             </div>
                         </div>
 

@@ -19,6 +19,7 @@ import CustomerDashboard from "./CustomerDashboard";
 import QuanLyKhachHang from "./QuanLyKhachHang";
 import QuanLyNhanVien from "./QuanLyNhanVien";
 import ProjectDocuments from "./ProjectDocuments";
+import { useToast } from "./Toast";
 
 const COLUMNS = [
     { id: "new", title: "Mới tạo", color: "#6b7280" },
@@ -172,6 +173,7 @@ export default function App() {
 
     const location = useLocation();
     const navigate = useNavigate();
+    const toast = useToast();
 
     // Đọc user từ localStorage (Không dùng memo [] để đảm bảo cập nhật khi chuyển trang)
     const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
@@ -236,8 +238,12 @@ export default function App() {
 
     const handleSaveProject = async (formData) => {
         const result = await themHoSo(formData);
-        if (result.ok) setShowModal(false);
-        else alert(result.message || "Không thể tạo hồ sơ");
+        if (result.ok) {
+            setShowModal(false);
+            toast.success("Khởi tạo hồ sơ dự án mới thành công!");
+        } else {
+            toast.error(result.message || "Không thể tạo hồ sơ");
+        }
     };
 
     const adminProps = {

@@ -57,6 +57,7 @@ class ProjectController extends Controller
             'max_warehouse_capacity' => 'required|numeric',
             'estimated_budget' => 'nullable|numeric',
             'contract_value' => 'nullable|numeric',
+            'expected_end_date' => 'nullable|date',
         ], [
             'required' => ':attribute không được để trống.',
             'date' => ':attribute không đúng định dạng ngày.',
@@ -71,6 +72,7 @@ class ProjectController extends Controller
             'max_warehouse_capacity' => 'Công suất kho',
             'estimated_budget' => 'Chi phí dự kiến',
             'contract_value' => 'Giá trị hợp đồng',
+            'expected_end_date' => 'Ngày hoàn thành dự kiến',
         ]);
 
         if ($validator->fails()) {
@@ -117,6 +119,7 @@ class ProjectController extends Controller
                 'max_warehouse_capacity' => $request->max_warehouse_capacity ?? 0,
                 'estimated_budget' => $request->estimated_budget ?? 0,
                 'contract_value' => $request->contract_value ?? 0,
+                'expected_end_date' => $request->expected_end_date,
                 'status_updated_at' => now(),
             ]);
 
@@ -140,6 +143,28 @@ class ProjectController extends Controller
                         ];
                     }
                     DB::table('project_tasks')->insert($tasksToInsert);
+                }
+
+                // TỰ ĐỘNG HÓA: COPY TÀI LIỆU MẪU (Link từ category_document_templates)
+                $docTemplates = DB::table('category_document_templates')
+                    ->where('category_id', $categoryId)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+                
+                if ($docTemplates->isNotEmpty()) {
+                    $docsToInsert = [];
+                    foreach ($docTemplates as $docTemplate) {
+                        $docsToInsert[] = [
+                            'project_id'    => $id,
+                            'document_name' => $docTemplate->document_name,
+                            'category_name' => $docTemplate->category_name ?? 'Khác',
+                            'status'        => 'PENDING',
+                            'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                            'uploaded_at'   => now(),
+                            'file_url'      => null
+                        ];
+                    }
+                    DB::table('project_documents')->insert($docsToInsert);
                 }
             }
 
@@ -206,8 +231,16 @@ class ProjectController extends Controller
             $project->contract_value = $request->contract_value;
         }
 
+        if ($request->has('start_date')) {
+            $project->start_date = $request->start_date;
+        }
+
         if ($request->has('max_warehouse_capacity')) {
             $project->max_warehouse_capacity = $request->max_warehouse_capacity;
+        }
+        
+        if ($request->has('expected_end_date')) {
+            $project->expected_end_date = $request->expected_end_date;
         }
 
         // 4. THÔNG MINH HÓA: Nếu đổi danh mục, tự động nạp quy trình mới
@@ -223,6 +256,7 @@ class ProjectController extends Controller
                 // Xóa các công việc TODO cũ (nếu có) để tránh bị rác dữ liệu
                 DB::table('project_tasks')->where('project_id', $project->id)->delete();
 
+                // KHÔI PHỤC LẠI TASKS THEO DANH MỤC MỚI
                 $templates = DB::table('category_task_templates')
                     ->where('category_id', $request->category_id)
                     ->orderBy('sort_order', 'asc')
@@ -243,6 +277,39 @@ class ProjectController extends Controller
                     DB::table('project_tasks')->insert($tasksToInsert);
                 }
             }
+
+            // Đồng bộ: Đổi hồ sơ cũng nên đổi lại tài liệu nếu chưa up tài liệu nào
+            $uploadedDocs = DB::table('project_documents')
+                ->where('project_id', $project->id)
+                ->whereNotNull('file_url')
+                ->count();
+                
+            if ($uploadedDocs === 0) {
+                // Xóa tài liệu pending cũ
+                DB::table('project_documents')->where('project_id', $project->id)->delete();
+                
+                $docTemplates = DB::table('category_document_templates')
+                    ->where('category_id', $request->category_id)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+                
+                if ($docTemplates->isNotEmpty()) {
+                    $docsToInsert = [];
+                    foreach ($docTemplates as $docTemplate) {
+                        $docsToInsert[] = [
+                            'project_id'    => $project->id,
+                            'document_name' => $docTemplate->document_name,
+                            'category_name' => $docTemplate->category_name ?? 'Khác',
+                            'status'        => 'PENDING',
+                            'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                            'uploaded_at'   => now(),
+                            'file_url'      => null
+                        ];
+                    }
+                    DB::table('project_documents')->insert($docsToInsert);
+                }
+            }
+
             $project->category_id = $request->category_id;
         }
 
@@ -326,7 +393,7 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Hồ sơ không tồn tại'], 404);
         }
 
-        // SELF-HEALING: Nếu hồ sơ trống quy trình nhưng danh mục có quy trình mẫu -> Tự động copy
+        // SELF-HEALING TASKS: Nếu hồ sơ trống quy trình nhưng danh mục có quy trình mẫu -> Tự động copy
         if ($project->tasks->isEmpty() && $project->category_id) {
             $templates = DB::table('category_task_templates')
                 ->where('category_id', $project->category_id)
@@ -356,6 +423,32 @@ class ProjectController extends Controller
                 DB::table('project_tasks')->insert($tasksToInsert);
                 // Load lại tasks sau khi copy để trả về cho UI
                 $project->load(['tasks' => function($q) { $q->orderBy('sort_order'); }]);
+            }
+        }
+
+        // SELF-HEALING DOCUMENTS: Nếu hồ sơ chưa có tài liệu nào, tự động nạp từ mẫu
+        if ($project->documents->isEmpty() && $project->category_id) {
+            $docTemplates = DB::table('category_document_templates')
+                ->where('category_id', $project->category_id)
+                ->orderBy('sort_order', 'asc')
+                ->get();
+
+            if ($docTemplates->isNotEmpty()) {
+                $docsToInsert = [];
+                foreach ($docTemplates as $docTemplate) {
+                    $docsToInsert[] = [
+                        'project_id'    => $id,
+                        'document_name' => $docTemplate->document_name,
+                        'category_name' => $docTemplate->category_name ?? 'Khác',
+                        'status'        => 'PENDING',
+                        'note'          => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
+                        'uploaded_at'   => now(),
+                        'file_url'      => null
+                    ];
+                }
+                DB::table('project_documents')->insert($docsToInsert);
+                // Load lại documents sau khi copy rỗng
+                $project->load(['documents' => function ($q) { $q->orderBy('uploaded_at', 'desc'); }]);
             }
         }
 
@@ -578,6 +671,7 @@ class ProjectController extends Controller
         $request->validate([
             'file' => 'required|file|max:10240', // 10MB limit
             'name' => 'required|string|max:255',
+            'document_id' => 'nullable|integer'
         ]);
 
         try {
@@ -589,15 +683,32 @@ class ProjectController extends Controller
             }
             $file->move($path, $filename);
 
-            $docId = DB::table('project_documents')->insertGetId([
-                'project_id'    => $projectId,
-                'document_name' => $request->name,
-                'file_url'      => url('uploads/documents/' . $filename),
-                'uploaded_at'   => now(),
-                'status'        => 'PENDING',
-                'category_name' => 'Khách hàng gửi',
-                'note'          => 'Tài liệu do khách hàng cung cấp'
-            ]);
+            $fileUrl = url('uploads/documents/' . $filename);
+
+            if ($request->filled('document_id')) {
+                // TRƯỜNG HỢP: Khách hàng nộp file vào slot (Pending) đã có sẵn
+                DB::table('project_documents')
+                    ->where('id', $request->document_id)
+                    ->where('project_id', $projectId)
+                    ->update([
+                        'file_url'      => $fileUrl,
+                        'uploaded_at'   => now(),
+                        'status'        => 'PENDING',
+                        'note'          => 'Khách hàng đã nộp tài liệu theo yêu cầu.'
+                    ]);
+                $docId = $request->document_id;
+            } else {
+                // TRƯỜNG HỢP: Khách hàng tự upload thêm tài liệu mới ngoài mẫu
+                $docId = DB::table('project_documents')->insertGetId([
+                    'project_id'    => $projectId,
+                    'document_name' => $request->name,
+                    'file_url'      => $fileUrl,
+                    'uploaded_at'   => now(),
+                    'status'        => 'PENDING',
+                    'category_name' => 'Khách hàng gửi',
+                    'note'          => 'Tài liệu do khách hàng cung cấp'
+                ]);
+            }
 
             $doc = DB::table('project_documents')->where('id', $docId)->first();
 

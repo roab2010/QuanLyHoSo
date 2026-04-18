@@ -319,3 +319,43 @@ export const deleteTemplateTask = async (id) => {
     throw error;
   }
 };
+
+/**
+ * --- PHẦN TÀI LIỆU MẪU (THUỘC VỀ DANH MỤC) ---
+ */
+export const getTemplateDocsByCategoryId = async (categoryId) => {
+  try {
+    const response = await axios.get(`${API_URL}/template-documents/category/${categoryId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi API getTemplateDocs:", error);
+    throw error;
+  }
+};
+
+export const createTemplateDoc = async (payload) => {
+  try {
+    const response = await axios.post(`${API_URL}/template-documents`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateTemplateDoc = async (id, payload) => {
+  try {
+    const response = await axios.put(`${API_URL}/template-documents/${id}`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteTemplateDoc = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/template-documents/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

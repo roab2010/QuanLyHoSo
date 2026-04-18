@@ -24,7 +24,8 @@ public $timestamps = false;
     'customer_id',
     'estimated_budget',
     'contract_value',
-    'max_warehouse_capacity'
+    'max_warehouse_capacity',
+    'expected_end_date'
 ];
 
     /**
@@ -33,6 +34,7 @@ public $timestamps = false;
      */
     protected $casts = [
         'start_date' => 'date:Y-m-d',
+        'expected_end_date' => 'date:Y-m-d',
         'created_at' => 'datetime:Y-m-d H:i:s',
         'updated_at' => 'datetime:Y-m-d H:i:s',
     ];
