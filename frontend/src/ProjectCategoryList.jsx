@@ -17,6 +17,25 @@ export default function ProjectCategoryList() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const toast = useToast();
 
+  // Đọc admin từ localStorage để kiểm tra quyền
+  const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
+
+  const hasPermission = (permKey) => {
+    if (!admin) return false;
+    if (admin.role === 'admin') return true;
+    try {
+      const perms = JSON.parse(admin.permissions || '[]');
+      if (perms.includes(permKey)) return true;
+      if (!permKey.includes('.')) {
+        return perms.some(p => p.startsWith(permKey + '.'));
+      }
+      return false;
+    } catch (e) { return false; }
+  };
+
+  const canManage = hasPermission("categories.manage");
+  const canDelete = hasPermission("categories.delete");
+
   const loadData = async () => {
     try {
       const data = await getAllCategories();
@@ -68,6 +87,7 @@ export default function ProjectCategoryList() {
     <div className="category-container">
       <div className="category-header">
         <h2>Danh mục dự án</h2>
+        {canManage && (
         <button
           className="btn-add-cat"
           onClick={() => {
@@ -77,6 +97,7 @@ export default function ProjectCategoryList() {
         >
           + Thêm mới
         </button>
+        )}
       </div>
 
       <table className="category-table">
@@ -86,7 +107,7 @@ export default function ProjectCategoryList() {
             <th>Mã danh mục</th>
             <th>Tên danh mục</th>
             <th>Trạng thái</th>
-            <th>Hành động</th>
+            {(canManage || canDelete) && <th>Hành động</th>}
           </tr>
         </thead>
         <tbody>
@@ -102,7 +123,9 @@ export default function ProjectCategoryList() {
                   {cat.status === 1 ? "Hoạt động" : "Ngừng"}
                 </span>
               </td>
+              {(canManage || canDelete) && (
               <td className="action-cell">
+                {canManage && (
                 <button
                   className="btn-edit"
                   onClick={() => {
@@ -117,7 +140,9 @@ export default function ProjectCategoryList() {
                     alt="Edit"
                   />
                 </button>
+                )}
 
+                {canManage && (
                 <button
                   className="btn-template"
                   onClick={() => handleManageDocTemplate(cat)}
@@ -135,7 +160,9 @@ export default function ProjectCategoryList() {
                     alt="Document Template"
                   />
                 </button>
+                )}
 
+                {canDelete && (
                 <button
                   className="btn-delete-small"
                   onClick={() => handleDelete(cat.id)}
@@ -147,7 +174,9 @@ export default function ProjectCategoryList() {
                     alt="Delete"
                   />
                 </button>
+                )}
               </td>
+              )}
             </tr>
           ))}
         </tbody>

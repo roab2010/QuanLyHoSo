@@ -106,12 +106,18 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
         }
     };
 
-    const hasPermission = (module) => {
+    const hasPermission = (permKey) => {
         if (!admin) return false;
         if (admin.role === 'admin') return true;
         try {
             const perms = JSON.parse(admin.permissions || '[]');
-            return perms.includes(module);
+            // Exact match
+            if (perms.includes(permKey)) return true;
+            // Prefix match: hasPermission("projects") matches "projects.view", "projects.edit", etc.
+            if (!permKey.includes('.')) {
+                return perms.some(p => p.startsWith(permKey + '.'));
+            }
+            return false;
         } catch (e) {
             return false;
         }
@@ -120,11 +126,13 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
     const getVisibleNavItems = () => {
         return NAV_ITEMS.filter(label => {
             if (label === "Bảng điều khiển") return true;
-            if (label === "Danh sách hồ sơ" || label === "Danh mục dự án") return hasPermission("projects");
-            if (label === "Quản lý khách hàng" || label === "Quản lý nhân viên") return hasPermission("hr");
-            if (label === "Quản lý kho") return hasPermission("inventory");
+            if (label === "Danh sách hồ sơ") return hasPermission("projects");
+            if (label === "Danh mục dự án") return hasPermission("categories");
+            if (label === "Quản lý khách hàng") return hasPermission("customers");
+            if (label === "Quản lý nhân viên") return hasPermission("hr");
+            if (label === "Quản lý kho") return hasPermission("inventory") || hasPermission("suppliers");
             if (label === "Báo cáo" || label === "Quản lý tài liệu") return hasPermission("documents");
-            if (label === "Nhật ký hệ thống") return admin?.role === 'admin';
+            if (label === "Nhật ký hệ thống") return hasPermission("system_log");
             return true;
         });
     };
@@ -187,7 +195,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                     </button>
                 ))}
 
-                {hasPermission("create_project") && (
+                {hasPermission("projects.create") && (
                     <div style={{ padding: '12px 0' }}>
                         <button className="add-new-btn" onClick={onShowModal} style={{ 
                             width: '100%', 

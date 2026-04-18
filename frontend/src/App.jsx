@@ -54,23 +54,39 @@ const AdminLayout = ({
 
     // Safety check: Reset navigation if user doesn't have permission for current tab
     useEffect(() => {
-        const hasPermission = (module) => {
+        const hasPermission = (permKey) => {
             if (admin.role === 'admin') return true;
             try {
                 const perms = JSON.parse(admin.permissions || '[]');
-                return perms.includes(module);
+                if (perms.includes(permKey)) return true;
+                if (!permKey.includes('.')) {
+                    return perms.some(p => p.startsWith(permKey + '.'));
+                }
+                return false;
             } catch (e) { return false; }
         };
 
         const checkAuth = () => {
-            if (activeNav === "Quản lý nhân viên" || activeNav === "Quản lý khách hàng") {
+            if (activeNav === "Quản lý nhân viên") {
                 if (!hasPermission("hr")) setActiveNav("Bảng điều khiển");
             }
-            if (activeNav === "Danh sách hồ sơ" || activeNav === "Danh mục dự án") {
+            if (activeNav === "Quản lý khách hàng") {
+                if (!hasPermission("customers")) setActiveNav("Bảng điều khiển");
+            }
+            if (activeNav === "Danh sách hồ sơ") {
                 if (!hasPermission("projects")) setActiveNav("Bảng điều khiển");
             }
+            if (activeNav === "Danh mục dự án") {
+                if (!hasPermission("categories")) setActiveNav("Bảng điều khiển");
+            }
             if (activeNav === "Quản lý kho") {
-                if (!hasPermission("inventory")) setActiveNav("Bảng điều khiển");
+                if (!hasPermission("inventory") && !hasPermission("suppliers")) setActiveNav("Bảng điều khiển");
+            }
+            if (activeNav === "Quản lý tài liệu" || activeNav === "Báo cáo") {
+                if (!hasPermission("documents")) setActiveNav("Bảng điều khiển");
+            }
+            if (activeNav === "Nhật ký hệ thống") {
+                if (!hasPermission("system_log")) setActiveNav("Bảng điều khiển");
             }
         };
 

@@ -54,7 +54,7 @@ class EmployeeController extends Controller
                 'projects.project_code',
                 'projects.name as project_name',
                 'projects.status',
-                \DB::raw("IFNULL(project_position_titles.name, 'Thành viên') as position_in_project")
+                \DB::raw("IFNULL(project_position_titles.title_name, 'Thành viên') as position_in_project")
             )
             ->get();
 
@@ -188,6 +188,40 @@ class EmployeeController extends Controller
                 ]
             ], 201);
             
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Cập nhật quyền (vai trò) của nhân sự
+     */
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'role_id' => 'required|exists:roles,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first()], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $employee = DB::table('employees')->where('id', $id)->first();
+            if (!$employee || !$employee->user_id) {
+                return response()->json(['error' => 'Không tìm thấy tài khoản người dùng tương ứng.'], 404);
+            }
+
+            DB::table('users')
+                ->where('id', $employee->user_id)
+                ->update([
+                    'role_id' => $request->role_id
+                ]);
+
+            DB::commit();
+            return response()->json(['message' => 'Cập nhật phân quyền thành công'], 200);
         } catch (Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);

@@ -13,31 +13,53 @@ const CheckCircleIcon = () => (
     <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#16a34a" strokeWidth="1" /><path d="M3 6l2 2 4-4" stroke="#16a34a" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
+// Helper kiểm tra quyền
+const getPermissionHelper = () => {
+    const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
+    return (permKey) => {
+        if (!admin) return false;
+        if (admin.role === 'admin') return true;
+        try {
+            const perms = JSON.parse(admin.permissions || '[]');
+            if (perms.includes(permKey)) return true;
+            if (!permKey.includes('.')) {
+                return perms.some(p => p.startsWith(permKey + '.'));
+            }
+            return false;
+        } catch (e) { return false; }
+    };
+};
+
 function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
     const [showMenu, setShowMenu] = useState(false);
-    const navigate = useNavigate(); // THÊM DÒNG NÀY
+    const navigate = useNavigate();
+    const hasPermission = getPermissionHelper();
+
+    const canDelete = hasPermission("projects.delete");
+    const canDrag = hasPermission("kanban.drag");
 
     // Logic chặn menu ba chấm: Chỉ hiện nút chuyển nếu đi từ 'new' sang 'processing'
     const canMoveTo = (targetColId) => {
         return card.colId === 'new' && targetColId === 'processing';
     };
 
-    // THÊM HÀM NÀY VÀO
     const handleCardClick = (e) => {
-        // Nếu bấm vào nút menu hoặc menu dropdown thì không chuyển trang
         if (e.target.closest('.card-menu-btn') || e.target.closest('.card-menu-dropdown')) {
             return;
         }
         navigate(`/ho-so/${card.id}`);
     };
 
+    const showMenuBtn = canDrag || canDelete;
+
     return (
         <div 
             className={`card ${card.colId}`} 
-            draggable 
-            onClick={handleCardClick} // THÊM DÒNG NÀY
-            style={{ cursor: 'pointer' }} // THÊM DÒNG NÀY cho đẹp
+            draggable={canDrag}
+            onClick={handleCardClick}
+            style={{ cursor: 'pointer' }}
             onDragStart={(e) => {
+                if (!canDrag) { e.preventDefault(); return; }
                 e.dataTransfer.setData("cardId", String(card.id));
                 e.dataTransfer.setData("fromColId", card.colId);
             }}
@@ -46,22 +68,26 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
                 <span className={`badge ${card.badgeClass}`}>{card.badge}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span className="card-id">#{card.ma_ho_so}</span>
+                    {showMenuBtn && (
                     <div style={{ position: "relative" }}>
                         <button className="card-menu-btn" onClick={() => setShowMenu(!showMenu)}>···</button>
                         {showMenu && (
                             <div className="card-menu-dropdown" onMouseLeave={() => setShowMenu(false)}>
-                                {COLUMNS.filter((c) => c.id !== card.colId && canMoveTo(c.id)).map((c) => (
+                                {canDrag && COLUMNS.filter((c) => c.id !== card.colId && canMoveTo(c.id)).map((c) => (
                                     <button key={c.id} onClick={() => { onMoveCard(card.id, c.id); setShowMenu(false); }}>
                                         Chuyển → {c.title}
                                     </button>
                                 ))}
+                                {canDelete && (
                                 <button className="danger" onClick={(e) => { 
                                     e.stopPropagation(); 
                                     if(window.confirm("Xóa hồ sơ này?")) onDelete(card.id); 
                                 }}>🗑 Xóa</button>
+                                )}
                             </div>
                         )}
                     </div>
+                    )}
                 </div>
             </div>
             <div className="card-title">{card.title}</div>
@@ -76,13 +102,19 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
 
 export default function KanbanBoard({ COLUMNS, cardsByCol, onDelete, onMoveCard, onShowModal }) {
     const [dragOverCol, setDragOverCol] = useState(null);
-
     const toast = useToast();
+    const hasPermission = getPermissionHelper();
+    const canDrag = hasPermission("kanban.drag");
 
     const handleDrop = (e, targetColId) => {
         e.preventDefault();
         setDragOverCol(null);
         
+        if (!canDrag) {
+            toast.error("Bạn không có quyền kéo thả trên bảng Kanban!");
+            return;
+        }
+
         const cardId = Number(e.dataTransfer.getData("cardId"));
         const fromColId = e.dataTransfer.getData("fromColId");
 

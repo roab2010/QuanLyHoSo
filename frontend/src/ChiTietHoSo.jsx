@@ -115,6 +115,30 @@ export default function ChiTietHoSo() {
     // Drag state
     const dragItem = useRef(null);
 
+    // Permission tracking
+    const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
+    const hasPermission = (permKey) => {
+        if (!admin) return false;
+        if (admin.role === 'admin') return true;
+        try {
+            const perms = JSON.parse(admin.permissions || '[]');
+            if (perms.includes(permKey)) return true;
+            if (!permKey.includes('.')) {
+                return perms.some(p => p.startsWith(permKey + '.'));
+            }
+            return false;
+        } catch (e) { return false; }
+    };
+
+    const canEditProject = hasPermission("projects.edit");
+    const canUploadDoc = hasPermission("documents.upload");
+    const canEditDoc = hasPermission("documents.edit");
+    const canDeleteDoc = hasPermission("documents.delete");
+    const canManageMembers = hasPermission("members.manage");
+    const canManageTasks = hasPermission("tasks.manage");
+    const canDeleteTasks = hasPermission("tasks.delete");
+    const canManageInventory = hasPermission("inventory.manage");
+
     const isProjectCompleted = project?.status === 'COMPLETED' || project?.status === 'done' || project?.progress === 100;
 
     const fetchData = async (showLoading = true) => {
@@ -730,7 +754,9 @@ export default function ChiTietHoSo() {
                                 <section className="info-section">
                                     <div className="section-header">
                                         <h3>Thông tin dự án</h3>
-                                        <button className="btn-edit" onClick={() => navigate(`/admin/ho-so/${id}/edit`)}>✎ Sửa thông tin</button>
+                                        {canEditProject && (
+                                            <button className="btn-edit" onClick={() => navigate(`/admin/ho-so/${id}/edit`)}>✎ Sửa thông tin</button>
+                                        )}
                                     </div>
                                     <div className="info-grid big-grid">
                                         <div className="info-item">
@@ -942,9 +968,11 @@ export default function ChiTietHoSo() {
                                     <button className="btn-add-cat" onClick={handleDownloadAllDocuments} style={{ background: '#10b981', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
                                         ↓ Tải tất cả
                                     </button>
+                                    {canUploadDoc && (
                                     <button className="btn-add-cat" onClick={handleOpenAddDoc} style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
                                         + Thêm tài liệu
                                     </button>
+                                    )}
                                 </div>
                             </div>
                             {documents.length > 0 ? (
@@ -1058,12 +1086,14 @@ export default function ChiTietHoSo() {
                         <section className="members-section animate-fade-in">
                             <div className="section-header">
                                 <h3>Thành viên dự án</h3>
+                                {canManageMembers && (
                                 <button
                                     className="btn-add-member"
                                     onClick={handleOpenAddMember}
                                 >
                                     👤+ Thêm thành viên
                                 </button>
+                                )}
                             </div>
                             <div className="members-stats">
                                 <div className="stat-box">
@@ -1091,6 +1121,7 @@ export default function ChiTietHoSo() {
                                                 <span className="member-date">
                                                     📞 {emp.phone || "—"}
                                                 </span>
+                                                {canManageMembers && (
                                                 <button
                                                     className="member-menu"
                                                     onClick={() => handleRemoveMember(m.id)}
@@ -1098,11 +1129,12 @@ export default function ChiTietHoSo() {
                                                 >
                                                     🗑
                                                 </button>
+                                                )}
                                             </div>
                                         </div>
                                     );
                                 })}
-                                {/* Card thêm thành viên */}
+                                {canManageMembers && (
                                 <div
                                     className="member-card add-card"
                                     onClick={handleOpenAddMember}
@@ -1110,6 +1142,7 @@ export default function ChiTietHoSo() {
                                     <span className="add-icon">+</span>
                                     <p>Mời thành viên mới</p>
                                 </div>
+                                )}
                             </div>
                         </section>
                     )}
@@ -1121,7 +1154,7 @@ export default function ChiTietHoSo() {
                             <div className="section-header">
                                 <h3>Quản lý Vật tư & Thiết bị</h3>
                                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                                    {!isProjectCompleted && (
+                                    {!isProjectCompleted && canManageInventory && (
                                         <button
                                             className="btn-add-member"
                                             onClick={openRequestModal}
@@ -1138,7 +1171,7 @@ export default function ChiTietHoSo() {
                                     >
                                         🔄 Làm mới
                                     </button>
-                                    {vatTuItems.length > 0 && !isProjectCompleted && (
+                                    {vatTuItems.length > 0 && !isProjectCompleted && canManageInventory && (
                                         <button
                                             className="btn-add-member"
                                             disabled
@@ -1148,7 +1181,7 @@ export default function ChiTietHoSo() {
                                             🔒 Hoàn trả vật tư (Chờ hoàn thành)
                                         </button>
                                     )}
-                                    {vatTuItems.length > 0 && isProjectCompleted && (
+                                    {vatTuItems.length > 0 && isProjectCompleted && canManageInventory && (
                                         <button
                                             className="btn-add-member"
                                             onClick={() => openReturnModal(null)}
@@ -1321,7 +1354,7 @@ export default function ChiTietHoSo() {
                                                         )} ₫
                                                     </td>
                                                     <td style={{ textAlign: "center" }}>
-                                                        {isProjectCompleted ? (
+                                                        {isProjectCompleted && canManageInventory ? (
                                                             <button
                                                                 onClick={() => openReturnModal(item)}
                                                                 style={{
@@ -1358,9 +1391,11 @@ export default function ChiTietHoSo() {
                         <section className="progress-section animate-fade-in">
                             <div className="section-header">
                                 <h3>Tiến độ thi công</h3>
+                                {canManageTasks && (
                                 <button className="btn-add-member" onClick={handleAddTask}>
                                     + Thêm công việc
                                 </button>
+                                )}
                             </div>
 
                             {/* Progress bar */}
@@ -1427,8 +1462,12 @@ export default function ChiTietHoSo() {
                                                             <span>ID: #{task.id}</span>
                                                         </div>
                                                         <div className="kb-v3-actions">
+                                                            {canManageTasks && (
                                                             <button className="kb-v3-btn edit" onClick={() => handleEditTask(task)}>✎</button>
+                                                            )}
+                                                            {canDeleteTasks && (
                                                             <button className="kb-v3-btn del" onClick={() => handleDeleteTask(task.id)}>🗑</button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
