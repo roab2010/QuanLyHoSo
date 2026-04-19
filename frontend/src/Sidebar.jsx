@@ -140,9 +140,31 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
     return (
         <>
         <aside className="sidebar">
-            <div className="sidebar-header">
-                <h2>Hệ thống Quản lý</h2>
-                <span>DocuVault System</span>
+            <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '24px', marginBottom: '10px' }}>
+                <div style={{ 
+                    width: '38px', 
+                    height: '38px', 
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', 
+                    color: 'white', 
+                    borderRadius: '10px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)',
+                    flexShrink: 0
+                }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <path d="M9 15h6"></path>
+                        <path d="M9 11h6"></path>
+                        <path d="M9 19h6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 style={{ fontSize: '20px', margin: 0, color: '#1e293b' }}>DocuVault</h2>
+                    <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hệ thống Quản trị</span>
+                </div>
             </div>
 
             <nav className="sidebar-nav" style={{ 

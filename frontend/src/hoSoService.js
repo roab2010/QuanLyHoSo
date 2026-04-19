@@ -365,3 +365,40 @@ export const deleteTemplateDoc = async (id) => {
     throw error;
   }
 };
+
+/**
+ * --- NHẬT KÝ THI CÔNG (CONSTRUCTION LOGS) ---
+ */
+export const getConstructionLogs = async (projectId) => {
+  try {
+    const res = await api.get(`/projects/${projectId}/construction-logs`);
+    return res.data;
+  } catch (e) {
+    console.error("Lỗi lấy nhật ký thi công:", e);
+    return { success: false, logs: [] };
+  }
+};
+
+export const createConstructionLog = async (projectId, formData) => {
+  const res = await api.post(`/projects/${projectId}/construction-logs`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+
+export const deleteConstructionLog = async (logId) => {
+  const res = await api.delete(`/construction-logs/${logId}`);
+  return res.data;
+};
+
+export const addLogImages = async (logId, formData) => {
+  const res = await api.post(`/construction-logs/${logId}/images`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+
+export const deleteLogImage = async (imageId) => {
+  const res = await api.delete(`/construction-log-images/${imageId}`);
+  return res.data;
+};

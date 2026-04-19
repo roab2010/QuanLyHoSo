@@ -128,6 +128,7 @@ export default function QuanLyNhanVien({ admin }) {
                 { id: "kanban.drag", name: "Kéo thả Kanban", desc: "Thay đổi trạng thái tiến độ trên bảng Kanban." },
                 { id: "tasks.manage", name: "Quản lý công việc", desc: "Thêm, sửa công việc trong dự án." },
                 { id: "tasks.delete", name: "Xóa công việc", desc: "Xóa công việc khỏi dự án." },
+                { id: "logs.manage", name: "Quản lý nhật ký thi công", desc: "Thêm, xóa nhật ký thi công và hình ảnh tiến độ." },
                 { id: "members.manage", name: "Quản lý thành viên", desc: "Phân công, gỡ thành viên khỏi dự án." },
             ]
         },
@@ -229,6 +230,23 @@ export default function QuanLyNhanVien({ admin }) {
             toast.error(error.response?.data?.error || "Lỗi khi lưu");
         }
         setSubmitting(false);
+    };
+
+    const handleDeleteRole = async (roleId) => {
+        const confirmed = await toast.showConfirm("Bạn có chắc chắn muốn xoá chức vụ này?");
+        if (!confirmed) return;
+        try {
+            const res = await api.delete(`/roles/${roleId}`);
+            if (res.status === 200) {
+                toast.success("Xoá chức vụ thành công");
+                if (editRoleData && editRoleData.id === roleId) {
+                    setEditRoleData(null);
+                }
+                fetchData();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Lỗi khi xoá chức vụ");
+        }
     };
 
     const handleCreateRole = async () => {
@@ -466,13 +484,23 @@ export default function QuanLyNhanVien({ admin }) {
                         {editRoleData && (
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#fff', position: 'relative' }}>
                                 <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9' }}>
-                                    <div style={{ marginBottom: '20px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.8px' }}>
-                                            <Settings2 size={16} /> CẤU HÌNH HỆ THỐNG
+                                    <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.8px' }}>
+                                                <Settings2 size={16} /> CẤU HÌNH HỆ THỐNG
+                                            </div>
+                                            <h3 style={{ margin: 0, fontSize: '28px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.5px' }}>
+                                                Chức vụ: <span style={{ color: editRoleData.color || '#2563eb', textTransform: 'capitalize' }}>{editRoleData.name}</span>
+                                            </h3>
                                         </div>
-                                        <h3 style={{ margin: 0, fontSize: '28px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.5px' }}>
-                                            Chức vụ: <span style={{ color: editRoleData.color || '#2563eb', textTransform: 'capitalize' }}>{editRoleData.name}</span>
-                                        </h3>
+                                        {!editRoleData.isNew && editRoleData.name !== 'admin' && (
+                                            <button 
+                                                onClick={() => handleDeleteRole(editRoleData.id)}
+                                                style={{ padding: '8px 16px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}
+                                            >
+                                                <Trash2 size={16} /> XOÁ CHỨC VỤ
+                                            </button>
+                                        )}
                                     </div>
                                     <div style={{ display: 'flex', gap: '32px' }}>
                                         <button onClick={() => setRoleDetailTab("display")} style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '800', color: roleDetailTab === 'display' ? '#0f172a' : '#cbd5e1', cursor: 'pointer', borderBottom: roleDetailTab === 'display' ? '3px solid #0f172a' : '3px solid transparent', paddingBottom: '8px', transition: 'all 0.2s', textTransform: 'uppercase', fontFamily: FONT_PREMIUM }}>HIỂN THỊ & MÀU</button>

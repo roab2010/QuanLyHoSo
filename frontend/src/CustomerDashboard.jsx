@@ -49,6 +49,24 @@ export default function CustomerDashboard() {
     const [changingPassword, setChangingPassword] = useState(false);
     const [isEditingPassword, setIsEditingPassword] = useState(false);
 
+    // Construction Logs State
+    const [constructionLogs, setConstructionLogs] = useState([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+
+    const fetchConstructionLogs = async (projectId) => {
+        setLogsLoading(true);
+        try {
+            const res = await axios.get(`http://127.0.0.1:8000/api/projects/${projectId}/construction-logs`);
+            if (res.data.success) {
+                setConstructionLogs(res.data.logs || []);
+            }
+        } catch (e) {
+            console.error("Lỗi lấy nhật ký:", e);
+        } finally {
+            setLogsLoading(false);
+        }
+    };
+
     // Update profileData when user state changes (e.g. after login/refresh)
     useEffect(() => {
         if (user) {
@@ -58,6 +76,7 @@ export default function CustomerDashboard() {
                 phone: user.phone || "",
                 image: user.image || ""
             });
+
         }
     }, [user]);
 
@@ -69,7 +88,7 @@ export default function CustomerDashboard() {
 
         const fetchProjects = async () => {
             try {
-                const res = await axios.get(`http://127.0.0.1:8000/api/customer/projects/${user.id}`);
+                const res = await axios.get(`http://127.0.0.1:8000/api/customer/projects?customer_id=${user.id}`);
                 setProjects(res.data);
             } catch (err) {
                 console.error("Lỗi lấy dự án khách hàng:", err);
@@ -77,6 +96,7 @@ export default function CustomerDashboard() {
                 setLoading(false);
             }
         };
+
 
         const fetchNews = async () => {
             try {
@@ -283,7 +303,15 @@ export default function CustomerDashboard() {
             {/* Sidebar */}
             <aside className="dash-aside">
                 <div className="aside-brand">
-                    <div className="brand-icon">D</div>
+                    <div className="brand-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <path d="M9 15h6"></path>
+                            <path d="M9 11h6"></path>
+                            <path d="M9 19h6"></path>
+                        </svg>
+                    </div>
                     <span className="brand-name">DocuVault</span>
                 </div>
 
@@ -408,11 +436,12 @@ export default function CustomerDashboard() {
                                                     const colors = STATUS_COLORS[label];
                                                     const prog = getProjectProgress(proj);
                                                     return (
-                                                        <div key={proj.id} className="proj-item-v3" onClick={() => { setSelectedProject(proj); setActiveView('project-detail'); }} style={{ cursor: 'pointer' }}>
+                                                        <div key={proj.id} className="proj-item-v3" onClick={() => { setSelectedProject(proj); setActiveView('project-detail'); fetchConstructionLogs(proj.id); }} style={{ cursor: 'pointer' }}>
                                                             <div className="item-v3-top">
                                                                 <span className="v3-type">THIẾT KẾ & XÂY DỰNG</span>
                                                                 <span className="v3-st" style={{ background: colors.bg, color: colors.color }}>{label}</span>
                                                             </div>
+
                                                             <h4>{proj.name}</h4>
                                                             <div className="item-v3-meta">
                                                                 <div className="meta-line">
@@ -729,7 +758,69 @@ export default function CustomerDashboard() {
                                                 <p className="v3-empty">Chưa có tài liệu đính kèm.</p>
                                             )}
                                         </div>
+
+                                        {/* NHẬT KÝ THI CÔNG */}
+                                        <div className="card-v3 logs-card-v3" style={{ marginTop: '32px' }}>
+                                            <div className="sect-head" style={{ marginBottom: '24px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: '28px' }}>photo_library</span>
+                                                    <h4 style={{ margin: 0 }}>Nhật ký thi công</h4>
+                                                </div>
+                                            </div>
+
+                                            {logsLoading ? (
+                                                <p className="v3-empty">Đang tải dữ liệu nhật ký...</p>
+                                            ) : constructionLogs.length > 0 ? (
+                                                <div style={{ position: 'relative', paddingLeft: '30px' }}>
+                                                    <div style={{ position: 'absolute', left: '10px', top: '10px', bottom: '20px', width: '2px', background: '#e2e8f0' }}></div>
+                                                    {constructionLogs.map((log) => (
+                                                        <div key={log.id} style={{ position: 'relative', marginBottom: '32px' }}>
+                                                            <div style={{ position: 'absolute', left: '-25px', top: '12px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)', border: '2px solid white', boxShadow: '0 0 0 2px var(--primary)' }}></div>
+                                                            <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '20px', border: '1px solid #f1f5f9' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                                                    <div>
+                                                                        <strong style={{ fontSize: '15px' }}>{new Date(log.log_date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                                                                        {log.title && <p style={{ margin: '4px 0 0', fontWeight: 'bold', color: 'var(--primary)' }}>{log.title}</p>}
+                                                                    </div>
+                                                                    {log.weather && (
+                                                                        <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+                                                                            {log.weather}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {log.description && (
+                                                                    <p style={{ fontSize: '13px', color: 'var(--text)', margin: '0 0 16px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                                                                        {log.description}
+                                                                    </p>
+                                                                )}
+                                                                
+                                                                {log.images && log.images.length > 0 && (
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
+                                                                        {log.images.map(img => (
+                                                                            <div key={img.id} style={{ aspectRatio: '1', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer' }} onClick={() => setPreviewingImage(`http://127.0.0.1:8000${img.image_url}`)}>
+                                                                                <img src={`http://127.0.0.1:8000${img.image_url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Nhật ký" />
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '11px', color: 'var(--dim)' }}>
+                                                                    <span>👷 {log.created_by || 'Giám sát'}</span>
+                                                                    <span>📷 {log.images?.length || 0} hình ảnh</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div style={{ textAlign: 'center', padding: '40px 20px', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #e2e8f0' }}>
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#cbd5e1' }}>photo_library</span>
+                                                    <p style={{ color: 'var(--dim)', marginTop: '12px', fontSize: '13px' }}>Chưa có nhật ký thi công.</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+
 
                                     <div className="detail-side-col">
                                         <div className="card-v3 progress-card-v3" style={{ marginBottom: '32px' }}>
@@ -921,9 +1012,19 @@ export default function CustomerDashboard() {
 
                 /* Explicit Sidebar */
                 .dash-aside { width: 280px; background: var(--aside); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; padding: 40px 24px; flex-shrink: 0; }
-                .aside-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
-                .brand-icon { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
-                .brand-name { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; }
+                .aside-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 48px; }
+                .brand-icon { 
+                    width: 42px; 
+                    height: 42px; 
+                    background: linear-gradient(135deg, #2563eb, #1d4ed8); 
+                    color: white; 
+                    border-radius: 12px; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.15);
+                }
+                .brand-name { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
 
                 .aside-focus { background: var(--main); padding: 16px; border-radius: 16px; display: flex; gap: 12px; margin-bottom: 32px; }
                 .focus-chip { width: 36px; height: 36px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--primary); }
