@@ -58,6 +58,25 @@ export default function ProjectDocuments() {
         }
     };
 
+    // Permission tracking
+    const admin = JSON.parse(localStorage.getItem("admin_user") || "null");
+    const hasPermission = (permKey) => {
+        if (!admin) return false;
+        if (admin.role === 'admin') return true;
+        try {
+            const perms = JSON.parse(admin.permissions || '[]');
+            if (perms.includes(permKey)) return true;
+            if (!permKey.includes('.')) {
+                return perms.some(p => p.startsWith(permKey + '.'));
+            }
+            return false;
+        } catch (e) { return false; }
+    };
+    
+    const canUploadDoc = hasPermission("documents.upload");
+    const canEditDoc = hasPermission("documents.edit");
+    const canDeleteDoc = hasPermission("documents.delete");
+
     useEffect(() => {
         fetchMetadata();
     }, []);
@@ -249,9 +268,11 @@ export default function ProjectDocuments() {
                         {docTypes.map(t => <option key={t.id} value={t.type_name}>{t.type_name}</option>)}
                     </select>
 
-                    <button className="btn-add-cat" onClick={() => setShowUploadModal(true)} style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>
-                        + Tải tài liệu
-                    </button>
+                    {canUploadDoc && (
+                        <button className="btn-add-cat" onClick={() => setShowUploadModal(true)} style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>
+                            + Tải tài liệu
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -327,24 +348,28 @@ export default function ProjectDocuments() {
                                                 </button>
                                             </>
                                         )}
-                                        <button
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                            title="Sửa"
-                                            onClick={() => handleEditClick(doc)}
-                                            onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
-                                            onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
-                                        >
-                                            <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
-                                        </button>
-                                        <button
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                            title="Xóa"
-                                            onClick={() => handleDelete(doc.id)}
-                                            onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
-                                            onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
-                                        >
-                                            <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
-                                        </button>
+                                        {canEditDoc && (
+                                            <button
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                title="Sửa"
+                                                onClick={() => handleEditClick(doc)}
+                                                onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
+                                                onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
+                                            >
+                                                <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
+                                            </button>
+                                        )}
+                                        {canDeleteDoc && (
+                                            <button
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                title="Xóa"
+                                                onClick={() => handleDelete(doc.id)}
+                                                onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
+                                                onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
+                                            >
+                                                <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

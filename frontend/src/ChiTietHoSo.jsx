@@ -140,11 +140,20 @@ export default function ChiTietHoSo() {
         if (admin.role === 'admin') return true;
         try {
             const perms = JSON.parse(admin.permissions || '[]');
-            if (perms.includes(permKey)) return true;
-            if (!permKey.includes('.')) {
-                return perms.some(p => p.startsWith(permKey + '.'));
+            let hasGlobal = false;
+            if (perms.includes(permKey)) hasGlobal = true;
+            else if (!permKey.includes('.')) {
+                hasGlobal = perms.some(p => p.startsWith(permKey + '.'));
             }
-            return false;
+
+            if (hasGlobal && project) {
+                const isSupervisor = project.supervisor?.user_id === admin.id;
+                const isMember = project.members?.some(m => m.employee?.user_id === admin.id);
+                if (!isSupervisor && !isMember) {
+                    return false;
+                }
+            }
+            return hasGlobal;
         } catch (e) { return false; }
     };
 
@@ -157,6 +166,7 @@ export default function ChiTietHoSo() {
     const canDeleteTasks = hasPermission("tasks.delete");
     const canManageInventory = hasPermission("inventory.manage");
     const canManageLogs = hasPermission("logs.manage");
+    const canDragKanban = hasPermission("kanban.drag");
 
     const isProjectCompleted = project?.status === 'COMPLETED' || project?.status === 'done' || project?.progress === 100;
 
@@ -316,6 +326,12 @@ export default function ChiTietHoSo() {
     const handleDragOver = (e) => e.preventDefault();
     const handleDrop = async (e, targetStatus) => {
         e.preventDefault();
+        
+        if (!canDragKanban) {
+            toast.error("Bạn không có quyền cập nhật tiến độ công việc trên bảng Kanban!");
+            return;
+        }
+
         const task = dragItem.current;
         // Cho phép Admin thay đổi trạng thái tự do
         if (!task || task.status === targetStatus) return;
@@ -998,8 +1014,9 @@ export default function ChiTietHoSo() {
                                                             <div 
                                                                 className="kb-v3-task" 
                                                                 key={t.id}
-                                                                draggable
-                                                                onDragStart={(e) => handleDragStart(e, t)}
+                                                                draggable={canDragKanban ? "true" : "false"}
+                                                                onDragStart={canDragKanban ? (e) => handleDragStart(e, t) : undefined}
+                                                                style={{ cursor: canDragKanban ? 'grab' : 'default' }}
                                                             >
                                                                 <span className="kb-v3-task-name">{t.task_name}</span>
                                                                 <div className="kb-v3-task-meta">
@@ -1166,24 +1183,28 @@ export default function ChiTietHoSo() {
                                                                 <span style={{ marginLeft: '4px', fontSize: '12px', fontWeight: '600' }}>Tải lên</span>
                                                             </button>
                                                         )}
-                                                        <button
-                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                            title="Sửa"
-                                                            onClick={() => handleOpenEditDoc(doc)}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
-                                                        >
-                                                            <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
-                                                        </button>
-                                                        <button
-                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                            title="Xóa"
-                                                            onClick={() => handleDeleteDoc(doc.id)}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
-                                                        >
-                                                            <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
-                                                        </button>
+                                                        {canEditDoc && (
+                                                            <button
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                title="Sửa"
+                                                                onClick={() => handleOpenEditDoc(doc)}
+                                                                onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
+                                                            >
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
+                                                            </button>
+                                                        )}
+                                                        {canDeleteDoc && (
+                                                            <button
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                title="Xóa"
+                                                                onClick={() => handleDeleteDoc(doc.id)}
+                                                                onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
+                                                            >
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1553,8 +1574,9 @@ export default function ChiTietHoSo() {
                                                     <div
                                                         className="kb-v3-task"
                                                         key={task.id}
-                                                        draggable
-                                                        onDragStart={(e) => handleDragStart(e, task)}
+                                                        draggable={canDragKanban ? "true" : "false"}
+                                                        onDragStart={canDragKanban ? (e) => handleDragStart(e, task) : undefined}
+                                                        style={{ cursor: canDragKanban ? 'grab' : 'default' }}
                                                     >
                                                         <span className="kb-v3-task-name">{task.task_name}</span>
                                                         <div className="kb-v3-task-meta">
