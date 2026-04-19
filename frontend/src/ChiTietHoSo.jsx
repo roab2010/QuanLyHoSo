@@ -19,7 +19,12 @@ import {
     requestProjectMaterials,
     getAllInventoryItems,
     getPendingMaterialRequests,
-    getDocumentsMetadata
+    getDocumentsMetadata,
+    getConstructionLogs,
+    createConstructionLog,
+    deleteConstructionLog,
+    addLogImages,
+    deleteLogImage
 } from "./hoSoService";
 import { useToast } from "./Toast";
 import JSZip from "jszip";
@@ -91,6 +96,7 @@ export default function ChiTietHoSo() {
     const [positions, setPositions] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState("");
     const [selectedPosition, setSelectedPosition] = useState("");
+    const [customPosition, setCustomPosition] = useState("");
 
     // Vat tu & thiet bi state
     const [vatTuItems, setVatTuItems] = useState([]);
@@ -111,6 +117,18 @@ export default function ChiTietHoSo() {
     
     // Pending requests state
     const [pendingRequests, setPendingRequests] = useState([]);
+
+    // Construction Log state
+    const [constructionLogs, setConstructionLogs] = useState([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [showLogModal, setShowLogModal] = useState(false);
+    const [logForm, setLogForm] = useState({ log_date: new Date().toISOString().split('T')[0], title: '', description: '', weather: '' });
+    const [logImages, setLogImages] = useState([]);
+    const [savingLog, setSavingLog] = useState(false);
+    const [lightboxImage, setLightboxImage] = useState(null);
+    const logFileInputRef = useRef(null);
+    const [addingImagesTo, setAddingImagesTo] = useState(null);
+    const quickImageRef = useRef(null);
 
     // Drag state
     const dragItem = useRef(null);
@@ -138,6 +156,7 @@ export default function ChiTietHoSo() {
     const canManageTasks = hasPermission("tasks.manage");
     const canDeleteTasks = hasPermission("tasks.delete");
     const canManageInventory = hasPermission("inventory.manage");
+    const canManageLogs = hasPermission("logs.manage");
 
     const isProjectCompleted = project?.status === 'COMPLETED' || project?.status === 'done' || project?.progress === 100;
 
@@ -213,9 +232,21 @@ export default function ChiTietHoSo() {
         fetchDocMetadata();
     }, [id]);
 
+    const fetchConstructionLogs = async () => {
+        setLogsLoading(true);
+        const res = await getConstructionLogs(id);
+        if (res?.success) {
+            setConstructionLogs(res.logs || []);
+        }
+        setLogsLoading(false);
+    };
+
     useEffect(() => {
         if (activeTab === "vat-tu") {
             fetchVatTu();
+        }
+        if (activeTab === "tien-do") {
+            fetchConstructionLogs();
         }
     }, [activeTab]);
 
@@ -482,6 +513,7 @@ export default function ChiTietHoSo() {
         setPositions(pos);
         setSelectedEmployee("");
         setSelectedPosition("");
+        setCustomPosition("");
         setShowMemberModal(true);
     };
     const handleAddMember = async () => {
@@ -489,9 +521,11 @@ export default function ChiTietHoSo() {
         try {
             await addMember(id, { 
                 employee_id: selectedEmployee,
-                project_position_id: selectedPosition || null
+                project_position_id: selectedPosition === "other" ? null : (selectedPosition || null),
+                custom_position_name: selectedPosition === "other" ? customPosition : null
             });
             setShowMemberModal(false);
+            setCustomPosition("");
             fetchData();
             toast.success("Đã phân công thành viên mới vào dự án");
         } catch (e) {
@@ -633,6 +667,87 @@ export default function ChiTietHoSo() {
             toast.error(e?.response?.data?.message || "Lỗi gửi yêu cầu!");
         } finally {
             setRequesting(false);
+        }
+    };
+
+    /* ─── CONSTRUCTION LOG HANDLERS ─── */
+    const handleOpenLogModal = () => {
+        setLogForm({ log_date: new Date().toISOString().split('T')[0], title: '', description: '', weather: '' });
+        setLogImages([]);
+        setShowLogModal(true);
+    };
+
+    const handleLogImageSelect = (e) => {
+        const files = Array.from(e.target.files);
+        setLogImages(prev => [...prev, ...files]);
+    };
+
+    const handleRemoveLogImage = (index) => {
+        setLogImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSaveLog = async () => {
+        if (!logForm.log_date) return toast.warning("Vui lòng chọn ngày");
+        if (!logForm.description && logImages.length === 0) return toast.warning("Vui lòng nhập mô tả hoặc chọn ảnh");
+
+        setSavingLog(true);
+        try {
+            const formData = new FormData();
+            formData.append('log_date', logForm.log_date);
+            formData.append('title', logForm.title || '');
+            formData.append('description', logForm.description || '');
+            formData.append('weather', logForm.weather || '');
+            formData.append('created_by', admin?.full_name || 'Giám sát');
+
+            logImages.forEach((file) => {
+                formData.append('images[]', file);
+            });
+
+            await createConstructionLog(id, formData);
+            setShowLogModal(false);
+            toast.success("Đã lưu nhật ký thi công!");
+            fetchConstructionLogs();
+        } catch (e) {
+            toast.error(e?.response?.data?.message || "Lỗi lưu nhật ký");
+        } finally {
+            setSavingLog(false);
+        }
+    };
+
+    const handleDeleteLog = async (logId) => {
+        const isConfirmed = await toast.showConfirm("Xóa nhật ký này và toàn bộ hình ảnh?");
+        if (!isConfirmed) return;
+        try {
+            await deleteConstructionLog(logId);
+            toast.success("Đã xóa nhật ký");
+            fetchConstructionLogs();
+        } catch (e) {
+            toast.error("Lỗi khi xóa nhật ký");
+        }
+    };
+
+    const handleQuickAddImages = async (logId, files) => {
+        if (!files || files.length === 0) return;
+        try {
+            const formData = new FormData();
+            Array.from(files).forEach(f => formData.append('images[]', f));
+            await addLogImages(logId, formData);
+            toast.success(`Đã thêm ${files.length} ảnh`);
+            fetchConstructionLogs();
+        } catch (e) {
+            toast.error("Lỗi khi thêm ảnh");
+        }
+    };
+
+    const handleDeleteImage = async (imageId) => {
+        const isConfirmed = await toast.showConfirm("Xóa ảnh này?");
+        if (!isConfirmed) return;
+        try {
+            await deleteLogImage(imageId);
+            toast.success("Đã xóa ảnh");
+            fetchConstructionLogs();
+        } catch (e) {
+            toast.error("Lỗi khi xóa ảnh");
         }
     };
 
@@ -1113,7 +1228,7 @@ export default function ChiTietHoSo() {
                                         <div className="member-card" key={m.id}>
                                             <div className="member-avatar">{initials}</div>
                                             <span className="member-role-badge">
-                                                {m.title_name || emp.job_title || "Nhân viên"}
+                                                {m.title_name || m.position?.title_name || m.project_position_title?.title_name || emp.job_title || "Nhân viên"}
                                             </span>
                                             <h4 className="member-name">{emp.full_name || "—"}</h4>
                                             <p className="member-email">{emp.email || "—"}</p>
@@ -1481,6 +1596,117 @@ export default function ChiTietHoSo() {
                                     );
                                 })}
                             </div>
+
+                            {/* ═══ NHẬT KÝ THI CÔNG ═══ */}
+                            <div style={{ marginTop: '48px', borderTop: '2px solid #e2e8f0', paddingTop: '40px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+                                    <div>
+                                        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>📸 Nhật ký thi công</h3>
+                                        <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#94a3b8' }}>Ghi lại tiến độ hàng ngày bằng hình ảnh và mô tả</p>
+                                    </div>
+                                    {canManageLogs && (
+                                        <button className="btn-add-member" onClick={handleOpenLogModal}>
+                                            + Thêm nhật ký
+                                        </button>
+                                    )}
+                                </div>
+
+                                {logsLoading && <p style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>Đang tải nhật ký...</p>}
+
+                                {!logsLoading && constructionLogs.length === 0 && (
+                                    <div style={{ textAlign: 'center', padding: '60px 20px', background: '#f8fafc', borderRadius: '20px', border: '2px dashed #e2e8f0' }}>
+                                        <span style={{ fontSize: '48px' }}>📋</span>
+                                        <p style={{ color: '#94a3b8', marginTop: '16px', fontSize: '14px' }}>Chưa có nhật ký thi công nào được ghi lại.</p>
+                                        {canManageLogs && (
+                                            <button onClick={handleOpenLogModal} style={{ marginTop: '16px', padding: '10px 24px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                                                Tạo nhật ký đầu tiên
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {!logsLoading && constructionLogs.length > 0 && (
+                                    <div style={{ position: 'relative', paddingLeft: '32px' }}>
+                                        {/* Timeline line */}
+                                        <div style={{ position: 'absolute', left: '11px', top: '8px', bottom: '8px', width: '3px', background: 'linear-gradient(to bottom, #2563eb, #93c5fd)', borderRadius: '10px' }}></div>
+
+                                        {constructionLogs.map((log, idx) => (
+                                            <div key={log.id} style={{ position: 'relative', marginBottom: '32px' }}>
+                                                {/* Timeline dot */}
+                                                <div style={{ position: 'absolute', left: '-27px', top: '8px', width: '14px', height: '14px', background: idx === 0 ? '#2563eb' : '#93c5fd', borderRadius: '50%', border: '3px solid #fff', boxShadow: '0 0 0 3px ' + (idx === 0 ? '#2563eb30' : '#93c5fd30') }}></div>
+
+                                                {/* Log card */}
+                                                <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', transition: '0.2s' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                                        <div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                                                                <span style={{ background: '#eff6ff', color: '#2563eb', padding: '4px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '800' }}>
+                                                                    📅 {new Date(log.log_date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                                                </span>
+                                                                {log.weather && (
+                                                                    <span style={{ background: '#f0fdf4', color: '#16a34a', padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: '700' }}>
+                                                                        {log.weather}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {log.title && <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{log.title}</h4>}
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                            {canManageLogs && (
+                                                                <>
+                                                                    <label style={{ cursor: 'pointer', padding: '6px 12px', background: '#f1f5f9', borderRadius: '8px', fontSize: '12px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        📷 Thêm ảnh
+                                                                        <input type="file" hidden multiple accept="image/*" onChange={(e) => handleQuickAddImages(log.id, e.target.files)} />
+                                                                    </label>
+                                                                    <button onClick={() => handleDeleteLog(log.id)} style={{ padding: '6px 10px', background: '#fef2f2', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>🗑</button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {log.description && (
+                                                        <p style={{ margin: '0 0 16px', fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>{log.description}</p>
+                                                    )}
+
+                                                    {/* Photo grid */}
+                                                    {log.images && log.images.length > 0 && (
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', marginTop: '12px' }}>
+                                                            {log.images.map((img) => (
+                                                                <div key={img.id} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '1', cursor: 'pointer', border: '1px solid #e2e8f0' }}>
+                                                                    <img
+                                                                        src={`http://127.0.0.1:8000${img.image_url}`}
+                                                                        alt={img.caption || 'Ảnh thi công'}
+                                                                        onClick={() => setLightboxImage(img)}
+                                                                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: '0.3s' }}
+                                                                        onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+                                                                        onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                                                                    />
+                                                                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', padding: '8px', color: '#fff', fontSize: '10px', fontWeight: '600' }}>
+                                                                        {img.taken_at ? new Date(img.taken_at).toLocaleString('vi-VN') : ''}
+                                                                    </div>
+                                                                    {canManageTasks && (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }}
+                                                                            style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: '22px', height: '22px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.8 }}
+                                                                        >✕</button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    <div style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '16px' }}>
+                                                        <span>👷 {log.created_by || 'Giám sát'}</span>
+                                                        <span>📷 {log.images?.length || 0} ảnh</span>
+                                                        <span>🕐 {new Date(log.created_at).toLocaleString('vi-VN')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                         </section>
                     )}
                 </div>
@@ -1585,8 +1811,20 @@ export default function ChiTietHoSo() {
                                         {pos.title_name}
                                     </option>
                                 ))}
+                                <option value="other">✎ Khác (Tự nhập)...</option>
                             </select>
                         </div>
+                        {selectedPosition === "other" && (
+                            <div className="form-group animate-fade-in" style={{ marginTop: '10px' }}>
+                                <label>Nhập vai trò mới</label>
+                                <input 
+                                    className="form-input"
+                                    placeholder="VD: Kiến trúc sư trưởng, Giám sát..."
+                                    value={customPosition}
+                                    onChange={(e) => setCustomPosition(e.target.value)}
+                                />
+                            </div>
+                        )}
                         <div className="modal-footer">
                             <button
                                 className="btn-cancel"
@@ -1968,6 +2206,112 @@ export default function ChiTietHoSo() {
                                 {requesting ? "⏳ Đang gửi..." : "✔ Gửi yêu cầu"}
                             </button>
                         </div>
+            {/* Modal Yêu Cầu Vật Tư... */}
+            {/* ... Modal Yêu Cầu Vật Tư ... (This is replaced dynamically by your tool logic, doing an inner replacement is tricky, so I'll replace the very end) */}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Thêm Nhật Ký Thi Công */}
+            {showLogModal && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget) setShowLogModal(false);
+                    }}
+                >
+                    <div className="modal-box" style={{ maxWidth: 600 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h3 style={{ margin: 0, fontSize: 20 }}>Tạo Nhật Ký Mới</h3>
+                            <button onClick={() => setShowLogModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b' }}>✕</button>
+                        </div>
+                        <div className="form-group">
+                            <label>Ngày ghi nhận</label>
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={logForm.log_date}
+                                onChange={(e) => setLogForm({ ...logForm, log_date: e.target.value })}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div className="form-group">
+                                <label>Tiêu đề (tuỳ chọn)</label>
+                                <input
+                                    className="form-input"
+                                    placeholder="Vd: Đổ bê tông móng..."
+                                    value={logForm.title}
+                                    onChange={(e) => setLogForm({ ...logForm, title: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Thời tiết (tuỳ chọn)</label>
+                                <input
+                                    className="form-input"
+                                    placeholder="Vd: Nắng đẹp, Mưa dông..."
+                                    value={logForm.weather}
+                                    onChange={(e) => setLogForm({ ...logForm, weather: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label>Mô tả công việc</label>
+                            <textarea
+                                className="form-input"
+                                rows="4"
+                                placeholder="Ghi chú chi tiết công việc đã thực hiện..."
+                                value={logForm.description}
+                                onChange={(e) => setLogForm({ ...logForm, description: e.target.value })}
+                            ></textarea>
+                        </div>
+                        <div className="form-group">
+                            <label>Hình ảnh đính kèm</label>
+                            <div style={{ padding: '20px', border: '2px dashed #cbd5e1', borderRadius: '12px', textAlign: 'center', background: '#f8fafc', cursor: 'pointer' }} onClick={() => logFileInputRef.current.click()}>
+                                <span style={{ fontSize: '24px' }}>📸</span>
+                                <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: '13px' }}>Click để tải ảnh lên (Hỗ trợ chọn nhiều file)</p>
+                                <input type="file" ref={logFileInputRef} hidden multiple accept="image/*" onChange={handleLogImageSelect} />
+                            </div>
+                            
+                            {logImages.length > 0 && (
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
+                                    {logImages.map((file, idx) => (
+                                        <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: '8px', overflow: 'hidden' }}>
+                                            <img src={URL.createObjectURL(file)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="preview" />
+                                            <button onClick={() => handleRemoveLogImage(idx)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: 16, height: 16, fontSize: 10, cursor: 'pointer' }}>✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer" style={{ marginTop: 24 }}>
+                            <button className="btn-cancel" onClick={() => setShowLogModal(false)} disabled={savingLog}>Hủy</button>
+                            <button className="btn-submit" onClick={handleSaveLog} disabled={savingLog}>
+                                {savingLog ? "Đang lưu..." : "Lưu nhật ký"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox Xem ảnh */}
+            {lightboxImage && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setLightboxImage(null)}>
+                    <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setLightboxImage(null)} style={{ position: 'absolute', top: -40, right: 0, background: 'none', border: 'none', color: '#fff', fontSize: '30px', cursor: 'pointer' }}>&times;</button>
+                        {canManageLogs && (
+                            <button
+                                onClick={() => handleDeleteImage(lightboxImage.id)}
+                                style={{ position: 'absolute', top: -40, left: 0, background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                🗑 Xóa ảnh này
+                            </button>
+                        )}
+                        <img src={`http://127.0.0.1:8000${lightboxImage.image_url}`} style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }} alt="Phóng to" />
+                        {(lightboxImage.caption || lightboxImage.taken_at) && (
+                            <div style={{ position: 'absolute', bottom: -40, left: 0, right: 0, color: '#fff', textAlign: 'center', padding: '10px' }}>
+                                {lightboxImage.caption && <p style={{ margin: '0 0 4px', fontWeight: 'bold' }}>{lightboxImage.caption}</p>}
+                                {lightboxImage.taken_at && <p style={{ margin: 0, fontSize: '13px', opacity: 0.8 }}>{new Date(lightboxImage.taken_at).toLocaleString('vi-VN')}</p>}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

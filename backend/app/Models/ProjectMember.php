@@ -12,6 +12,12 @@ class ProjectMember extends Model
     public $timestamps = false;
 
     protected $fillable = ['project_id', 'employee_id', 'project_position_id'];
+    protected $appends = ['title_name'];
+
+    public function getTitleNameAttribute()
+    {
+        return $this->position->title_name ?? ($this->projectPositionTitle->title_name ?? '');
+    }
 
     public function projectPositionTitle()
     {

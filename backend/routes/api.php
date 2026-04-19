@@ -96,6 +96,8 @@ use App\Http\Controllers\EmployeeController;
     Route::get('/roles', [EmployeeController::class, 'getRoles']);
 Route::post('/roles', [EmployeeController::class, 'storeRole']);
 Route::put('/roles/{id}', [EmployeeController::class, 'updateRole']);
+Route::delete('/roles/{id}', [EmployeeController::class, 'destroyRole']);
+
 
 // KHO & VẬT TƯ
 use App\Http\Controllers\WarehouseController;
@@ -131,3 +133,12 @@ Route::post('/customer/change-password/{id}', [CustomerController::class, 'chang
 Route::post('/customer/projects/{projectId}/upload', [ProjectController::class, 'customerUploadDocument']);
 Route::get('/news', [NewsController::class, 'index']);
 Route::get('/crawl-news', [NewsController::class, 'crawl']);
+
+// NHẬT KÝ THI CÔNG (CONSTRUCTION LOGS)
+use App\Http\Controllers\ConstructionLogController;
+
+Route::get('/projects/{projectId}/construction-logs', [ConstructionLogController::class, 'index']);
+Route::post('/projects/{projectId}/construction-logs', [ConstructionLogController::class, 'store']);
+Route::delete('/construction-logs/{logId}', [ConstructionLogController::class, 'destroy']);
+Route::post('/construction-logs/{logId}/images', [ConstructionLogController::class, 'addImages']);
+Route::delete('/construction-log-images/{imageId}', [ConstructionLogController::class, 'deleteImage']);

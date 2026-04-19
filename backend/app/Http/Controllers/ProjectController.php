@@ -605,10 +605,19 @@ class ProjectController extends Controller
     public function addMember(Request $request, $projectId)
     {
         try {
+            $positionId = $request->project_position_id;
+            
+            if ($request->custom_position_name) {
+                $pos = \App\Models\ProjectPositionTitle::firstOrCreate(
+                    ['title_name' => trim($request->custom_position_name)]
+                );
+                $positionId = $pos->id;
+            }
+
             $member = \App\Models\ProjectMember::create([
                 'project_id' => $projectId,
                 'employee_id' => $request->employee_id,
-                'project_position_id' => $request->project_position_id ?? null,
+                'project_position_id' => $positionId,
             ]);
 
             // Load extra info for response format matching
@@ -664,10 +673,10 @@ class ProjectController extends Controller
                 return [
                     'id' => $emp->id,
                     'full_name' => $emp->full_name,
-                    'email' => $emp->email ?? $emp->user->email ?? '',
-                    'phone' => $emp->phone ?? $emp->user->phone ?? '',
-                    'role_name' => $emp->user->role->name ?? '',
-                    'role_color' => $emp->user->role->color ?? ''
+                    'email' => $emp->email ?? ($emp->user ? $emp->user->email : ''),
+                    'phone' => $emp->phone ?? ($emp->user ? $emp->user->phone : ''),
+                    'role_name' => $emp->user && $emp->user->role ? $emp->user->role->name : '',
+                    'role_color' => $emp->user && $emp->user->role ? $emp->user->role->color : ''
                 ];
             });
 

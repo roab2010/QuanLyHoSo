@@ -281,7 +281,36 @@ class EmployeeController extends Controller
             ]);
 
             return response()->json(['message' => 'Cập nhật thành công'], 200);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Xóa chức vụ
+     */
+    public function destroyRole($id)
+    {
+        try {
+            $role = DB::table('roles')->where('id', $id)->first();
+            if (!$role) {
+                return response()->json(['error' => 'Không tìm thấy chức vụ'], 404);
+            }
+
+            if (strtolower($role->name) === 'admin') {
+                return response()->json(['error' => 'Không thể xóa chức vụ quản trị (Admin)'], 403);
+            }
+
+            // check if being used
+            $usersCount = DB::table('users')->where('role_id', $id)->count();
+            if ($usersCount > 0) {
+                return response()->json(['error' => 'Không thể xóa chức vụ đang được gắn cho ' . $usersCount . ' nhân viên'], 400);
+            }
+
+            DB::table('roles')->where('id', $id)->delete();
+
+            return response()->json(['message' => 'Xóa chức vụ thành công'], 200);
+        } catch (\Exception $e) {
             return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
         }
     }
