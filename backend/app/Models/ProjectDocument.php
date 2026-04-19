@@ -13,7 +13,7 @@ class ProjectDocument extends Model
 
     protected $fillable = [
         'project_id', 'document_name', 'file_url',
-        'uploaded_at', 'status', 'category_name', 'note'
+        'uploaded_at', 'status', 'document_type_id', 'note'
     ];
 
     protected $casts = [
@@ -23,5 +23,10 @@ class ProjectDocument extends Model
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    public function documentType()
+    {
+        return $this->belongsTo(DocumentType::class, 'document_type_id');
     }
 }

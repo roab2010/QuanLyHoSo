@@ -325,7 +325,7 @@ export default function ChiTietHoSo() {
         setEditDocId(doc.id);
         setDocForm({
             name: doc.document_name,
-            type: doc.category_name,
+            type: doc.document_type_id || "",
             note: doc.note || "",
             file: null
         });
@@ -341,7 +341,7 @@ export default function ChiTietHoSo() {
         const formData = new FormData();
         formData.append('document_name', docForm.name);
         formData.append('project_id', id);
-        formData.append('category_name', docForm.type);
+        formData.append('document_type_id', docForm.type);
         if (docForm.note) formData.append('note', docForm.note);
         if (docForm.file) formData.append('file', docForm.file);
 
@@ -996,7 +996,7 @@ export default function ChiTietHoSo() {
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span style={{ color: '#64748b' }}>{doc.category_name}</span>
+                                                    <span style={{ color: '#64748b' }}>{doc.document_type?.type_name || "Chưa phân loại"}</span>
                                                 </td>
                                                 <td>
                                                     {doc.uploaded_at
@@ -1766,9 +1766,9 @@ export default function ChiTietHoSo() {
                             </div>
                             <div className="form-group">
                                 <label>Loại tài liệu <span style={{ color: "red" }}>*</span></label>
-                                <select required className="form-control" name="category_name" value={docForm.type} onChange={e => setDocForm({...docForm, type: e.target.value})}>
+                                <select required className="form-control" name="document_type_id" value={docForm.type} onChange={e => setDocForm({...docForm, type: e.target.value})}>
                                     <option value="">-- Chọn loại --</option>
-                                    {docTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                    {docTypes.map(t => <option key={t.id} value={t.id}>{t.type_name}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">

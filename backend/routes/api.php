@@ -71,6 +71,7 @@ Route::delete('/template-tasks/{id}', [TemplateTaskController::class, 'destroy']
 use App\Http\Controllers\TemplateDocumentController;
 
 Route::get('/template-documents/category/{categoryId}', [TemplateDocumentController::class, 'index']);
+Route::get('/document-types', [TemplateDocumentController::class, 'getDocumentTypes']);
 Route::post('/template-documents', [TemplateDocumentController::class, 'store']);
 Route::put('/template-documents/{id}', [TemplateDocumentController::class, 'update']);
 Route::delete('/template-documents/{id}', [TemplateDocumentController::class, 'destroy']);

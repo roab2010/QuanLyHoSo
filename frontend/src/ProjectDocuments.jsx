@@ -25,7 +25,7 @@ export default function ProjectDocuments() {
     const [newDoc, setNewDoc] = useState({ 
         name: '', 
         project_id: '', 
-        type: '', 
+        document_type_id: '', 
         note: '',
         file: null 
     });
@@ -83,14 +83,14 @@ export default function ProjectDocuments() {
         formData.append('file', newDoc.file);
         formData.append('document_name', newDoc.name);
         formData.append('project_id', newDoc.project_id);
-        formData.append('category_name', newDoc.type);
+        formData.append('document_type_id', newDoc.document_type_id);
         formData.append('note', newDoc.note);
 
         try {
             const res = await axios.post(`${API_BASE_URL}/documents/upload`, formData);
             alert(res.data.message);
             setShowUploadModal(false);
-            setNewDoc({ name: '', project_id: '', type: '', note: '', file: null });
+            setNewDoc({ name: '', project_id: '', document_type_id: '', note: '', file: null });
             fetchDocuments();
         } catch (err) {
             alert(err.response?.data?.error || "Lỗi khi tải lên!");
@@ -103,7 +103,7 @@ export default function ProjectDocuments() {
         setNewDoc({
             name: doc.document_name,
             project_id: doc.project_id,
-            type: doc.category_name,
+            document_type_id: doc.document_type_id || '',
             note: doc.note || '',
             file: null
         });
@@ -118,7 +118,7 @@ export default function ProjectDocuments() {
         if (newDoc.file) formData.append('file', newDoc.file);
         formData.append('document_name', newDoc.name);
         formData.append('project_id', newDoc.project_id);
-        formData.append('category_name', newDoc.type);
+        formData.append('document_type_id', newDoc.document_type_id);
         formData.append('note', newDoc.note);
 
         try {
@@ -126,7 +126,7 @@ export default function ProjectDocuments() {
             alert(res.data.message);
             setShowEditModal(false);
             setEditDocId(null);
-            setNewDoc({ name: '', project_id: '', type: '', note: '', file: null });
+            setNewDoc({ name: '', project_id: '', document_type_id: '', note: '', file: null });
             fetchDocuments();
         } catch (err) {
             alert(err.response?.data?.error || "Lỗi khi cập nhật!");
@@ -246,7 +246,7 @@ export default function ProjectDocuments() {
                         onChange={(e) => setFilterType(e.target.value)}
                     >
                         <option value="">-- Tất cả loại --</option>
-                        {docTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                        {docTypes.map(t => <option key={t.id} value={t.type_name}>{t.type_name}</option>)}
                     </select>
 
                     <button className="btn-add-cat" onClick={() => setShowUploadModal(true)} style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>
@@ -284,7 +284,7 @@ export default function ProjectDocuments() {
                                     <span style={{ color: '#2563eb', fontWeight: '500' }}>{doc.project?.name || "N/A"}</span>
                                 </td>
                                 <td>
-                                    <span style={{ color: '#64748b' }}>{doc.category_name}</span>
+                                    <span style={{ color: '#64748b' }}>{doc.document_type?.type_name || 'Chưa phân loại'}</span>
                                 </td>
                                 <td style={{textAlign: 'center'}}>
                                     <span className={`status-badge ${
@@ -378,9 +378,9 @@ export default function ProjectDocuments() {
                             </div>
                             <div className="form-group">
                                 <label>Loại tài liệu</label>
-                                <select required className="form-control" name="category_name" value={newDoc.type} onChange={e => setNewDoc({...newDoc, type: e.target.value})}>
+                                <select required className="form-control" name="document_type_id" value={newDoc.document_type_id} onChange={e => setNewDoc({...newDoc, document_type_id: e.target.value})}>
                                     <option value="">-- Chọn loại --</option>
-                                    {docTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                    {docTypes.map(t => <option key={t.id} value={t.id}>{t.group_name ? `[${t.group_name}] ` : ''}{t.type_name}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">
@@ -420,9 +420,9 @@ export default function ProjectDocuments() {
                             </div>
                             <div className="form-group">
                                 <label>Loại tài liệu</label>
-                                <select required className="form-control" name="category_name" value={newDoc.type} onChange={e => setNewDoc({...newDoc, type: e.target.value})}>
+                                <select required className="form-control" name="document_type_id" value={newDoc.document_type_id} onChange={e => setNewDoc({...newDoc, document_type_id: e.target.value})}>
                                     <option value="">-- Chọn loại --</option>
-                                    {docTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                    {docTypes.map(t => <option key={t.id} value={t.id}>{t.group_name ? `[${t.group_name}] ` : ''}{t.type_name}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">

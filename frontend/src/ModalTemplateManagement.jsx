@@ -106,57 +106,77 @@ export default function ModalTemplateManagement({
         </div>
 
         <div className="modal-body">
-          {/* Form thêm mới */}
-          <div className="template-form-grid">
-            <div className="template-form-item">
-              <label className="form-label">Tên công việc mẫu</label>
+          {/* Form thêm / chỉnh sửa */}
+          <div style={{
+            background: editingTaskId ? '#fffbeb' : '#f8faff',
+            border: `1px solid ${editingTaskId ? '#fde68a' : '#dbeafe'}`,
+            borderRadius: '10px',
+            padding: '16px 20px',
+            marginBottom: '18px'
+          }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: editingTaskId ? '#b45309' : '#2563eb', marginBottom: '12px' }}>
+              {editingTaskId ? '✏️ Đang chỉnh sửa quy trình mẫu' : '➕ Thêm công việc quy trình mẫu'}
+            </div>
+
+            {/* Hàng 1: Tên công việc (full width) */}
+            <div style={{ marginBottom: '10px' }}>
+              <label className="form-label">Tên công việc mẫu *</label>
               <input
                 className="form-input"
                 type="text"
-                placeholder="VD: Khảo sát..."
+                placeholder="VD: Khảo sát thực địa, Lập bản vẽ thi công..."
                 value={newTaskName}
                 onChange={(e) => setNewTaskName(e.target.value)}
+                style={{ width: '100%' }}
               />
             </div>
-            <div className="template-form-item">
-              <label className="form-label">Khối lượng (%)</label>
-              <input
-                className="form-input"
-                type="number"
-                placeholder="0"
-                value={newTaskVolume}
-                onChange={(e) => setNewTaskVolume(e.target.value)}
-              />
-            </div>
-            <div className="template-form-item">
-              <label className="form-label">Thứ tự</label>
-              <input
-                className="form-input"
-                type="number"
-                placeholder="1"
-                value={newTaskPriority}
-                onChange={(e) => setNewTaskPriority(e.target.value)}
-              />
-            </div>
-            <div className="template-form-item">
-              <label className="form-label">Ngày dự kiến hoàn thành (số ngày)</label>
-              <input
-                className="form-input"
-                type="number"
-                placeholder="0"
-                value={newTaskEstimatedDate}
-                onChange={(e) => setNewTaskEstimatedDate(e.target.value)}
-              />
-            </div>
-            <div className="template-form-item template-form-actions">
-              <button className="btn-submit" onClick={handleSubmit}>
-                {editingTaskId ? "💾 Lưu" : "➕ Thêm"}
-              </button>
-              {editingTaskId && (
-                <button className="btn-cancel" onClick={resetForm}>
-                  Hủy
+
+            {/* Hàng 2: 3 ô số + nút */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '10px', alignItems: 'flex-end' }}>
+              <div>
+                <label className="form-label">Khối lượng (%)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="0"
+                  value={newTaskVolume}
+                  onChange={(e) => setNewTaskVolume(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label">Thứ tự</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="1"
+                  placeholder="1"
+                  value={newTaskPriority}
+                  onChange={(e) => setNewTaskPriority(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label">Số ngày dự kiến</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={newTaskEstimatedDate}
+                  onChange={(e) => setNewTaskEstimatedDate(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '6px', paddingBottom: '2px' }}>
+                <button className="btn-submit" onClick={handleSubmit} style={{ whiteSpace: 'nowrap' }}>
+                  {editingTaskId ? "💾 Lưu" : "➕ Thêm"}
                 </button>
-              )}
+                {editingTaskId && (
+                  <button className="btn-cancel" onClick={resetForm} style={{ whiteSpace: 'nowrap' }}>
+                    Hủy
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
