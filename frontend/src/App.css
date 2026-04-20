@@ -1120,43 +1120,81 @@ body {
 }
 
 /* --- Bá» Cá»¤C 3 Cá»˜T --- */
-.detail-content {
-  display: flex;
-  gap: 30px;
-  align-items: flex-start;
+/* Navigation Bar (Top Tabs) */
+.detail-navbar {
+  margin-top: 20px;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 10px 20px 0;
+  border-bottom: 1px solid #f4f7fe;
 }
 
-/* Sidebar bÃªn trÃ¡i */
-.detail-sidebar {
-  width: 260px;
+.navbar-links {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  overflow-x: auto;
 }
 
-.detail-sidebar button {
-  padding: 18px 25px;
-  text-align: left;
+.detail-navbar button {
+  padding: 14px 20px;
+  text-align: center;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   color: #a3aed0;
   font-weight: 700;
-  border-radius: 20px;
-  transition: 0.3s;
+  border-radius: 12px 12px 0 0;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
 }
 
-.detail-sidebar button.active {
-  background: white !important;
+.detail-navbar button:hover {
+  color: #0052cc;
+  background: #f8fafc;
+}
+
+.detail-navbar button.active {
   color: #0052cc !important;
-  box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.12);
+  border-bottom: 3px solid #0052cc;
+  background: rgba(0, 82, 204, 0.05);
 }
 
-.detail-sidebar button span {
-  float: right;
-  font-size: 20px;
+.navbar-footer-action {
+  background: white;
+  padding: 10px 20px 15px;
+  border-radius: 0 0 20px 20px;
+  margin-bottom: 25px;
+  box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.04);
 }
+
+.btn-back-v2 {
+  background: none;
+  border: none;
+  color: #a3aed0;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.btn-back-v2:hover {
+  color: #0052cc;
+  background: #f4f7fe;
+}
+
+.detail-content {
+  display: block;
+}
+
+/* Sidebar bÃªn trÃ¡i */
+
 
 /* --- Ná»˜I DUNG CHÃNH (BIáº¾N Äá»”I THEO TAB) --- */
 .detail-main {

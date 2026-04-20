@@ -98,6 +98,8 @@ class ProjectDocumentController extends Controller
                 'status'           => $initialStatus,
                 'current_step_id'  => $firstStepId,
                 'uploaded_at'      => now(),
+                'estimated_finish_date' => $request->estimated_finish_date ?? now()->addDay()->toDateString(),
+                'actual_finish_date' => $request->actual_finish_date ?? null,
             ]);
 
             // Nếu có workflow, ghi log bản ghi đầu tiên (SUBMIT)
@@ -143,6 +145,8 @@ class ProjectDocumentController extends Controller
                 'document_name'    => $request->document_name,
                 'document_type_id' => $request->document_type_id,
                 'note'             => $request->note,
+                'estimated_finish_date' => $request->estimated_finish_date ?? $document->estimated_finish_date,
+                'actual_finish_date' => $request->actual_finish_date ?? $document->actual_finish_date,
             ];
 
             // Nếu người dùng chọn file mới -> Xóa file cũ, upload file mới
