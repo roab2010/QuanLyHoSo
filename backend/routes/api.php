@@ -10,6 +10,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ProjectDocumentController;
+use App\Http\Controllers\DocumentWorkflowController;
 use App\Http\Controllers\SystemAuditLogController;
 
 // SYSTEM AUDIT LOGS
@@ -52,6 +53,17 @@ Route::post('/documents/upload', [ProjectDocumentController::class, 'store']);
 Route::post('/documents/{id}', [ProjectDocumentController::class, 'update']);
 Route::delete('/documents/{id}', [ProjectDocumentController::class, 'destroy']);
 Route::put('/projects/{projectId}/documents/{docId}', [ProjectController::class, 'updateDocument']);
+
+// WORKFLOW DUYỆT TÀI LIỆU
+Route::get('/workflow/pending-approvals', [DocumentWorkflowController::class, 'getPendingApprovals']);
+Route::get('/workflow/all-documents', [DocumentWorkflowController::class, 'getAllDocuments']);
+Route::get('/workflow/workflows', [DocumentWorkflowController::class, 'getWorkflows']);
+Route::get('/workflow/document-types', [DocumentWorkflowController::class, 'getDocumentTypes']);
+Route::post('/workflow/documents/{id}/approve', [DocumentWorkflowController::class, 'approve']);
+Route::post('/workflow/documents/{id}/reject', [DocumentWorkflowController::class, 'reject']);
+Route::post('/workflow/documents/{id}/revise', [DocumentWorkflowController::class, 'revise']);
+Route::post('/workflow/documents/{id}/resubmit', [DocumentWorkflowController::class, 'resubmit']);
+Route::get('/workflow/documents/{id}/logs', [DocumentWorkflowController::class, 'getWorkflowLogs']);
 
 // DANH MỤC
 Route::get('/categories', [CategoryController::class, 'index']);

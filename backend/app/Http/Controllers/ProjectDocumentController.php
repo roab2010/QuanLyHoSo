@@ -68,15 +68,49 @@ class ProjectDocumentController extends Controller
             // Lưu trực tiếp vào public/uploads/documents
             $file->move(public_path('uploads/documents'), $fileName);
 
+            // Tìm quy trình (workflow) liên kết với loại tài liệu này
+            $docType = DB::table('document_types')->where('id', $request->document_type_id)->first();
+            $firstStepId = null;
+            $initialStatus = 'PENDING';
+
+            if ($docType && $docType->assigned_workflow_id) {
+                // Lấy bước đầu tiên (sort_order nhỏ nhất)
+                $firstStep = DB::table('workflow_steps')
+                    ->where('workflow_id', $docType->assigned_workflow_id)
+                    ->orderBy('sort_order', 'asc')
+                    ->first();
+                
+                if ($firstStep) {
+                    $firstStepId = $firstStep->id;
+                    $initialStatus = 'PENDING';
+                }
+            } else {
+                // Nếu không có workflow -> Hoàn thành luôn hoặc để PENDING tùy logic
+                $initialStatus = 'COMPLETED'; 
+            }
+
             $document = ProjectDocument::create([
                 'project_id'       => $request->project_id,
                 'document_name'    => $request->document_name,
                 'document_type_id' => $request->document_type_id,
                 'file_url'         => '/uploads/documents/' . $fileName,
                 'note'             => $request->note,
-                'status'           => 'PENDING',
+                'status'           => $initialStatus,
+                'current_step_id'  => $firstStepId,
                 'uploaded_at'      => now(),
             ]);
+
+            // Nếu có workflow, ghi log bản ghi đầu tiên (SUBMIT)
+            if ($firstStepId) {
+                DB::table('document_workflow_logs')->insert([
+                    'document_id' => $document->id,
+                    'step_id'     => $firstStepId,
+                    'processor_id' => $request->header('X-User-ID') ?? 1, // Fallback to Admin
+                    'action'      => 'SUBMIT',
+                    'comment'     => 'Khởi tạo hồ sơ và gửi duyệt',
+                    'created_at'  => now()
+                ]);
+            }
 
             return response()->json([
                 'message' => 'Tải lên tài liệu thành công!',
@@ -169,6 +203,14 @@ class ProjectDocumentController extends Controller
     {
         try {
             $document = ProjectDocument::findOrFail($id);
+
+            // KHÓA: Nếu hồ sơ đang duyệt hoặc đã xong thì không cho sửa
+            $lockedStatuses = ['PROCESSING', 'COMPLETED', 'REJECTED'];
+            if (in_array($document->status, $lockedStatuses)) {
+                return response()->json([
+                    'error' => 'Hồ sơ đang trong quy trình duyệt hoặc đã kết thúc, không thể xóa.'
+                ], 403);
+            }
 
             // Xóa tệp vật lý (Hỗ trợ cả 2 đường dẫn cũ và mới)
             if ($document->file_url) {

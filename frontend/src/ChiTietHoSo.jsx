@@ -1185,24 +1185,60 @@ export default function ChiTietHoSo() {
                                                         )}
                                                         {canEditDoc && (
                                                             <button
-                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                                title="Sửa"
-                                                                onClick={() => handleOpenEditDoc(doc)}
-                                                                onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
-                                                                onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
+                                                                style={{ 
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', 
+                                                                    background: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? '#f3f4f6' : '#fef3c7', 
+                                                                    border: 'none', 
+                                                                    cursor: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 'not-allowed' : 'pointer', 
+                                                                    transition: 'all 0.2s',
+                                                                    opacity: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 0.5 : 1
+                                                                }}
+                                                                title={(doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "Hồ sơ đã khóa" : "Sửa"}
+                                                                onClick={() => {
+                                                                    if (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') return;
+                                                                    handleOpenEditDoc(doc);
+                                                                }}
+                                                                onMouseOver={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fde68a';
+                                                                    }
+                                                                }}
+                                                                onMouseOut={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fef3c7';
+                                                                    }
+                                                                }}
                                                             >
-                                                                <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "grayscale(1)" : "opacity(0.8)" }} />
                                                             </button>
                                                         )}
                                                         {canDeleteDoc && (
                                                             <button
-                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                                title="Xóa"
-                                                                onClick={() => handleDeleteDoc(doc.id)}
-                                                                onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
-                                                                onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
+                                                                style={{ 
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', 
+                                                                    background: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? '#f3f4f6' : '#fee2e2', 
+                                                                    border: 'none', 
+                                                                    cursor: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 'not-allowed' : 'pointer', 
+                                                                    transition: 'all 0.2s',
+                                                                    opacity: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 0.5 : 1
+                                                                }}
+                                                                title={(doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "Hồ sơ đã khóa" : "Xóa"}
+                                                                onClick={() => {
+                                                                    if (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') return;
+                                                                    handleDeleteDoc(doc.id);
+                                                                }}
+                                                                onMouseOver={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fecaca';
+                                                                    }
+                                                                }}
+                                                                onMouseOut={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fee2e2';
+                                                                    }
+                                                                }}
                                                             >
-                                                                <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "grayscale(1)" : "opacity(0.8)" }} />
                                                             </button>
                                                         )}
                                                     </div>

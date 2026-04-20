@@ -13,7 +13,8 @@ class ProjectDocument extends Model
 
     protected $fillable = [
         'project_id', 'document_name', 'file_url',
-        'uploaded_at', 'status', 'document_type_id', 'note'
+        'uploaded_at', 'status', 'document_type_id', 'note',
+        'current_step_id', 'completed_at'
     ];
 
     protected $casts = [
