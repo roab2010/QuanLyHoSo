@@ -119,7 +119,7 @@ export default function DocumentWorkflow({ admin }) {
     const docs = activeTab === 'pending' ? pendingDocs : allDocs;
 
     return (
-        <div style={{ fontFamily: "'Inter', sans-serif", padding: '28px', background: '#f8fafc', minHeight: '100vh' }}>
+        <div className="category-container" style={{ fontFamily: "'Inter', sans-serif", padding: '28px', background: '#f8fafc', minHeight: '100vh' }}>
             {/* Header */}
             <div style={{ marginBottom: '28px' }}>
                 <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#0f172a' }}>

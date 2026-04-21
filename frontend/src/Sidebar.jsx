@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LayoutDashboard, FolderOpen, Settings, Users, Box, UsersRound, FileText, FileSpreadsheet, CheckSquare, LogOut, Camera, User } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Settings, Users, Box, UsersRound, FileText, FileSpreadsheet, CheckSquare, LogOut, Camera, User, ShieldAlert } from 'lucide-react';
 import api from "./api";
 import { getPendingMaterialRequests } from "./hoSoService";
 
@@ -168,6 +168,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             if (label === "Quản lý kho") return hasPermission("inventory") || hasPermission("suppliers");
             if (label === "Báo cáo" || label === "Quản lý tài liệu") return hasPermission("documents");
             if (label === "Duyệt tài liệu") return hasPermission("documents");
+            if (label === "Phân quyền duyệt") return admin?.role === 'admin';
             if (label === "Nhật ký hệ thống") return hasPermission("system_log");
             return true;
         });
@@ -226,13 +227,14 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                                     label === "Danh mục dự án" ? <Settings size={20} color="#9ca3af" /> :
                                         label === "Quản lý tài liệu" ? <FileSpreadsheet size={20} color="#3b82f6" /> :
                                             label === "Duyệt tài liệu" ? <CheckSquare size={20} color="#8b5cf6" /> :
-                                                label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
-                                                    label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
-                                                        label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
-                                                            label === "Nhật ký hệ thống" ? <FileText size={20} color="#10b981" /> :
-                                                                label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
-                                                                    label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
-                                                                        <FolderOpen size={20} />}
+                                                label === "Phân quyền duyệt" ? <ShieldAlert size={20} color="#dc2626" /> :
+                                                    label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
+                                                        label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
+                                                            label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
+                                                                label === "Nhật ký hệ thống" ? <FileText size={20} color="#10b981" /> :
+                                                                    label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
+                                                                        label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
+                                                                            <FolderOpen size={20} />}
 
                         </span>
                         <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>

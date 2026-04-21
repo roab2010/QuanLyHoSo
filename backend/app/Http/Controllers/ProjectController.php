@@ -687,9 +687,11 @@ class ProjectController extends Controller
             ->map(function($emp) {
                 return [
                     'id' => $emp->id,
+                    'user_id' => $emp->user_id, // Quan trọng để map sang workflow_project_approvers
                     'full_name' => $emp->full_name,
                     'email' => $emp->email ?? ($emp->user ? $emp->user->email : ''),
                     'phone' => $emp->phone ?? ($emp->user ? $emp->user->phone : ''),
+                    'role_id' => $emp->user ? $emp->user->role_id : null, // Quan trọng để tự động chọn loại tài liệu
                     'role_name' => $emp->user && $emp->user->role ? $emp->user->role->name : '',
                     'role_color' => $emp->user && $emp->user->role ? $emp->user->role->color : ''
                 ];

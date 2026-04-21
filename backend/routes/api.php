@@ -65,6 +65,11 @@ Route::post('/workflow/documents/{id}/revise', [DocumentWorkflowController::clas
 Route::post('/workflow/documents/{id}/resubmit', [DocumentWorkflowController::class, 'resubmit']);
 Route::get('/workflow/documents/{id}/logs', [DocumentWorkflowController::class, 'getWorkflowLogs']);
 
+// PHÂN QUYỀN DUYỆT TÀI LIỆU
+Route::get('/workflow/approvers', [DocumentWorkflowController::class, 'getApprovers']);
+Route::post('/workflow/approvers', [DocumentWorkflowController::class, 'grantApprover']);
+Route::delete('/workflow/approvers/{id}', [DocumentWorkflowController::class, 'revokeApprover']);
+
 // DANH MỤC
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::post('/categories', [CategoryController::class, 'store']);
