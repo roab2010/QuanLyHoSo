@@ -253,6 +253,19 @@ export const getAllInventoryItems = async () => {
 };
 
 /**
+ * Lấy lịch sử giao dịch vật tư (Xuất/Trả) của dự án
+ */
+export const getProjectMaterialHistory = async (projectId) => {
+    try {
+        const res = await api.get(`/inventory/project-history/${projectId}`);
+        return res.data;
+    } catch (e) {
+        console.error("Lỗi lấy lịch sử vật tư:", e);
+        return { success: false, history: [] };
+    }
+};
+
+/**
  * --- PHẦN NHÂN VIÊN ---
  */
 export const getAllEmployees = async () => {

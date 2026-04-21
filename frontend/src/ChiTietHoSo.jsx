@@ -20,6 +20,7 @@ import {
     getAllInventoryItems,
     getPendingMaterialRequests,
     getDocumentsMetadata,
+    getProjectMaterialHistory,
     getConstructionLogs,
     createConstructionLog,
     deleteConstructionLog,
@@ -130,6 +131,10 @@ export default function ChiTietHoSo() {
     
     // Pending requests state
     const [pendingRequests, setPendingRequests] = useState([]);
+    
+    // Material history state
+    const [materialHistory, setMaterialHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     // Construction Log state
     const [constructionLogs, setConstructionLogs] = useState([]);
@@ -221,6 +226,15 @@ export default function ChiTietHoSo() {
         setDocTypes(metadata.types || []);
     };
 
+    const fetchMaterialHistory = async () => {
+        setHistoryLoading(true);
+        const res = await getProjectMaterialHistory(id);
+        if (res?.success) {
+            setMaterialHistory(res.history || []);
+        }
+        setHistoryLoading(false);
+    };
+
     const fetchVatTu = async () => {
         setVatTuLoading(true);
         const [resExport, resPending] = await Promise.all([
@@ -267,6 +281,7 @@ export default function ChiTietHoSo() {
     useEffect(() => {
         if (activeTab === "vat-tu") {
             fetchVatTu();
+            fetchMaterialHistory();
         }
         if (activeTab === "tien-do") {
             fetchConstructionLogs();
@@ -1461,16 +1476,7 @@ export default function ChiTietHoSo() {
                                             {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" })
                                                 .format(vatTuItems.reduce((s, i) => s + i.qty_at_project * i.price, 0))}
                                         </div>
-                                        <tr>
-                                                    <th style={{ width: 40, textAlign: 'center' }}>#</th>
-                                                    <th>TÊN TÀI LIỆU</th>
-                                                    <th>LOẠI TÀI LIỆU</th>
-                                                    <th style={{ textAlign: 'center' }}>NGÀY TẢI LÊN</th>
-                                                    <th style={{ textAlign: 'center' }}>HẠN HOÀN THÀNH</th>
-                                                    <th style={{ textAlign: 'center' }}>NGÀY HOÀN THÀNH</th>
-                                                    <th style={{ textAlign: 'center' }}>TRẠNG THÁI</th>
-                                                    <th style={{ textAlign: 'center' }}>HÀNH ĐỘNG</th>
-                                                </tr>
+                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Tổng giá trị vật tư</div>
                                     </div>
                                 </div>
                             )}
@@ -1630,6 +1636,74 @@ export default function ChiTietHoSo() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Material History Section */}
+                            <div style={{ marginTop: 40, marginBottom: 30 }}>
+                                <h4 style={{ 
+                                    fontSize: 16, borderBottom: "2px solid #e2e8f0", 
+                                    paddingBottom: 10, marginBottom: 15, color: "#1e293b", 
+                                    display: "flex", alignItems: "center", gap: 10, fontWeight: 700 
+                                }}>
+                                    <span style={{ fontSize: 20 }}>📜</span> Lịch sử xuất / nhập vật tư
+                                </h4>
+                                
+                                {historyLoading ? (
+                                    <div style={{ textAlign: "center", padding: "30px 0", color: "#64748b" }}>
+                                        <div className="spinner-small" style={{ margin: "0 auto 10px" }}></div>
+                                        <p style={{ fontSize: 13 }}>Đang tải lịch sử...</p>
+                                    </div>
+                                ) : materialHistory.length === 0 ? (
+                                    <p style={{ textAlign: "center", color: "#94a3b8", padding: "20px", background: "#f8fafc", borderRadius: 12, fontSize: 13 }}>
+                                        Chưa có lịch sử giao dịch nào.
+                                    </p>
+                                ) : (
+                                    <div style={{ overflowX: "auto", borderRadius: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
+                                        <table className="doc-table" style={{ minWidth: 800 }}>
+                                            <thead>
+                                                <tr style={{ background: "#f8fafc" }}>
+                                                    <th style={{ width: 150 }}>PHÂN LOẠI</th>
+                                                    <th style={{ width: 140 }}>MÃ PHIẾU</th>
+                                                    <th>CHI TIẾT VẬT TƯ</th>
+                                                    <th style={{ textAlign: "center", width: 180 }}>THỜI GIAN</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {materialHistory.map(item => (
+                                                    <tr key={item.id}>
+                                                        <td>
+                                                            <span style={{ 
+                                                                display: "inline-flex", alignItems: "center", gap: 6,
+                                                                padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                                                                background: item.type === 'OUT' ? '#eff6ff' : '#ecfdf5',
+                                                                color: item.type === 'OUT' ? '#2563eb' : '#059669',
+                                                                border: `1px solid ${item.type === 'OUT' ? '#dbeafe' : '#d1fae5'}`
+                                                            }}>
+                                                                {item.type === 'OUT' ? '📤 Xuất kho' : '📥 Hoàn trả'}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ fontWeight: 600, color: "#475569", fontSize: 13 }}>
+                                                            {item.transaction_code}
+                                                        </td>
+                                                        <td>
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                                {(item.details || []).map(d => (
+                                                                    <div key={d.id} style={{ fontSize: 13, color: "#1e293b", display: "flex", justifyContent: "space-between" }}>
+                                                                        <span>• {d.product?.name}</span>
+                                                                        <span style={{ fontWeight: 700 }}>{d.quantity} {d.product?.unit}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ textAlign: "center", color: "#64748b", fontSize: 12 }}>
+                                                            {new Date(item.created_at).toLocaleString("vi-VN")}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
                         </section>
                     )}
 

@@ -130,6 +130,7 @@ Route::post('/inventory/requests/{id}/process', [InventoryController::class, 'pr
 Route::post('/inventory/export', [InventoryController::class, 'export']);
 Route::post('/inventory/import-from-project', [InventoryController::class, 'importFromProject']);
 Route::get('/inventory/project-items/{projectId}', [InventoryController::class, 'getProjectExportedItems']);
+Route::get('/inventory/project-history/{projectId}', [InventoryController::class, 'getProjectHistory']);
 
 Route::get('/suppliers', [SupplierController::class, 'index']);
 Route::post('/suppliers', [SupplierController::class, 'store']);
