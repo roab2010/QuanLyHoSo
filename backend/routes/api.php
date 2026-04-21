@@ -65,10 +65,27 @@ Route::post('/workflow/documents/{id}/revise', [DocumentWorkflowController::clas
 Route::post('/workflow/documents/{id}/resubmit', [DocumentWorkflowController::class, 'resubmit']);
 Route::get('/workflow/documents/{id}/logs', [DocumentWorkflowController::class, 'getWorkflowLogs']);
 
+// QUẢN LÝ QUY TRÌNH (WORKFLOW MANAGEMENT - Admin only)
+Route::post('/workflow/workflows', [DocumentWorkflowController::class, 'createWorkflow']);
+Route::put('/workflow/workflows/{id}', [DocumentWorkflowController::class, 'updateWorkflow']);
+Route::delete('/workflow/workflows/{id}', [DocumentWorkflowController::class, 'deleteWorkflow']);
+
+// QUẢN LÝ BƯỚC DUYỆT (STEP MANAGEMENT - Admin only)
+Route::post('/workflow/workflows/{workflowId}/steps', [DocumentWorkflowController::class, 'createStep']);
+Route::put('/workflow/workflows/{workflowId}/steps/{stepId}', [DocumentWorkflowController::class, 'updateStep']);
+Route::delete('/workflow/workflows/{workflowId}/steps/{stepId}', [DocumentWorkflowController::class, 'deleteStep']);
+Route::post('/workflow/workflows/{workflowId}/steps/reorder', [DocumentWorkflowController::class, 'reorderSteps']);
+
+// QUẢN LÝ GÁN QUY TRÌNH (WORKFLOW ASSIGNMENTS - Admin only)
+Route::get('/workflow/workflows/{workflowId}/assignments', [DocumentWorkflowController::class, 'getWorkflowAssignments']);
+Route::post('/workflow/workflows/{workflowId}/assignments', [DocumentWorkflowController::class, 'addWorkflowAssignment']);
+Route::delete('/workflow/assignments/{id}', [DocumentWorkflowController::class, 'removeWorkflowAssignment']);
+
 // PHÂN QUYỀN DUYỆT TÀI LIỆU
 Route::get('/workflow/approvers', [DocumentWorkflowController::class, 'getApprovers']);
 Route::post('/workflow/approvers', [DocumentWorkflowController::class, 'grantApprover']);
 Route::delete('/workflow/approvers/{id}', [DocumentWorkflowController::class, 'revokeApprover']);
+
 
 // DANH MỤC
 Route::get('/categories', [CategoryController::class, 'index']);

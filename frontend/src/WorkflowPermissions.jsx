@@ -61,22 +61,18 @@ export default function WorkflowPermissions() {
 
     const fetchMetadata = async () => {
         try {
-            const [projRes, catRes, docTypesRes, userRes] = await Promise.all([
+            const [projRes, catRes, docTypesRes, userRes, roleRes] = await Promise.all([
                 api.get('/projects'),
                 api.get('/categories'),
                 api.get('/workflow/document-types'), // Has workflow_role_ids
-                api.get('/employees')
+                api.get('/employees'),
+                api.get('/roles')
             ]);
             setProjects(projRes.data.data || projRes.data || []);
             setCategories(catRes.data.data || catRes.data || []);
             setDocumentTypes(docTypesRes.data || []);
             setUsers(userRes.data || []);
-            setRoles([
-                { id: 150001, name: 'Phó Giám đốc' },
-                { id: 150002, name: 'Trưởng phòng' },
-                { id: 150003, name: 'Kỹ sư công trường' },
-                { id: 542116, name: 'Giám Sát Thi Công' },
-            ]);
+            setRoles(roleRes.data || []);
         } catch (e) {
             console.error("Lỗi tải metadata:", e);
         } finally {
@@ -111,6 +107,7 @@ export default function WorkflowPermissions() {
             role_id: formAssignMode === 'role' ? formAssigneeId : null,
         };
 
+        setSubmitting(true);
         try {
             await api.post('/workflow/approvers', payload);
             toast.success("Cấp quyền thành công!");
@@ -121,6 +118,7 @@ export default function WorkflowPermissions() {
         } catch (e) {
             toast.error(e.response?.data?.error || "Lỗi cấp quyền");
         }
+        setSubmitting(false);
     };
 
     const handleRevoke = async (id) => {
@@ -385,8 +383,8 @@ export default function WorkflowPermissions() {
 
                         <div style={{ padding: '14px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10, background: '#fafafa' }}>
                             <button style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600, color: '#64748b', fontSize: 13 }} onClick={() => setShowModal(false)}>Hủy</button>
-                            <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 4px 12px rgba(59,130,246,0.3)' }} onClick={handleGrant}>
-                                Lưu Phân Quyền
+                            <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: submitting ? '#cbd5e1' : 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13, boxShadow: submitting ? 'none' : '0 4px 12px rgba(59,130,246,0.3)' }} onClick={handleGrant} disabled={submitting}>
+                                {submitting ? "Đang xử lý..." : "Lưu Phân Quyền"}
                             </button>
                         </div>
                     </div>

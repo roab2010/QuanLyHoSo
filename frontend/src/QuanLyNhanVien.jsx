@@ -8,6 +8,7 @@ export default function QuanLyNhanVien({ admin }) {
     const [activeTab, setActiveTab] = useState("members"); // "members" | "roles"
     const [employees, setEmployees] = useState([]);
     const [roles, setRoles] = useState([]);
+    const [documentTypes, setDocumentTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     
     // Role Management State
@@ -146,21 +147,22 @@ export default function QuanLyNhanVien({ admin }) {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [empRes, roleRes] = await Promise.all([
+            const [empRes, roleRes, docTypesRes] = await Promise.all([
                 api.get("/manage/employees"),
-                api.get("/roles")
+                api.get("/roles"),
+                api.get("/workflow/document-types")
             ]);
             setEmployees(empRes.data || []);
             const fetchedRoles = roleRes.data || [];
             setRoles(fetchedRoles);
             
+            // Lọc ra các loại tài liệu có quy trình
+            const validDocTypes = (docTypesRes.data || []).filter(dt => dt.assigned_workflow_id);
+            setDocumentTypes(validDocTypes);
+            
             if (fetchedRoles.length > 0 && !selectedRole) {
                 const initialRole = fetchedRoles[0];
-                setSelectedRole(initialRole);
-                setEditRoleData({
-                    ...initialRole,
-                    permissions: initialRole.permissions ? (typeof initialRole.permissions === 'string' ? JSON.parse(initialRole.permissions) : initialRole.permissions) : []
-                });
+                handleSelectRole(initialRole);
             }
         } catch (error) {
             console.error("Lỗi fetch data:", error);
@@ -172,16 +174,29 @@ export default function QuanLyNhanVien({ admin }) {
         fetchData();
     }, []);
 
-    const handleSelectRole = async (role) => {
-        if (hasChanges()) {
+    const handleSelectRole = async (role, force = false) => {
+        if (!force && hasChanges()) {
             const confirmed = await toast.showConfirm("Bạn có thay đổi chưa lưu. Tiếp tục sẽ mất thay đổi?");
             if (!confirmed) return;
         }
+
+        let globalDocTypeIds = [];
+        if (role.id !== 'temp') {
+            try {
+                const res = await api.get(`/workflow/approvers?scope_type=global&role_id=${role.id}`);
+                globalDocTypeIds = (res.data?.data || []).map(a => a.document_type_id);
+            } catch(e) {
+                console.error("Lỗi fetch approvers:", e);
+            }
+        }
+
         setSelectedRole(role);
         setEditRoleData({
             ...role,
             isNew: role.id === 'temp',
-            permissions: role.permissions ? (typeof role.permissions === 'string' ? JSON.parse(role.permissions) : role.permissions) : []
+            permissions: role.permissions ? (typeof role.permissions === 'string' ? JSON.parse(role.permissions) : role.permissions) : [],
+            global_document_type_ids: globalDocTypeIds,
+            originalGlobalDocTypeIds: globalDocTypeIds
         });
     };
 
@@ -191,10 +206,10 @@ export default function QuanLyNhanVien({ admin }) {
             if (!confirmed) return;
             setRoles(roles.filter(r => r.id !== 'temp'));
             const first = roles.find(r => r.id !== 'temp');
-            handleSelectRole(first);
+            handleSelectRole(first, true);
             return;
         }
-        handleSelectRole(selectedRole);
+        handleSelectRole(selectedRole, true);
     };
 
     const handleSaveRole = async () => {
@@ -205,13 +220,15 @@ export default function QuanLyNhanVien({ admin }) {
                 await api.post("/roles", {
                     name: editRoleData.name,
                     color: editRoleData.color,
-                    permissions: editRoleData.permissions
+                    permissions: editRoleData.permissions,
+                    global_document_type_ids: editRoleData.global_document_type_ids || []
                 });
             } else {
                 await api.put(`/roles/${editRoleData.id}`, {
                     name: editRoleData.name,
                     color: editRoleData.color,
-                    permissions: editRoleData.permissions
+                    permissions: editRoleData.permissions,
+                    global_document_type_ids: editRoleData.global_document_type_ids || []
                 });
             }
             // Refresh
@@ -220,11 +237,7 @@ export default function QuanLyNhanVien({ admin }) {
             setRoles(freshRoles);
             
             const updated = freshRoles.find(r => r.name === editRoleData.name);
-            setSelectedRole(updated);
-            setEditRoleData({
-                ...updated,
-                permissions: updated.permissions ? (typeof updated.permissions === 'string' ? JSON.parse(updated.permissions) : updated.permissions) : []
-            });
+            handleSelectRole(updated, true);
             toast.success("Lưu chức vụ thành công!");
         } catch (error) {
             toast.error(error.response?.data?.error || "Lỗi khi lưu");
@@ -262,12 +275,13 @@ export default function QuanLyNhanVien({ admin }) {
             name: "New chức vụ",
             color: "#3b82f6",
             permissions: [],
+            global_document_type_ids: [],
             isNew: true
         };
         
         setRoles([...roles, newRole]);
         setSelectedRole(newRole);
-        setEditRoleData({...newRole, permissions: []});
+        setEditRoleData({...newRole, permissions: [], global_document_type_ids: []});
         setRoleDetailTab("display");
     };
 
@@ -280,6 +294,15 @@ export default function QuanLyNhanVien({ admin }) {
         setEditRoleData({ ...editRoleData, permissions: newPerms });
     };
 
+    const toggleGlobalDocType = (dtId) => {
+        if (editRoleData.name === 'admin' && !editRoleData.isNew) return;
+        const current = [...(editRoleData.global_document_type_ids || [])];
+        const newTypes = current.includes(dtId)
+            ? current.filter(id => id !== dtId)
+            : [...current, dtId];
+        setEditRoleData({ ...editRoleData, global_document_type_ids: newTypes });
+    };
+
     const hasChanges = () => {
         if (!selectedRole || !editRoleData) return false;
         if (editRoleData.isNew) return true;
@@ -287,9 +310,20 @@ export default function QuanLyNhanVien({ admin }) {
         const parsedOrig = selectedRole.permissions ? (typeof selectedRole.permissions === 'string' ? JSON.parse(selectedRole.permissions).sort() : selectedRole.permissions.sort()) : [];
         const originalPerms = JSON.stringify(parsedOrig);
         const currentPerms = JSON.stringify([...editRoleData.permissions].sort());
+        
+        // selectedRole không chứa global_document_type_ids (vì fetch lúc sau), 
+        // nhưng ta có thể tạm bỏ qua check changes phức tạp cho phần global doc bằng cách so sánh state ban đầu.
+        // Để đơn giản, ta chỉ compare role base changes nếu cần. 
+        // Vì global doc_types load riêng nên khó compare chính xác trừ khi ta lưu lại originalDocTypeIds.
+        // Tạm mượn trick: nếu editRoleData.global_document_type_ids thay đổi so với originalGlobalDocTypeIds thì return true.
+        // Do đó ta sẽ thêm 1 property "originalGlobalDocTypeIds" vào editRoleData ngay khi load. 
+        const origDocs = JSON.stringify([...(editRoleData.originalGlobalDocTypeIds || [])].sort());
+        const currDocs = JSON.stringify([...(editRoleData.global_document_type_ids || [])].sort());
+
         return selectedRole.name !== editRoleData.name || 
                selectedRole.color !== editRoleData.color || 
-               originalPerms !== currentPerms;
+               originalPerms !== currentPerms ||
+               origDocs !== currDocs;
     };
 
     const handleSaveMember = async () => {
@@ -505,6 +539,7 @@ export default function QuanLyNhanVien({ admin }) {
                                     <div style={{ display: 'flex', gap: '32px' }}>
                                         <button onClick={() => setRoleDetailTab("display")} style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '800', color: roleDetailTab === 'display' ? '#0f172a' : '#cbd5e1', cursor: 'pointer', borderBottom: roleDetailTab === 'display' ? '3px solid #0f172a' : '3px solid transparent', paddingBottom: '8px', transition: 'all 0.2s', textTransform: 'uppercase', fontFamily: FONT_PREMIUM }}>HIỂN THỊ & MÀU</button>
                                         <button onClick={() => setRoleDetailTab("permissions")} style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '800', color: roleDetailTab === 'permissions' ? '#0f172a' : '#cbd5e1', cursor: 'pointer', borderBottom: roleDetailTab === 'permissions' ? '3px solid #0f172a' : '3px solid transparent', paddingBottom: '8px', transition: 'all 0.2s', textTransform: 'uppercase', fontFamily: FONT_PREMIUM }}>QUYỀN HẠN TRUY CẬP</button>
+                                        <button onClick={() => setRoleDetailTab("workflows")} style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '800', color: roleDetailTab === 'workflows' ? '#0f172a' : '#cbd5e1', cursor: 'pointer', borderBottom: roleDetailTab === 'workflows' ? '3px solid #0f172a' : '3px solid transparent', paddingBottom: '8px', transition: 'all 0.2s', textTransform: 'uppercase', fontFamily: FONT_PREMIUM }}>QUY TRÌNH DUYỆT TÀI LIỆU</button>
                                     </div>
                                 </div>
 
@@ -524,7 +559,7 @@ export default function QuanLyNhanVien({ admin }) {
                                                 </div>
                                             </div>
                                         </div>
-                                    ) : (
+                                    ) : roleDetailTab === "permissions" ? (
                                         <div style={{ maxWidth: '800px' }}>
                                             <div style={{ position: 'relative', marginBottom: '32px' }}><Search style={{ position: 'absolute', left: '16px', top: '14px', color: '#94a3b8' }} size={20} /><input placeholder="Lọc quyền hạn nhanh..." style={{ width: '100%', padding: '14px 18px 14px 50px', borderRadius: '16px', border: '2px solid #f1f5f9', background: '#f8fafc', outline: 'none', fontWeight: '600', fontSize: '15px', fontFamily: FONT_PREMIUM }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -552,6 +587,53 @@ export default function QuanLyNhanVien({ admin }) {
                                                                         </div>
                                                                     );
                                                                 })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ maxWidth: '800px' }}>
+                                            <div style={{ marginBottom: '24px', background: '#e0e7ff', padding: '16px 20px', borderRadius: '12px', color: '#3730a3', fontSize: '14px', fontWeight: '600', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                                <Info size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
+                                                <div style={{ lineHeight: '1.6' }}>
+                                                    <strong>Mặc định hệ thống:</strong> Đánh dấu vào loại tài liệu mà chức vụ này được quyền xem và phê duyệt trên toàn hệ thống (Chức vụ này sẽ đóng vai trò là Cửa Ngõ Đầu Tiên của các loại tài liệu trên). Khuyến khích sử dụng cho các vị trí quản lý tổng quát.
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                                                {Object.keys(
+                                                    documentTypes.reduce((acc, dt) => {
+                                                        const group = dt.group_name || 'Khác';
+                                                        if (!acc[group]) acc[group] = [];
+                                                        acc[group].push(dt);
+                                                        return acc;
+                                                    }, {})
+                                                ).map(group => {
+                                                    const groupDocs = documentTypes.filter(dt => (dt.group_name || 'Khác') === group);
+                                                    return (
+                                                        <div key={group}>
+                                                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#475569', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                📁 {group}
+                                                            </div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                {groupDocs.map(dt => (
+                                                                    <div key={dt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderRadius: '14px', border: '2px solid #f1f5f9', background: '#fff', transition: 'all 0.2s' }}>
+                                                                        <div style={{ flex: 1, paddingRight: '40px' }}>
+                                                                            <div style={{ color: '#0f172a', fontSize: '15px', fontWeight: '800', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                {dt.type_name}
+                                                                                <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>Quy trình: {dt.workflow_name || 'Đã liên kết'}</span>
+                                                                            </div>
+                                                                            <div style={{ color: '#64748b', fontSize: '12px', fontWeight: '500' }}>Cấp quyền tham gia xét duyệt các hồ sơ thuộc loại tài liệu này.</div>
+                                                                        </div>
+                                                                        <Switch 
+                                                                            checked={editRoleData.name === 'admin' || (editRoleData.global_document_type_ids && editRoleData.global_document_type_ids.includes(dt.id))} 
+                                                                            onChange={() => toggleGlobalDocType(dt.id)} 
+                                                                            disabled={editRoleData.name === 'admin' && !editRoleData.isNew} 
+                                                                        />
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         </div>
                                                     );

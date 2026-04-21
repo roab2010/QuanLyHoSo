@@ -237,12 +237,14 @@ class EmployeeController extends Controller
             'name' => 'required|string|max:50|unique:roles,name',
             'color' => 'required|string|max:20',
             'permissions' => 'nullable|array',
+            'global_document_type_ids' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()->first()], 422);
         }
 
+        DB::beginTransaction();
         try {
             $roleId = DB::table('roles')->insertGetId([
                 'name' => $request->name,
@@ -252,8 +254,12 @@ class EmployeeController extends Controller
                 'status' => 1,
             ]);
 
+            $this->syncGlobalApprovers($roleId, $request->global_document_type_ids ?? [], $request->header('X-User-ID'));
+
+            DB::commit();
             return response()->json(['message' => 'Tạo vai trò thành công', 'id' => $roleId], 201);
         } catch (Exception $e) {
+            DB::rollBack();
             return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
         }
     }
@@ -267,12 +273,14 @@ class EmployeeController extends Controller
             'name' => 'required|string|max:50',
             'color' => 'required|string|max:20',
             'permissions' => 'nullable|array',
+            'global_document_type_ids' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()->first()], 422);
         }
 
+        DB::beginTransaction();
         try {
             DB::table('roles')->where('id', $id)->update([
                 'name' => $request->name,
@@ -280,9 +288,50 @@ class EmployeeController extends Controller
                 'permissions' => json_encode($request->permissions),
             ]);
 
+            $this->syncGlobalApprovers($id, $request->global_document_type_ids ?? [], $request->header('X-User-ID'));
+
+            DB::commit();
             return response()->json(['message' => 'Cập nhật thành công'], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function syncGlobalApprovers($roleId, $documentTypeIds, $adminUserId)
+    {
+        DB::table('workflow_project_approvers')
+            ->where('scope_type', 'global')
+            ->where('role_id', $roleId)
+            ->delete();
+
+        foreach ($documentTypeIds as $dtId) {
+            $docType = DB::table('document_types')->where('id', $dtId)->first();
+            if (!$docType || !$docType->assigned_workflow_id) continue;
+
+            $matchingStep = DB::table('workflow_steps')
+                ->where('workflow_id', $docType->assigned_workflow_id)
+                ->where('role_id_assigned', $roleId)
+                ->first();
+
+            if (!$matchingStep) {
+                $matchingStep = DB::table('workflow_steps')
+                    ->where('workflow_id', $docType->assigned_workflow_id)
+                    ->orderBy('sort_order', 'asc')
+                    ->first();
+            }
+
+            if ($matchingStep) {
+                DB::table('workflow_project_approvers')->insert([
+                    'workflow_step_id' => $matchingStep->id,
+                    'scope_type'       => 'global',
+                    'scope_id'         => 0,
+                    'role_id'          => $roleId,
+                    'document_type_id' => $dtId,
+                    'granted_by'       => $adminUserId,
+                    'created_at'       => now(),
+                ]);
+            }
         }
     }
 

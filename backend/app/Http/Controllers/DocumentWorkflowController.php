@@ -42,12 +42,19 @@ class DocumentWorkflowController extends Controller
         // Đính kèm danh sách các Role ID có trong quy trình này
         foreach ($types as $type) {
             if ($type->assigned_workflow_id) {
-                $type->workflow_role_ids = DB::table('workflow_steps')
+                $nativeRoles = DB::table('workflow_steps')
                     ->where('workflow_id', $type->assigned_workflow_id)
                     ->pluck('role_id_assigned')
-                    ->unique()
-                    ->values()
                     ->toArray();
+
+                $globalRoles = DB::table('workflow_project_approvers')
+                    ->where('scope_type', 'global')
+                    ->where('document_type_id', $type->id)
+                    ->pluck('role_id')
+                    ->toArray();
+
+                // Gộp native và global, xóa trùng và đánh lại index
+                $type->workflow_role_ids = array_values(array_unique(array_merge($nativeRoles, $globalRoles)));
             } else {
                 $type->workflow_role_ids = [];
             }
@@ -144,6 +151,8 @@ class DocumentWorkflowController extends Controller
                         $sq->where('scope_type', 'project')->where('scope_id', $projectId);
                     })->orWhere(function($sq) use ($categoryId) {
                         $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
+                    })->orWhere(function($sq) {
+                        $sq->where('scope_type', 'global');
                     });
                 })
                 ->where(function($q) use ($userId, $roleId) {
@@ -290,6 +299,8 @@ class DocumentWorkflowController extends Controller
                     $sq->where('scope_type', 'project')->where('scope_id', $projectId);
                 })->orWhere(function($sq) use ($categoryId) {
                     $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
+                })->orWhere(function($sq) {
+                    $sq->where('scope_type', 'global');
                 });
             })
             ->where(function($q) use ($userId, $roleId) {
@@ -608,6 +619,14 @@ class DocumentWorkflowController extends Controller
             $query->where('wpa.scope_id', $request->scope_id);
         }
 
+        if ($request->filled('role_id')) {
+            $query->where('wpa.role_id', $request->role_id);
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('wpa.user_id', $request->user_id);
+        }
+
         $approvers = $query->orderBy('wpa.id', 'desc')->get();
 
         return response()->json(['data' => $approvers]);
@@ -622,7 +641,7 @@ class DocumentWorkflowController extends Controller
         $request->validate([
             'document_type_ids' => 'required|array',
             'document_type_ids.*' => 'integer',
-            'scope_type'        => 'required|in:project,category',
+            'scope_type'        => 'required|in:project,category,global',
             'scope_id'          => 'required|integer',
             'user_id'           => 'nullable|integer',
             'role_id'           => 'nullable|integer',
@@ -649,15 +668,24 @@ class DocumentWorkflowController extends Controller
                 $docType = DB::table('document_types')->where('id', $dtId)->first();
                 if (!$docType || !$docType->assigned_workflow_id) continue;
 
-                // Tìm BƯỚC DUYỆT trong quy trình này dành cho ROLE của người này
+                // TÌM BƯỚC DUYỆT trong quy trình này dành cho ROLE của người này
                 $matchingStep = DB::table('workflow_steps')
                     ->where('workflow_id', $docType->assigned_workflow_id)
                     ->where('role_id_assigned', $targetRoleId)
                     ->first();
 
-                // PHƯƠNG ÁN A: Nếu loại tài liệu này không có bước nào cho Role này -> Báo lỗi
+                // PHƯƠNG ÁN B (Ghi đè ngoại lệ): Nếu người này KHÔNG có chức vụ nằm trong quy trình mặc định,
+                // Giám đốc vẫn có thể ép quyền cho họ. Lúc này hệ thống sẽ tự động gán họ vào BƯỚC ĐẦU TIÊN
+                // của quy trình đó để họ có quyền tham gia.
                 if (!$matchingStep) {
-                    throw new \Exception("Loại tài liệu \"{$docType->type_name}\" không có bước duyệt nào phù hợp với vai trò của người được gán.");
+                    $matchingStep = DB::table('workflow_steps')
+                        ->where('workflow_id', $docType->assigned_workflow_id)
+                        ->orderBy('sort_order', 'asc')
+                        ->first();
+                }
+
+                if (!$matchingStep) {
+                    throw new \Exception("Loại tài liệu \"{$docType->type_name}\" hiện chưa được cấu hình bất kỳ bước duyệt nào trong cài đặt quy trình.");
                 }
 
                 // Gán quyền
@@ -695,6 +723,334 @@ class DocumentWorkflowController extends Controller
         try {
             DB::table('workflow_project_approvers')->where('id', $id)->delete();
             return response()->json(['success' => true, 'message' => 'Đã thu hồi quyền']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // ===================================================================
+    // QUẢN LÝ QUY TRÌNH (WORKFLOW CRUD) - Chỉ Admin
+    // ===================================================================
+
+    private function isAdmin(Request $request)
+    {
+        $userId = $request->header('X-User-ID');
+        $user = DB::table('users')->where('id', $userId)->first();
+        return $user && $user->role_id == 1;
+    }
+
+    public function createWorkflow(Request $request)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $request->validate([
+            'workflow_name' => 'required|string|max:255',
+            'workflow_code' => 'required|string|max:50|unique:workflows,workflow_code',
+            'description'   => 'nullable|string',
+        ]);
+
+        try {
+            $id = DB::table('workflows')->insertGetId([
+                'workflow_name' => $request->workflow_name,
+                'workflow_code' => strtoupper($request->workflow_code),
+                'description'   => $request->description,
+                'is_active'     => 1,
+                'created_at'    => now(),
+            ]);
+
+            $workflow = DB::table('workflows')->where('id', $id)->first();
+            $workflow->steps = [];
+            return response()->json(['success' => true, 'data' => $workflow], 201);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateWorkflow(Request $request, $id)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $request->validate([
+            'workflow_name' => 'required|string|max:255',
+            'description'   => 'nullable|string',
+            'is_active'     => 'nullable|boolean',
+        ]);
+
+        try {
+            DB::table('workflows')->where('id', $id)->update([
+                'workflow_name' => $request->workflow_name,
+                'description'   => $request->description,
+                'is_active'     => $request->is_active ?? 1,
+            ]);
+            return response()->json(['success' => true, 'message' => 'Cập nhật quy trình thành công']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteWorkflow(Request $request, $id)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        // 1. Kiểm tra xem có hồ sơ (documents) nào ĐANG CHẠY quy trình này không
+        $activeDocCount = DB::table('project_documents')
+            ->whereIn('status', ['PENDING', 'PROCESSING'])
+            ->whereExists(function ($query) use ($id) {
+                $query->select(DB::raw(1))
+                      ->from('workflow_steps')
+                      ->whereColumn('workflow_steps.id', 'project_documents.current_step_id')
+                      ->where('workflow_steps.workflow_id', $id);
+            })
+            ->count();
+
+        if ($activeDocCount > 0) {
+            return response()->json(['error' => "Không thể xóa! Có $activeDocCount hồ sơ đang trong quá trình duyệt theo quy trình này. Hãy hoàn thành hoặc hủy hồ sơ đó trước."], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 2. Gỡ bỏ các liên kết trong cấu hình loại tài liệu (bảng cũ)
+            DB::table('document_types')
+                ->where('assigned_workflow_id', $id)
+                ->update(['assigned_workflow_id' => null]);
+
+            // 3. Xóa các bước duyệt (workflow_steps)
+            DB::table('workflow_steps')->where('workflow_id', $id)->delete();
+
+            // 4. Xóa các gán quy trình (workflow_assignments)
+            DB::table('workflow_assignments')->where('workflow_id', $id)->delete();
+
+            // 5. Xóa quy trình
+            DB::table('workflows')->where('id', $id)->delete();
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Đã xóa quy trình và gỡ bỏ các liên kết liên quan']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // ===================================================================
+    // QUẢN LÝ BƯỚC DUYỆT (STEP CRUD)
+    // ===================================================================
+
+    public function createStep(Request $request, $workflowId)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $request->validate([
+            'step_name'    => 'required|string|max:255',
+            'role_id'      => 'nullable|exists:roles,id',
+            'expected_days'=> 'nullable|integer|min:1',
+            'has_digital_signature' => 'nullable|boolean',
+        ]);
+
+        try {
+            $maxOrder = DB::table('workflow_steps')->where('workflow_id', $workflowId)->max('sort_order') ?? 0;
+
+            $stepId = DB::table('workflow_steps')->insertGetId([
+                'workflow_id'          => $workflowId,
+                'step_name'            => $request->step_name,
+                'role_id_assigned'     => $request->role_id ?: null,
+                'expected_days'        => $request->expected_days ?? 1,
+                'has_digital_signature'=> $request->has_digital_signature ?? false,
+                'sort_order'           => $maxOrder + 1,
+            ]);
+
+            $step = DB::table('workflow_steps')
+                ->where('workflow_steps.id', $stepId)
+                ->leftJoin('roles', 'workflow_steps.role_id_assigned', '=', 'roles.id')
+                ->select('workflow_steps.*', 'roles.name as role_name', 'roles.color as role_color')
+                ->first();
+
+            return response()->json(['success' => true, 'data' => $step], 201);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateStep(Request $request, $workflowId, $stepId)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $request->validate([
+            'step_name'    => 'required|string|max:255',
+            'role_id'      => 'nullable|exists:roles,id',
+            'expected_days'=> 'nullable|integer|min:1',
+            'has_digital_signature' => 'nullable|boolean',
+        ]);
+
+        try {
+            DB::table('workflow_steps')->where('id', $stepId)->where('workflow_id', $workflowId)->update([
+                'step_name'            => $request->step_name,
+                'role_id_assigned'     => $request->role_id ?: null,
+                'expected_days'        => $request->expected_days ?? 1,
+                'has_digital_signature'=> $request->has_digital_signature ?? false,
+            ]);
+            return response()->json(['success' => true, 'message' => 'Cập nhật bước duyệt thành công']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteStep(Request $request, $workflowId, $stepId)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        try {
+            DB::table('workflow_steps')->where('id', $stepId)->where('workflow_id', $workflowId)->delete();
+
+            // Re-number remaining steps
+            $steps = DB::table('workflow_steps')
+                ->where('workflow_id', $workflowId)
+                ->orderBy('sort_order')
+                ->get();
+
+            foreach ($steps as $i => $s) {
+                DB::table('workflow_steps')->where('id', $s->id)->update(['sort_order' => $i + 1]);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Đã xóa bước duyệt']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function reorderSteps(Request $request, $workflowId)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer',
+        ]);
+
+        try {
+            foreach ($request->order as $index => $stepId) {
+                DB::table('workflow_steps')
+                    ->where('id', $stepId)
+                    ->where('workflow_id', $workflowId)
+                    ->update(['sort_order' => $index + 1]);
+            }
+            return response()->json(['success' => true, 'message' => 'Đã cập nhật thứ tự']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+    // ===================================================================
+    // QUẢN LÝ GÁN QUY TRÌNH VÀO TÀI LIỆU (WORKFLOW ASSIGNMENTS)
+    // ===================================================================
+
+    public function getWorkflowAssignments(Request $request, $workflowId)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $assignments = DB::table('workflow_assignments')
+            ->where('workflow_id', $workflowId)
+            ->leftJoin('document_types', 'workflow_assignments.document_type_id', '=', 'document_types.id')
+            ->select('workflow_assignments.*', 'document_types.type_name', 'document_types.group_name')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $assignments]);
+    }
+
+    public function addWorkflowAssignment(Request $request, $workflowId)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        $request->validate([
+            'document_type_id'    => 'nullable|integer',
+            'document_group_name' => 'nullable|string',
+            'scope_type'          => 'required|in:global,project,category',
+            'scope_id'            => 'nullable|integer',
+        ]);
+
+        $scopeId = $request->scope_type === 'global' ? 0 : ($request->scope_id ?? 0);
+        $docTypeId = $request->document_type_id;
+        $groupName = $request->document_group_name;
+
+        // --- BƯỚC 1: XÁC ĐỊNH DANH SÁCH LOẠI TÀI LIỆU CẦN KIỂM TRA ---
+        $targetDocTypeIds = [];
+        if ($docTypeId) {
+            $targetDocTypeIds[] = $docTypeId;
+        } elseif ($groupName) {
+            $targetDocTypeIds = DB::table('document_types')->where('group_name', $groupName)->pluck('id')->toArray();
+        }
+
+        if (empty($targetDocTypeIds)) {
+            return response()->json(['error' => 'Không xác định được loại tài liệu mục tiêu'], 400);
+        }
+
+        // --- BƯỚC 2: LẤY DANH SÁCH ROLE CÓ TRONG QUY TRÌNH ---
+        $requiredRoleIds = DB::table('workflow_steps')
+            ->where('workflow_id', $workflowId)
+            ->whereNotNull('role_id_assigned')
+            ->pluck('role_id_assigned')
+            ->unique()
+            ->toArray();
+
+        // --- BƯỚC 3: KIỂM TRA QUYỀN (STRICT VALIDATION) ---
+        $missingPermissions = [];
+        foreach ($requiredRoleIds as $rId) {
+            $role = DB::table('roles')->where('id', $rId)->first();
+            $isAdminRole = ($role && $role->name === 'admin');
+
+            foreach ($targetDocTypeIds as $dtId) {
+                $hasPerm = $isAdminRole || DB::table('workflow_project_approvers')
+                    ->where('role_id', $rId)
+                    ->where('document_type_id', $dtId)
+                    ->where('scope_type', $request->scope_type)
+                    ->where('scope_id', $scopeId)
+                    ->exists();
+
+                if (!$hasPerm) {
+                    $roleName = DB::table('roles')->where('id', $rId)->value('name') ?? "ID: $rId";
+                    $docTypeName = DB::table('document_types')->where('id', $dtId)->value('type_name') ?? "ID: $dtId";
+                    $missingPermissions[] = "Chức vụ [$roleName] chưa được cấp quyền duyệt loại [$docTypeName]";
+                }
+            }
+        }
+
+        if (!empty($missingPermissions)) {
+            return response()->json([
+                'error' => 'Thiếu quyền hạn duyệt hồ sơ',
+                'details' => $missingPermissions
+            ], 422);
+        }
+
+        // --- BƯỚC 4: THỰC HIỆN GÁN ---
+        DB::table('workflow_assignments')
+            ->where('document_type_id', $docTypeId)
+            ->where('document_group_name', $groupName)
+            ->where('scope_type', $request->scope_type)
+            ->where('scope_id', $scopeId)
+            ->delete();
+
+        try {
+            DB::table('workflow_assignments')->insert([
+                'workflow_id'           => $workflowId,
+                'document_type_id'      => $docTypeId,
+                'document_group_name'   => $groupName,
+                'scope_type'            => $request->scope_type,
+                'scope_id'              => $scopeId,
+                'assigned_by'           => $request->header('X-User-ID') ?? 1,
+                'created_at'            => now(),
+            ]);
+            return response()->json(['success' => true, 'message' => 'Đã gán quy trình thành công']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function removeWorkflowAssignment(Request $request, $id)
+    {
+        if (!$this->isAdmin($request)) return response()->json(['error' => 'Quyền truy cập bị từ chối'], 403);
+
+        try {
+            DB::table('workflow_assignments')->where('id', $id)->delete();
+            return response()->json(['success' => true, 'message' => 'Đã gỡ quy trình áp dụng']);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
