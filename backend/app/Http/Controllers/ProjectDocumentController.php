@@ -190,6 +190,31 @@ class ProjectDocumentController extends Controller
 
             $document->update($updateData);
 
+            // --- KHỞI TẠO QUY TRÌNH NẾU CHƯA CÓ (Ví dụ: Placeholder được điền file) ---
+            if (!$document->current_step_id && $document->file_url) {
+                $docType = DB::table('document_types')->where('id', $document->document_type_id)->first();
+                if ($docType && $docType->assigned_workflow_id) {
+                    $firstStep = DB::table('workflow_steps')
+                        ->where('workflow_id', $docType->assigned_workflow_id)
+                        ->orderBy('sort_order', 'asc')
+                        ->first();
+                    
+                    if ($firstStep) {
+                        $document->update(['current_step_id' => $firstStep->id]);
+                        
+                        // Ghi log SUBMIT
+                        DB::table('document_workflow_logs')->insert([
+                            'document_id' => $document->id,
+                            'step_id'     => $firstStep->id,
+                            'processor_id' => $request->header('X-User-ID') ?? 1,
+                            'action'      => 'SUBMIT',
+                            'comment'     => 'Nộp hồ sơ (Cập nhật từ placeholder)',
+                            'created_at'  => now()
+                        ]);
+                    }
+                }
+            }
+
             return response()->json([
                 'message' => 'Cập nhật tài liệu thành công!',
                 'data'    => $document->load(['project:id,name', 'documentType:id,type_name,group_name'])

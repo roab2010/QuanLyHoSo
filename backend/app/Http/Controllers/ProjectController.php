@@ -731,14 +731,15 @@ class ProjectController extends Controller
 
             $fileUrl = url('uploads/documents/' . $filename);
 
+            $targetDoc = null;
             if ($request->filled('document_id')) {
                 // TRƯỜNG HỢP: Khách hàng nộp file vào slot (Pending) đã có sẵn
-                $doc = \App\Models\ProjectDocument::where('id', $request->document_id)
+                $targetDoc = \App\Models\ProjectDocument::where('id', $request->document_id)
                     ->where('project_id', $projectId)
                     ->first();
                 
-                if ($doc) {
-                    $doc->update([
+                if ($targetDoc) {
+                    $targetDoc->update([
                         'file_url'      => $fileUrl,
                         'uploaded_at'   => now(),
                         'status'        => 'PENDING',
@@ -747,9 +748,13 @@ class ProjectController extends Controller
                 }
             } else {
                 // TRƯỜNG HỢP: Khách hàng tự upload thêm tài liệu mới ngoài mẫu
-                $doc = \App\Models\ProjectDocument::create([
+                // Mặc định gán vào "Tài liệu khác" (ID 30007) hoặc lấy từ request nếu có
+                $docTypeId = $request->document_type_id ?? 30007;
+
+                $targetDoc = \App\Models\ProjectDocument::create([
                     'project_id'    => $projectId,
                     'document_name' => $request->name,
+                    'document_type_id' => $docTypeId,
                     'file_url'      => $fileUrl,
                     'uploaded_at'   => now(),
                     'status'        => 'PENDING',
@@ -757,9 +762,34 @@ class ProjectController extends Controller
                 ]);
             }
 
+            // --- KHỞI TẠO QUY TRÌNH NẾU CHƯA CÓ ---
+            if ($targetDoc && !$targetDoc->current_step_id) {
+                $docType = DB::table('document_types')->where('id', $targetDoc->document_type_id)->first();
+                if ($docType && $docType->assigned_workflow_id) {
+                    $firstStep = DB::table('workflow_steps')
+                        ->where('workflow_id', $docType->assigned_workflow_id)
+                        ->orderBy('sort_order', 'asc')
+                        ->first();
+                    
+                    if ($firstStep) {
+                        $targetDoc->update(['current_step_id' => $firstStep->id]);
+                        
+                        // Ghi log SUBMIT
+                        DB::table('document_workflow_logs')->insert([
+                            'document_id' => $targetDoc->id,
+                            'step_id'     => $firstStep->id,
+                            'processor_id' => 1, // Mặc định từ khách hàng -> Admin ghi nhận
+                            'action'      => 'SUBMIT',
+                            'comment'     => 'Khách hàng nộp hồ sơ',
+                            'created_at'  => now()
+                        ]);
+                    }
+                }
+            }
+
             return response()->json([
                 'status' => 'success',
-                'data' => $doc
+                'data' => $targetDoc
             ], 201);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
