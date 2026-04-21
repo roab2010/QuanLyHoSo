@@ -20,6 +20,7 @@ import {
     getAllInventoryItems,
     getPendingMaterialRequests,
     getDocumentsMetadata,
+    getProjectMaterialHistory,
     getConstructionLogs,
     createConstructionLog,
     deleteConstructionLog,
@@ -81,14 +82,27 @@ export default function ChiTietHoSo() {
     const [docUploading, setDocUploading] = useState(false);
     const [docTypes, setDocTypes] = useState([]);
     const [editDocId, setEditDocId] = useState(null);
-    const [docForm, setDocForm] = useState({ name: "", type: "", note: "", file: null });
+    const [docForm, setDocForm] = useState({
+        name: "",
+        type: "",
+        note: "",
+        file: null,
+        estimated_finish_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        actual_finish_date: ""
+    });
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewScale, setPreviewScale] = useState(1);
 
     // Task modal
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
-    const [taskForm, setTaskForm] = useState({ task_name: "", work_volume: 0, estimated_completion_date: "" });
+    const [taskForm, setTaskForm] = useState({
+        task_name: "",
+        work_volume: 0,
+        estimated_completion_date: "",
+        estimated_finish_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        actual_finish_date: ""
+    });
 
     // Member modal
     const [showMemberModal, setShowMemberModal] = useState(false);
@@ -117,6 +131,10 @@ export default function ChiTietHoSo() {
     
     // Pending requests state
     const [pendingRequests, setPendingRequests] = useState([]);
+    
+    // Material history state
+    const [materialHistory, setMaterialHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     // Construction Log state
     const [constructionLogs, setConstructionLogs] = useState([]);
@@ -140,11 +158,20 @@ export default function ChiTietHoSo() {
         if (admin.role === 'admin') return true;
         try {
             const perms = JSON.parse(admin.permissions || '[]');
-            if (perms.includes(permKey)) return true;
-            if (!permKey.includes('.')) {
-                return perms.some(p => p.startsWith(permKey + '.'));
+            let hasGlobal = false;
+            if (perms.includes(permKey)) hasGlobal = true;
+            else if (!permKey.includes('.')) {
+                hasGlobal = perms.some(p => p.startsWith(permKey + '.'));
             }
-            return false;
+
+            if (hasGlobal && project) {
+                const isSupervisor = project.supervisor?.user_id === admin.id;
+                const isMember = project.members?.some(m => m.employee?.user_id === admin.id);
+                if (!isSupervisor && !isMember) {
+                    return false;
+                }
+            }
+            return hasGlobal;
         } catch (e) { return false; }
     };
 
@@ -157,6 +184,7 @@ export default function ChiTietHoSo() {
     const canDeleteTasks = hasPermission("tasks.delete");
     const canManageInventory = hasPermission("inventory.manage");
     const canManageLogs = hasPermission("logs.manage");
+    const canDragKanban = hasPermission("kanban.drag");
 
     const isProjectCompleted = project?.status === 'COMPLETED' || project?.status === 'done' || project?.progress === 100;
 
@@ -196,6 +224,15 @@ export default function ChiTietHoSo() {
     const fetchDocMetadata = async () => {
         const metadata = await getDocumentsMetadata();
         setDocTypes(metadata.types || []);
+    };
+
+    const fetchMaterialHistory = async () => {
+        setHistoryLoading(true);
+        const res = await getProjectMaterialHistory(id);
+        if (res?.success) {
+            setMaterialHistory(res.history || []);
+        }
+        setHistoryLoading(false);
     };
 
     const fetchVatTu = async () => {
@@ -244,6 +281,7 @@ export default function ChiTietHoSo() {
     useEffect(() => {
         if (activeTab === "vat-tu") {
             fetchVatTu();
+            fetchMaterialHistory();
         }
         if (activeTab === "tien-do") {
             fetchConstructionLogs();
@@ -273,12 +311,24 @@ export default function ChiTietHoSo() {
     /* ─── TASK HANDLERS ─── */
     const handleAddTask = () => {
         setEditingTask(null);
-        setTaskForm({ task_name: "", work_volume: 0, estimated_completion_date: "" });
+        setTaskForm({
+            task_name: "",
+            work_volume: 0,
+            estimated_completion_date: "",
+            estimated_finish_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            actual_finish_date: ""
+        });
         setShowTaskModal(true);
     };
     const handleEditTask = (task) => {
         setEditingTask(task);
-        setTaskForm({ task_name: task.task_name, work_volume: task.work_volume, estimated_completion_date: task.estimated_completion_date || "" });
+        setTaskForm({
+            task_name: task.task_name,
+            work_volume: task.work_volume,
+            estimated_completion_date: task.estimated_completion_date || "",
+            estimated_finish_date: task.estimated_finish_date || "",
+            actual_finish_date: task.actual_finish_date || ""
+        });
         setShowTaskModal(true);
     };
     const handleSaveTask = async () => {
@@ -287,7 +337,12 @@ export default function ChiTietHoSo() {
             if (editingTask) {
                 await updateTask(id, editingTask.id, taskForm);
             } else {
-                await createTask(id, taskForm);
+                // Ensure default estimated date is sent
+                const payload = {
+                    ...taskForm,
+                    estimated_finish_date: taskForm.estimated_finish_date || new Date(Date.now() + 86400000).toISOString().split('T')[0]
+                };
+                await createTask(id, payload);
             }
             setShowTaskModal(false);
             fetchData(false);
@@ -316,6 +371,12 @@ export default function ChiTietHoSo() {
     const handleDragOver = (e) => e.preventDefault();
     const handleDrop = async (e, targetStatus) => {
         e.preventDefault();
+        
+        if (!canDragKanban) {
+            toast.error("Bạn không có quyền cập nhật tiến độ công việc trên bảng Kanban!");
+            return;
+        }
+
         const task = dragItem.current;
         // Cho phép Admin thay đổi trạng thái tự do
         if (!task || task.status === targetStatus) return;
@@ -336,7 +397,11 @@ export default function ChiTietHoSo() {
         });
 
         try {
-            await updateTask(id, task.id, { status: targetStatus });
+            const updateData = { status: targetStatus };
+            if (targetStatus === "DONE") {
+                updateData.actual_finish_date = new Date().toISOString().split('T')[0];
+            }
+            await updateTask(id, task.id, updateData);
             fetchData(false);
         } catch (e) {
             toast.error(e.response?.data?.message || "Lỗi khi cập nhật trạng thái");
@@ -348,7 +413,14 @@ export default function ChiTietHoSo() {
     /* ─── DOCUMENT HANDLERS ─── */
     const handleOpenAddDoc = () => {
         setEditDocId(null);
-        setDocForm({ name: "", type: "", note: "", file: null });
+        setDocForm({
+            name: "",
+            type: "",
+            note: "",
+            file: null,
+            estimated_finish_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            actual_finish_date: ""
+        });
         setShowDocModal(true);
     };
     
@@ -358,7 +430,9 @@ export default function ChiTietHoSo() {
             name: doc.document_name,
             type: doc.document_type_id || "",
             note: doc.note || "",
-            file: null
+            file: null,
+            estimated_finish_date: doc.estimated_finish_date || "",
+            actual_finish_date: doc.actual_finish_date || ""
         });
         setShowDocModal(true);
     };
@@ -375,6 +449,8 @@ export default function ChiTietHoSo() {
         formData.append('document_type_id', docForm.type);
         if (docForm.note) formData.append('note', docForm.note);
         if (docForm.file) formData.append('file', docForm.file);
+        if (docForm.estimated_finish_date) formData.append('estimated_finish_date', docForm.estimated_finish_date);
+        if (docForm.actual_finish_date) formData.append('actual_finish_date', docForm.actual_finish_date);
 
         try {
             if (editDocId) {
@@ -395,7 +471,11 @@ export default function ChiTietHoSo() {
 
     const handleDocAction = async (docId, status) => {
         try {
-            await updateDocument(id, docId, { status });
+            const updateData = { status };
+            if (['COMPLETED', 'done', 'Approved'].includes(status)) {
+                updateData.actual_finish_date = new Date().toISOString().split('T')[0];
+            }
+            await updateDocument(id, docId, updateData);
             fetchData(false);
             toast.success("Trạng thái tài liệu đã được cập nhật");
         } catch (e) {
@@ -807,9 +887,9 @@ export default function ChiTietHoSo() {
                 </p>
             </div>
 
-            <div className="detail-content">
-                {/* Sidebar */}
-                <div className="detail-sidebar" style={{ minWidth: '220px', flexShrink: 0 }}>
+            {/* Navigation Tabs (Top) */}
+            <div className="detail-navbar">
+                <div className="navbar-links">
                     {[
                         { key: "thong-tin", label: "Thông tin chung", icon: "📊" },
                         { key: "phap-ly", label: "Tài liệu", icon: "📄" },
@@ -823,14 +903,19 @@ export default function ChiTietHoSo() {
                             onClick={() => setActiveTab(tab.key)}
                         >
                             <span className="tab-icon">{tab.icon}</span> {tab.label}
-                            {activeTab === tab.key && <span className="tab-arrow">›</span>}
                         </button>
                     ))}
-                    <button className="btn-back" onClick={() => navigate("/admin")}>
-                        ← Quay lại bảng
-                    </button>
                 </div>
+            </div>
 
+            {/* Back Button below menu */}
+            <div className="navbar-footer-action">
+                <button className="btn-back-v2" onClick={() => navigate("/admin")}>
+                    ← Quay lại bảng
+                </button>
+            </div>
+
+            <div className="detail-content">
                 {/* Nội dung chính */}
                 <div className="detail-main">
                     {/* Thêm style v3 cục bộ cho Kanban */}
@@ -998,8 +1083,9 @@ export default function ChiTietHoSo() {
                                                             <div 
                                                                 className="kb-v3-task" 
                                                                 key={t.id}
-                                                                draggable
-                                                                onDragStart={(e) => handleDragStart(e, t)}
+                                                                draggable={canDragKanban ? "true" : "false"}
+                                                                onDragStart={canDragKanban ? (e) => handleDragStart(e, t) : undefined}
+                                                                style={{ cursor: canDragKanban ? 'grab' : 'default' }}
                                                             >
                                                                 <span className="kb-v3-task-name">{t.task_name}</span>
                                                                 <div className="kb-v3-task-meta">
@@ -1096,8 +1182,10 @@ export default function ChiTietHoSo() {
                                         <tr>
                                             <th>TÊN TÀI LIỆU</th>
                                             <th>LOẠI TÀI LIỆU</th>
-                                            <th>NGÀY TẢI LÊN</th>
-                                            <th>TRẠNG THÁI</th>
+                                            <th style={{ textAlign: "center" }}>NGÀY TẢI LÊN</th>
+                                            <th style={{ textAlign: "center" }}>HẠN HOÀN THÀNH</th>
+                                            <th style={{ textAlign: "center" }}>NGÀY HOÀN THÀNH</th>
+                                            <th style={{ textAlign: "center" }}>TRẠNG THÁI</th>
                                             <th style={{ textAlign: "center" }}>HÀNH ĐỘNG</th>
                                         </tr>
                                     </thead>
@@ -1113,11 +1201,21 @@ export default function ChiTietHoSo() {
                                                 <td>
                                                     <span style={{ color: '#64748b' }}>{doc.document_type?.type_name || "Chưa phân loại"}</span>
                                                 </td>
-                                                <td>
+                                                <td style={{ textAlign: "center" }}>
                                                     {doc.uploaded_at
                                                         ? new Date(doc.uploaded_at).toLocaleDateString(
                                                             "vi-VN",
                                                         )
+                                                        : "—"}
+                                                </td>
+                                                <td style={{ textAlign: "center", fontStyle: "italic" }}>
+                                                    {doc.estimated_finish_date
+                                                        ? new Date(doc.estimated_finish_date).toLocaleDateString("vi-VN")
+                                                        : "—"}
+                                                </td>
+                                                <td style={{ textAlign: "center", fontWeight: "bold", color: "#2563eb" }}>
+                                                    {doc.actual_finish_date
+                                                        ? new Date(doc.actual_finish_date).toLocaleDateString("vi-VN")
                                                         : "—"}
                                                 </td>
                                                 <td style={{ verticalAlign: 'middle' }}>
@@ -1166,24 +1264,64 @@ export default function ChiTietHoSo() {
                                                                 <span style={{ marginLeft: '4px', fontSize: '12px', fontWeight: '600' }}>Tải lên</span>
                                                             </button>
                                                         )}
-                                                        <button
-                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fef3c7', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                            title="Sửa"
-                                                            onClick={() => handleOpenEditDoc(doc)}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = '#fde68a'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = '#fef3c7'}
-                                                        >
-                                                            <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: "opacity(0.8)" }} />
-                                                        </button>
-                                                        <button
-                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', background: '#fee2e2', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                            title="Xóa"
-                                                            onClick={() => handleDeleteDoc(doc.id)}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
-                                                        >
-                                                            <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: "opacity(0.8)" }} />
-                                                        </button>
+                                                        {canEditDoc && (
+                                                            <button
+                                                                style={{ 
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', 
+                                                                    background: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? '#f3f4f6' : '#fef3c7', 
+                                                                    border: 'none', 
+                                                                    cursor: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 'not-allowed' : 'pointer', 
+                                                                    transition: 'all 0.2s',
+                                                                    opacity: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 0.5 : 1
+                                                                }}
+                                                                title={(doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "Hồ sơ đã khóa" : "Sửa"}
+                                                                onClick={() => {
+                                                                    if (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') return;
+                                                                    handleOpenEditDoc(doc);
+                                                                }}
+                                                                onMouseOver={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fde68a';
+                                                                    }
+                                                                }}
+                                                                onMouseOut={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fef3c7';
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" width="18" alt="Edit" style={{ filter: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "grayscale(1)" : "opacity(0.8)" }} />
+                                                            </button>
+                                                        )}
+                                                        {canDeleteDoc && (
+                                                            <button
+                                                                style={{ 
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', 
+                                                                    background: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? '#f3f4f6' : '#fee2e2', 
+                                                                    border: 'none', 
+                                                                    cursor: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 'not-allowed' : 'pointer', 
+                                                                    transition: 'all 0.2s',
+                                                                    opacity: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? 0.5 : 1
+                                                                }}
+                                                                title={(doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "Hồ sơ đã khóa" : "Xóa"}
+                                                                onClick={() => {
+                                                                    if (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') return;
+                                                                    handleDeleteDoc(doc.id);
+                                                                }}
+                                                                onMouseOver={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fecaca';
+                                                                    }
+                                                                }}
+                                                                onMouseOut={(e) => {
+                                                                    if (doc.status !== 'PROCESSING' && doc.status !== 'COMPLETED' && doc.status !== 'REJECTED') {
+                                                                        e.currentTarget.style.background = '#fee2e2';
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <img src="https://cdn-icons-png.flaticon.com/512/1214/1214428.png" width="18" alt="Delete" style={{ filter: (doc.status === 'PROCESSING' || doc.status === 'COMPLETED' || doc.status === 'REJECTED') ? "grayscale(1)" : "opacity(0.8)" }} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1338,7 +1476,7 @@ export default function ChiTietHoSo() {
                                             {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" })
                                                 .format(vatTuItems.reduce((s, i) => s + i.qty_at_project * i.price, 0))}
                                         </div>
-                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Tổng giá trị</div>
+                                        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Tổng giá trị vật tư</div>
                                     </div>
                                 </div>
                             )}
@@ -1498,6 +1636,74 @@ export default function ChiTietHoSo() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Material History Section */}
+                            <div style={{ marginTop: 40, marginBottom: 30 }}>
+                                <h4 style={{ 
+                                    fontSize: 16, borderBottom: "2px solid #e2e8f0", 
+                                    paddingBottom: 10, marginBottom: 15, color: "#1e293b", 
+                                    display: "flex", alignItems: "center", gap: 10, fontWeight: 700 
+                                }}>
+                                    <span style={{ fontSize: 20 }}>📜</span> Lịch sử xuất / nhập vật tư
+                                </h4>
+                                
+                                {historyLoading ? (
+                                    <div style={{ textAlign: "center", padding: "30px 0", color: "#64748b" }}>
+                                        <div className="spinner-small" style={{ margin: "0 auto 10px" }}></div>
+                                        <p style={{ fontSize: 13 }}>Đang tải lịch sử...</p>
+                                    </div>
+                                ) : materialHistory.length === 0 ? (
+                                    <p style={{ textAlign: "center", color: "#94a3b8", padding: "20px", background: "#f8fafc", borderRadius: 12, fontSize: 13 }}>
+                                        Chưa có lịch sử giao dịch nào.
+                                    </p>
+                                ) : (
+                                    <div style={{ overflowX: "auto", borderRadius: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
+                                        <table className="doc-table" style={{ minWidth: 800 }}>
+                                            <thead>
+                                                <tr style={{ background: "#f8fafc" }}>
+                                                    <th style={{ width: 150 }}>PHÂN LOẠI</th>
+                                                    <th style={{ width: 140 }}>MÃ PHIẾU</th>
+                                                    <th>CHI TIẾT VẬT TƯ</th>
+                                                    <th style={{ textAlign: "center", width: 180 }}>THỜI GIAN</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {materialHistory.map(item => (
+                                                    <tr key={item.id}>
+                                                        <td>
+                                                            <span style={{ 
+                                                                display: "inline-flex", alignItems: "center", gap: 6,
+                                                                padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                                                                background: item.type === 'OUT' ? '#eff6ff' : '#ecfdf5',
+                                                                color: item.type === 'OUT' ? '#2563eb' : '#059669',
+                                                                border: `1px solid ${item.type === 'OUT' ? '#dbeafe' : '#d1fae5'}`
+                                                            }}>
+                                                                {item.type === 'OUT' ? '📤 Xuất kho' : '📥 Hoàn trả'}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ fontWeight: 600, color: "#475569", fontSize: 13 }}>
+                                                            {item.transaction_code}
+                                                        </td>
+                                                        <td>
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                                {(item.details || []).map(d => (
+                                                                    <div key={d.id} style={{ fontSize: 13, color: "#1e293b", display: "flex", justifyContent: "space-between" }}>
+                                                                        <span>• {d.product?.name}</span>
+                                                                        <span style={{ fontWeight: 700 }}>{d.quantity} {d.product?.unit}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ textAlign: "center", color: "#64748b", fontSize: 12 }}>
+                                                            {new Date(item.created_at).toLocaleString("vi-VN")}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
                         </section>
                     )}
 
@@ -1553,15 +1759,36 @@ export default function ChiTietHoSo() {
                                                     <div
                                                         className="kb-v3-task"
                                                         key={task.id}
-                                                        draggable
-                                                        onDragStart={(e) => handleDragStart(e, task)}
+                                                        draggable={canDragKanban ? "true" : "false"}
+                                                        onDragStart={canDragKanban ? (e) => handleDragStart(e, task) : undefined}
+                                                        style={{ cursor: canDragKanban ? 'grab' : 'default' }}
                                                     >
                                                         <span className="kb-v3-task-name">{task.task_name}</span>
                                                         <div className="kb-v3-task-meta">
                                                             {task.work_volume > 0 && <span>📊 Khối lượng: {task.work_volume}</span>}
                                                             {(() => {
                                                                 if (task.status === "DONE") {
-                                                                    return <span style={{ color: '#16a34a', fontWeight: '600' }}>✅ Đã hoàn thành</span>;
+                                                                    return (
+                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                            <span style={{ color: '#16a34a', fontWeight: '800' }}>✅ Đã hoàn thành</span>
+                                                                            {task.actual_finish_date && <span style={{ color: '#2563eb', fontSize: '10px' }}>📅 {new Date(task.actual_finish_date).toLocaleDateString('vi-VN')}</span>}
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                if (task.estimated_finish_date) {
+                                                                    const estDate = new Date(task.estimated_finish_date);
+                                                                    const today = new Date();
+                                                                    today.setHours(0,0,0,0);
+                                                                    estDate.setHours(0,0,0,0);
+                                                                    const isLate = today > estDate;
+                                                                    
+                                                                    return (
+                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                            <span style={{ color: isLate ? '#ef4444' : '#16a34a', fontWeight: '800' }}>
+                                                                                {isLate ? '🚨 Quá hạn' : '📅 Hạn: ' + estDate.toLocaleDateString('vi-VN')}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
                                                                 }
                                                                 if (task.estimated_completion_date && task.estimated_completion_date > 0) {
                                                                     const remainingDays = calculateRemainingDays(task.created_at, task.estimated_completion_date);
@@ -1574,7 +1801,6 @@ export default function ChiTietHoSo() {
                                                                 }
                                                                 return null;
                                                             })()}
-                                                            <span>ID: #{task.id}</span>
                                                         </div>
                                                         <div className="kb-v3-actions">
                                                             {canManageTasks && (
@@ -1747,15 +1973,30 @@ export default function ChiTietHoSo() {
                             />
                         </div>
                         <div className="form-group">
-                            <label>Ngày dự kiến hoàn thành (số ngày)</label>
+                            <label>Ngày dự kiến hoàn thành</label>
                             <input
                                 className="form-input"
-                                type="number"
-                                placeholder="0"
-                                value={taskForm.estimated_completion_date}
+                                type="date"
+                                value={taskForm.estimated_finish_date}
                                 onChange={(e) =>
-                                    setTaskForm({ ...taskForm, estimated_completion_date: e.target.value })
+                                    setTaskForm({ ...taskForm, estimated_finish_date: e.target.value })
                                 }
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Ngày hoàn thành {editingTask?.status !== 'DONE' && <span style={{fontSize: '11px', color: '#94a3b8'}}>(Chỉ nhập khi hoàn thành)</span>}</label>
+                            <input
+                                className="form-input"
+                                type="date"
+                                disabled={editingTask?.status !== 'DONE'}
+                                value={taskForm.actual_finish_date}
+                                onChange={(e) =>
+                                    setTaskForm({ ...taskForm, actual_finish_date: e.target.value })
+                                }
+                                style={{
+                                    backgroundColor: editingTask?.status !== 'DONE' ? '#f1f5f9' : '#fff',
+                                    cursor: editingTask?.status !== 'DONE' ? 'not-allowed' : 'text'
+                                }}
                             />
                         </div>
                         <div className="modal-footer">
@@ -2012,6 +2253,33 @@ export default function ChiTietHoSo() {
                             <div className="form-group">
                                 <label>Ghi chú (nếu có)</label>
                                 <input className="form-control" name="note" placeholder="VD: Bản vẽ kỹ thuật móng..." value={docForm.note} onChange={e => setDocForm({...docForm, note: e.target.value})} />
+                            </div>
+                            <div className="form-group">
+                                <label>Ngày dự kiến hoàn thành</label>
+                                <input type="date" className="form-control" name="estimated_finish_date" value={docForm.estimated_finish_date} onChange={e => setDocForm({...docForm, estimated_finish_date: e.target.value})} />
+                            </div>
+                            <div className="form-group">
+                                {(() => {
+                                    const currentDoc = project?.documents?.find(d => d.id === editDocId);
+                                    const isLocked = !['COMPLETED', 'done', 'Approved'].includes(currentDoc?.status);
+                                    return (
+                                        <>
+                                            <label>Ngày hoàn thành {isLocked && <span style={{fontSize: '11px', color: '#94a3b8'}}>(Chỉ nhập khi đã hoàn thành/duyệt)</span>}</label>
+                                            <input 
+                                                type="date" 
+                                                className="form-control" 
+                                                name="actual_finish_date" 
+                                                disabled={isLocked}
+                                                value={docForm.actual_finish_date} 
+                                                onChange={e => setDocForm({...docForm, actual_finish_date: e.target.value})}
+                                                style={{
+                                                    backgroundColor: isLocked ? '#f1f5f9' : '#fff',
+                                                    cursor: isLocked ? 'not-allowed' : 'text'
+                                                }}
+                                            />
+                                        </>
+                                    );
+                                })()}
                             </div>
                             <div className="form-group">
                                 <label>Chọn file tài liệu {editDocId && "(Để trống nếu không đổi)"} {!editDocId && <span style={{ color: "red" }}>*</span>}</label>

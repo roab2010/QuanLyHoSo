@@ -19,6 +19,8 @@ import CustomerDashboard from "./CustomerDashboard";
 import QuanLyKhachHang from "./QuanLyKhachHang";
 import QuanLyNhanVien from "./QuanLyNhanVien";
 import ProjectDocuments from "./ProjectDocuments";
+import DocumentWorkflow from "./DocumentWorkflow";
+import WorkflowPermissions from "./WorkflowPermissions";
 import SystemLog from "./SystemLog";
 import { useToast } from "./Toast";
 
@@ -28,7 +30,7 @@ const COLUMNS = [
     { id: "done", title: "Hoàn thành", color: "#16a34a" },
 ];
 
-const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho", "Nhật ký hệ thống"];
+const NAV_ITEMS = ["Bảng điều khiển", "Danh sách hồ sơ", "Danh mục dự án", "Quản lý tài liệu", "Duyệt tài liệu", "Phân quyền duyệt", "Quản lý khách hàng", "Quản lý nhân viên", "Báo cáo", "Quản lý kho", "Nhật ký hệ thống"];
 
 const styles = {
     logoutBtn: {
@@ -87,6 +89,9 @@ const AdminLayout = ({
             }
             if (activeNav === "Nhật ký hệ thống") {
                 if (!hasPermission("system_log")) setActiveNav("Bảng điều khiển");
+            }
+            if (activeNav === "Phân quyền duyệt") {
+                if (admin.role !== 'admin') setActiveNav("Bảng điều khiển");
             }
         };
 
@@ -151,6 +156,10 @@ const AdminLayout = ({
                         <ProjectCategoryList />
                     ) : activeNav === "Quản lý tài liệu" ? (
                         <ProjectDocuments />
+                    ) : activeNav === "Duyệt tài liệu" ? (
+                        <DocumentWorkflow admin={admin} />
+                    ) : activeNav === "Phân quyền duyệt" ? (
+                        <WorkflowPermissions />
                     ) : activeNav === "Tin tức" ? (
                         <News />
                     ) : activeNav === "Nhật ký hệ thống" ? (

@@ -34,9 +34,10 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
     const [showMenu, setShowMenu] = useState(false);
     const navigate = useNavigate();
     const hasPermission = getPermissionHelper();
-
+    
+    // Yêu cầu quyền projects.edit để kéo thả thay đổi trạng thái Dự án (Hồ sơ) 
     const canDelete = hasPermission("projects.delete");
-    const canDrag = hasPermission("kanban.drag");
+    const canDrag = hasPermission("projects.edit");
 
     // Logic chặn menu ba chấm: Chỉ hiện nút chuyển nếu đi từ 'new' sang 'processing'
     const canMoveTo = (targetColId) => {
@@ -55,14 +56,13 @@ function KanbanCard({ card, onDelete, onMoveCard, COLUMNS }) {
     return (
         <div 
             className={`card ${card.colId}`} 
-            draggable={canDrag}
+            draggable={canDrag ? "true" : "false"}
             onClick={handleCardClick}
-            style={{ cursor: 'pointer' }}
-            onDragStart={(e) => {
-                if (!canDrag) { e.preventDefault(); return; }
+            style={{ cursor: canDrag ? 'grab' : 'pointer' }}
+            onDragStart={canDrag ? (e) => {
                 e.dataTransfer.setData("cardId", String(card.id));
                 e.dataTransfer.setData("fromColId", card.colId);
-            }}
+            } : undefined}
         >
             <div className="card-top">
                 <span className={`badge ${card.badgeClass}`}>{card.badge}</span>
@@ -104,14 +104,16 @@ export default function KanbanBoard({ COLUMNS, cardsByCol, onDelete, onMoveCard,
     const [dragOverCol, setDragOverCol] = useState(null);
     const toast = useToast();
     const hasPermission = getPermissionHelper();
-    const canDrag = hasPermission("kanban.drag");
+    
+    // Yêu cầu quyền projects.edit để kéo thả thay đổi trạng thái Dự án (Hồ sơ)
+    const canDrag = hasPermission("projects.edit");
 
     const handleDrop = (e, targetColId) => {
         e.preventDefault();
         setDragOverCol(null);
         
         if (!canDrag) {
-            toast.error("Bạn không có quyền kéo thả trên bảng Kanban!");
+            toast.error("Bạn không có quyền chuyển trạng thái Hồ sơ dự án!");
             return;
         }
 

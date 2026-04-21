@@ -497,6 +497,8 @@ class ProjectController extends Controller
                 'status' => 'TODO',
                 'sort_order' => $request->sort_order ?? 0,
                 'estimated_completion_date' => $request->estimated_completion_date ?? null,
+                'estimated_finish_date' => $request->estimated_finish_date ?? now()->addDay()->toDateString(),
+                'actual_finish_date' => $request->actual_finish_date ?? null,
                 'created_at' => now(),
             ]);
 
@@ -530,6 +532,10 @@ class ProjectController extends Controller
             $updateData['sort_order'] = $request->sort_order;
         if ($request->has('estimated_completion_date'))
             $updateData['estimated_completion_date'] = $request->estimated_completion_date ?: null;
+        if ($request->has('estimated_finish_date'))
+            $updateData['estimated_finish_date'] = $request->estimated_finish_date ?: null;
+        if ($request->has('actual_finish_date'))
+            $updateData['actual_finish_date'] = $request->actual_finish_date ?: null;
 
         if ($request->has('status')) {
             // Kiểm tra logic chỉ cho phép chuyển trạng thái tiến lên
@@ -547,6 +553,7 @@ class ProjectController extends Controller
             $updateData['status'] = $request->status;
             if ($request->status === 'DONE') {
                 $updateData['completed_date'] = now();
+                $updateData['actual_finish_date'] = now()->toDateString();
             }
         }
 
@@ -592,8 +599,16 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Không tìm thấy tài liệu'], 404);
         }
 
-        if ($request->has('status')) $doc->status = $request->status;
+        if ($request->has('status')) {
+            $doc->status = $request->status;
+            if (in_array($request->status, ['COMPLETED', 'done', 'Approved'])) { // Phù hợp với các label được dùng
+                $doc->actual_finish_date = now()->toDateString();
+            }
+        }
         if ($request->has('note')) $doc->note = $request->note;
+        if ($request->has('estimated_finish_date')) $doc->estimated_finish_date = $request->estimated_finish_date;
+        if ($request->has('actual_finish_date')) $doc->actual_finish_date = $request->actual_finish_date;
+
         $doc->save();
 
         return response()->json(['data' => $doc]);
@@ -672,9 +687,11 @@ class ProjectController extends Controller
             ->map(function($emp) {
                 return [
                     'id' => $emp->id,
+                    'user_id' => $emp->user_id, // Quan trọng để map sang workflow_project_approvers
                     'full_name' => $emp->full_name,
                     'email' => $emp->email ?? ($emp->user ? $emp->user->email : ''),
                     'phone' => $emp->phone ?? ($emp->user ? $emp->user->phone : ''),
+                    'role_id' => $emp->user ? $emp->user->role_id : null, // Quan trọng để tự động chọn loại tài liệu
                     'role_name' => $emp->user && $emp->user->role ? $emp->user->role->name : '',
                     'role_color' => $emp->user && $emp->user->role ? $emp->user->role->color : ''
                 ];

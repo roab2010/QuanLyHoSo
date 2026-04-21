@@ -14,12 +14,15 @@ class ProjectTask extends Model
 
     protected $fillable = [
         'project_id', 'task_name', 'work_volume',
-        'status', 'sort_order', 'completed_date'
+        'status', 'sort_order', 'completed_date',
+        'estimated_finish_date', 'actual_finish_date'
     ];
 
     protected $casts = [
         'created_at' => 'datetime:Y-m-d H:i:s',
         'completed_date' => 'datetime:Y-m-d H:i:s',
+        'estimated_finish_date' => 'date:Y-m-d',
+        'actual_finish_date' => 'date:Y-m-d',
         'work_volume' => 'decimal:2',
     ];
 

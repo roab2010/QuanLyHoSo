@@ -13,11 +13,15 @@ class ProjectDocument extends Model
 
     protected $fillable = [
         'project_id', 'document_name', 'file_url',
-        'uploaded_at', 'status', 'document_type_id', 'note'
+        'uploaded_at', 'status', 'document_type_id', 'note',
+        'current_step_id', 'completed_at',
+        'estimated_finish_date', 'actual_finish_date'
     ];
 
     protected $casts = [
         'uploaded_at' => 'datetime:Y-m-d',
+        'estimated_finish_date' => 'date:Y-m-d',
+        'actual_finish_date' => 'date:Y-m-d',
     ];
 
     public function project()

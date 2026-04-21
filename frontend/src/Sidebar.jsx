@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LayoutDashboard, FolderOpen, Settings, Users, Box, UsersRound, FileText, FileSpreadsheet, LogOut, Camera, User } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Settings, Users, Box, UsersRound, FileText, FileSpreadsheet, CheckSquare, LogOut, Camera, User, ShieldAlert } from 'lucide-react';
 import api from "./api";
 import { getPendingMaterialRequests } from "./hoSoService";
 
@@ -15,6 +15,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
     const [changingPassword, setChangingPassword] = useState(false);
     const [isEditingPassword, setIsEditingPassword] = useState(false);
     const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+    const [pendingWorkflowCount, setPendingWorkflowCount] = useState(0);
 
     useEffect(() => {
         if (hasPermission("inventory")) {
@@ -28,7 +29,41 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             
             // Periodically check for new requests every 30 seconds
             const interval = setInterval(fetchPendingCount, 30000);
+            
+            if (hasPermission("documents")) {
+                const fetchWorkflowCount = async () => {
+                    try {
+                        const res = await api.get('/workflow/pending-approvals');
+                        if (res.data?.data) {
+                            setPendingWorkflowCount(res.data.data.length);
+                        }
+                    } catch (e) {
+                        console.error("Error fetching workflow count", e);
+                    }
+                };
+                fetchWorkflowCount();
+                const wfInterval = setInterval(fetchWorkflowCount, 30000);
+                return () => {
+                    clearInterval(interval);
+                    clearInterval(wfInterval);
+                };
+            }
+
             return () => clearInterval(interval);
+        } else if (hasPermission("documents")) {
+             const fetchWorkflowCount = async () => {
+                try {
+                    const res = await api.get('/workflow/pending-approvals');
+                    if (res.data?.data) {
+                        setPendingWorkflowCount(res.data.data.length);
+                    }
+                } catch (e) {
+                    console.error("Error fetching workflow count", e);
+                }
+            };
+            fetchWorkflowCount();
+            const wfInterval = setInterval(fetchWorkflowCount, 30000);
+            return () => clearInterval(wfInterval);
         }
     }, [admin]);
 
@@ -132,6 +167,8 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             if (label === "Quản lý nhân viên") return hasPermission("hr");
             if (label === "Quản lý kho") return hasPermission("inventory") || hasPermission("suppliers");
             if (label === "Báo cáo" || label === "Quản lý tài liệu") return hasPermission("documents");
+            if (label === "Duyệt tài liệu") return hasPermission("documents");
+            if (label === "Phân quyền duyệt") return admin?.role === 'admin';
             if (label === "Nhật ký hệ thống") return hasPermission("system_log");
             return true;
         });
@@ -189,13 +226,16 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                                 label === "Danh sách hồ sơ" ? <FolderOpen size={20} color="#eab308" /> :
                                     label === "Danh mục dự án" ? <Settings size={20} color="#9ca3af" /> :
                                         label === "Quản lý tài liệu" ? <FileSpreadsheet size={20} color="#3b82f6" /> :
-                                            label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
-                                                label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
-                                                    label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
-                                                        label === "Nhật ký hệ thống" ? <FileText size={20} color="#10b981" /> :
-                                                            label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
-                                                            label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
-                                                                <FolderOpen size={20} />}
+                                            label === "Duyệt tài liệu" ? <CheckSquare size={20} color="#8b5cf6" /> :
+                                                label === "Phân quyền duyệt" ? <ShieldAlert size={20} color="#dc2626" /> :
+                                                    label === "Quản lý khách hàng" ? <Users size={20} color="#f59e0b" /> :
+                                                        label === "Quản lý nhân viên" ? <UsersRound size={20} color="#10b981" /> :
+                                                            label === "Báo cáo" ? <FileText size={20} color="#f97316" /> :
+                                                                label === "Nhật ký hệ thống" ? <FileText size={20} color="#10b981" /> :
+                                                                    label === "Tin tức" ? <FileText size={20} color="#3b82f6" /> :
+                                                                        label === "Quản lý kho" ? <Box size={20} color="#8b5cf6" /> :
+                                                                            <FolderOpen size={20} />}
+
                         </span>
                         <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
                         {label === "Quản lý kho" && pendingRequestsCount > 0 && admin?.role === 'admin' && (
@@ -212,6 +252,14 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                                 padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold'
                             }}>
                                 {pendingRequestsCount}
+                            </span>
+                        )}
+                        {label === "Duyệt tài liệu" && pendingWorkflowCount > 0 && (
+                            <span style={{
+                                background: '#ef4444', color: 'white', fontSize: '11px',
+                                padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold'
+                            }}>
+                                {pendingWorkflowCount}
                             </span>
                         )}
                     </button>

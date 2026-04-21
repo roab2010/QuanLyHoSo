@@ -617,6 +617,27 @@ class InventoryController extends Controller
     }
 
     /**
+     * Lấy lịch sử giao dịch vật tư (Xuất/Trả) của dự án
+     */
+    public function getProjectHistory($projectId)
+    {
+        try {
+            $history = InventoryTransaction::where('project_id', $projectId)
+                ->whereIn('status', ['COMPLETED', 'REJECTED'])
+                ->with(['details.product'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'history' => $history
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Lỗi: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Nhập hàng trả lại từ dự án về kho
      */
     public function importFromProject(Request $request)
