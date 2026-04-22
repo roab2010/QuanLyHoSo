@@ -41,20 +41,38 @@ class DocumentWorkflowController extends Controller
 
         // Đính kèm danh sách các Role ID có trong quy trình này
         foreach ($types as $type) {
-            if ($type->assigned_workflow_id) {
+            $workflowId = $type->assigned_workflow_id;
+
+            // Nếu không có assigned_workflow_id, tìm qua workflow_assignments (global scope)
+            if (!$workflowId) {
+                $assign = DB::table('workflow_assignments')
+                    ->where('document_type_id', $type->id)
+                    ->where('scope_type', 'global')
+                    ->first();
+                if ($assign) {
+                    $workflowId = $assign->workflow_id;
+                    $type->workflow_name = DB::table('workflows')->where('id', $workflowId)->value('workflow_name');
+                    $type->assigned_workflow_id = $workflowId; // expose to frontend
+                }
+            }
+
+            if ($workflowId) {
+                // Roles có trong các bước quy trình
                 $nativeRoles = DB::table('workflow_steps')
-                    ->where('workflow_id', $type->assigned_workflow_id)
+                    ->where('workflow_id', $workflowId)
+                    ->whereNotNull('role_id_assigned')
                     ->pluck('role_id_assigned')
                     ->toArray();
 
+                // Roles được cấp quyền riêng (global approvers)
                 $globalRoles = DB::table('workflow_project_approvers')
                     ->where('scope_type', 'global')
                     ->where('document_type_id', $type->id)
+                    ->whereNotNull('role_id')
                     ->pluck('role_id')
                     ->toArray();
 
-                // Gộp native và global, xóa trùng và đánh lại index
-                $type->workflow_role_ids = array_values(array_unique(array_merge($nativeRoles, $globalRoles)));
+                $type->workflow_role_ids = array_values(array_unique(array_filter(array_merge($nativeRoles, $globalRoles))));
             } else {
                 $type->workflow_role_ids = [];
             }
@@ -137,45 +155,29 @@ class DocumentWorkflowController extends Controller
 
         // --- BƯỚC 3: LỌC TÀI LIỆU THEO QUY TẮC MỚI ---
         $filteredDocs = $allPendingDocs->filter(function ($doc) use ($userId, $roleId) {
-            $stepId = $doc->current_step_id;
-            $projectId = $doc->project_id;
+            $projectId  = $doc->project_id;
             $categoryId = $doc->project_category_id;
-            $docTypeId = $doc->document_type_id;
+            $docTypeId  = $doc->document_type_id;
+            $stepRoleId = $doc->global_role_id; // role_id_assigned của bước hiện tại
 
-            // 1. Kiểm tra xem user có quyền ĐẶC BIỆT (Dự án / Danh mục) CHỈ ĐỊNH RIÊNG cho mình không?
-            //    Phân quyền này có thể gán cho 1 user_id cụ thể hoặc 1 role_id
-            $userHasSpecificPermission = DB::table('workflow_project_approvers')
-                ->where('workflow_step_id', $stepId)
-                ->where(function($q) use ($projectId, $categoryId) {
-                    $q->where(function($sq) use ($projectId) {
-                        $sq->where('scope_type', 'project')->where('scope_id', $projectId);
-                    })->orWhere(function($sq) use ($categoryId) {
-                        $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
-                    })->orWhere(function($sq) {
-                        $sq->where('scope_type', 'global');
-                    });
-                })
-                ->where(function($q) use ($userId, $roleId) {
-                    $q->where('user_id', $userId)->orWhere('role_id', $roleId);
-                })
-                ->where(function($q) use ($docTypeId) {
-                    $q->whereNull('document_type_id')->orWhere('document_type_id', $docTypeId);
-                })
-                ->exists();
+            // Bước không yêu cầu role cụ thể → không hiển thị
+            if (!$stepRoleId) return false;
 
-            if ($userHasSpecificPermission) {
-                return true;
-            }
+            // Admin (role 1) → thấy nếu bước dành cho admin
+            if ($roleId == 1) return $stepRoleId == 1;
 
-            // Dành cho Role 1 (Admin/Giám đốc): Xuyên qua mọi rào cản Project.
-            // Chỉ cần đúng Bước hiện tại là Role Giám đốc thì sẽ thấy.
-            if ($roleId == 1) {
-                return $doc->global_role_id == 1;
-            }
+            $docTypeFilter = function($q) use ($docTypeId) {
+                $q->whereNull('document_type_id')->orWhere('document_type_id', $docTypeId);
+            };
 
-            // 2. Nếu bất kỳ ai CHỈ ĐỊNH RIÊNG cho scope này (Project/Cat + DocType) -> Tôi không được xem nếu không phải tôi
-            $hasAnyAssignmentForScope = DB::table('workflow_project_approvers')
-                ->where('workflow_step_id', $stepId)
+            // ===== KIỂM TRA QUYỀN ĐẶC BIỆT USER-SPECIFIC (Exclusive Mode) =====
+            // Khi admin cấp quyền cho một USER CỤ THỂ tại một dự án/danh mục,
+            // CHỈ người đó mới được xem — người cùng role sẽ bị chặn.
+
+            // A. Có quyền USER-SPECIFIC nào tại project/category này cho docType này không?
+            $hasUserSpecificGrant = DB::table('workflow_project_approvers')
+                ->where($docTypeFilter)
+                ->whereNotNull('user_id')  // Chỉ xét grant theo user cụ thể (không phải role)
                 ->where(function($q) use ($projectId, $categoryId) {
                     $q->where(function($sq) use ($projectId) {
                         $sq->where('scope_type', 'project')->where('scope_id', $projectId);
@@ -183,35 +185,68 @@ class DocumentWorkflowController extends Controller
                         $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
                     });
                 })
-                ->where(function($q) use ($docTypeId) {
-                    $q->whereNull('document_type_id')->orWhere('document_type_id', $docTypeId);
+                ->exists();
+
+            if ($hasUserSpecificGrant) {
+                // Exclusive mode: chỉ những user được chỉ định mới thấy
+                $isGrantedUser = DB::table('workflow_project_approvers')
+                    ->where($docTypeFilter)
+                    ->where('user_id', $userId)
+                    ->where(function($q) use ($projectId, $categoryId) {
+                        $q->where(function($sq) use ($projectId) {
+                            $sq->where('scope_type', 'project')->where('scope_id', $projectId);
+                        })->orWhere(function($sq) use ($categoryId) {
+                            $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
+                        });
+                    })
+                    ->exists();
+
+                // Chỉ hiện nếu user được chỉ định VÀ đây là bước của role họ
+                return $isGrantedUser && ($stepRoleId == $roleId);
+            }
+
+            // ===== KIỂM TRA QUYỀN ROLE-BASED (Normal Mode) =====
+            // Không có user-specific grant → kiểm tra role grant hoặc fallback theo role bước
+
+            // B. Có role-based grant (project/category/global) cho user này không?
+            $userHasRoleGrant = DB::table('workflow_project_approvers')
+                ->where($docTypeFilter)
+                ->where('role_id', $roleId)
+                ->where(function($q) use ($projectId, $categoryId) {
+                    $q->where(function($sq) use ($projectId) {
+                        $sq->where('scope_type', 'project')->where('scope_id', $projectId);
+                    })->orWhere(function($sq) use ($categoryId) {
+                        $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
+                    })->orWhere('scope_type', 'global');
                 })
                 ->exists();
 
-            if ($hasAnyAssignmentForScope && !$userHasSpecificPermission) {
-                return false;
+            if ($userHasRoleGrant) {
+                return $stepRoleId == $roleId;
             }
 
-            // 3. LOGIC EXCLUSIVE: Nếu tôi ĐÃ CÓ phân quyền đặc biệt ở đâu đó trong bảng này cho bước này,
-            //    thì tôi MẤT QUYỀN nhìn thấy các dự án "vô chủ" (chạy theo role chung).
-            $userIsSpecialistForThisStep = DB::table('workflow_project_approvers')
-                ->where('workflow_step_id', $stepId)
-                ->where(function($q) use ($userId, $roleId) {
-                    $q->where('user_id', $userId)->orWhere('role_id', $roleId);
+            // C. Có role-based grant cho role KHÁC tại project/category này?
+            //    Nếu có → docType này đã được phân công cho role khác → không hiển thị cho tôi
+            $hasRoleGrantForOthers = DB::table('workflow_project_approvers')
+                ->where($docTypeFilter)
+                ->whereNotNull('role_id')
+                ->where('role_id', '!=', $roleId)
+                ->where(function($q) use ($projectId, $categoryId) {
+                    $q->where(function($sq) use ($projectId) {
+                        $sq->where('scope_type', 'project')->where('scope_id', $projectId);
+                    })->orWhere(function($sq) use ($categoryId) {
+                        $sq->where('scope_type', 'category')->where('scope_id', $categoryId);
+                    });
                 })
                 ->exists();
 
-            if ($userIsSpecialistForThisStep) {
-                // Đã là chuyên gia cho bước này ở một dự án nào đó -> Chỉ được thấy những project được gán (đã return true ở trên)
+            if ($hasRoleGrantForOthers) {
                 return false;
             }
 
-            // 4. Cuối cùng: Nếu không có ai bị gán riêng, và tôi không phải chuyên gia riêng của bước này -> Check theo Role hệ thống
-            if ($doc->global_role_id == $roleId) {
-                return true;
-            }
+            // D. Không có ai được gán riêng → fallback theo role của bước duyệt
+            return $stepRoleId == $roleId;
 
-            return false;
         })->values();
 
         // Gắn thêm số bước
@@ -664,31 +699,74 @@ class DocumentWorkflowController extends Controller
         try {
             $successCount = 0;
             foreach ($request->document_type_ids as $dtId) {
-                // Lấy thông tin loại tài liệu và quy trình tương ứng
                 $docType = DB::table('document_types')->where('id', $dtId)->first();
-                if (!$docType || !$docType->assigned_workflow_id) continue;
+                if (!$docType) continue;
 
-                // TÌM BƯỚC DUYỆT trong quy trình này dành cho ROLE của người này
+                // --- BƯỚC A: Tìm workflow_id theo hệ thống phân cấp mới ---
+                // Ưu tiên: workflow_assignments (project -> category -> global) -> legacy assigned_workflow_id
+                $resolvedWorkflowId = null;
+                $scopeType = $request->scope_type;
+                $scopeId   = $request->scope_id;
+
+                // 1. Tìm chính xác theo scope được chỉ định
+                $assign = DB::table('workflow_assignments')
+                    ->where('document_type_id', $dtId)
+                    ->where('scope_type', $scopeType)
+                    ->where('scope_id', $scopeId)
+                    ->first();
+                if ($assign) $resolvedWorkflowId = $assign->workflow_id;
+
+                // 2. Nếu là project scope, leo lên category
+                if (!$resolvedWorkflowId && $scopeType === 'project') {
+                    $catId = DB::table('projects')->where('id', $scopeId)->value('category_id');
+                    if ($catId) {
+                        $assign = DB::table('workflow_assignments')
+                            ->where('document_type_id', $dtId)
+                            ->where('scope_type', 'category')
+                            ->where('scope_id', $catId)
+                            ->first();
+                        if ($assign) $resolvedWorkflowId = $assign->workflow_id;
+                    }
+                }
+
+                // 3. Leo lên global
+                if (!$resolvedWorkflowId) {
+                    $assign = DB::table('workflow_assignments')
+                        ->where('document_type_id', $dtId)
+                        ->where('scope_type', 'global')
+                        ->whereNull('document_group_name')
+                        ->first();
+                    if ($assign) $resolvedWorkflowId = $assign->workflow_id;
+                }
+
+                // 4. Fallback sang legacy assigned_workflow_id
+                if (!$resolvedWorkflowId) {
+                    $resolvedWorkflowId = $docType->assigned_workflow_id ?? null;
+                }
+
+                if (!$resolvedWorkflowId) {
+                    throw new \Exception("Loại tài liệu \"{$docType->type_name}\" chưa được gán quy trình nào.");
+                }
+
+                // --- BƯỚC B: Tìm bước duyệt phù hợp với Role ---
                 $matchingStep = DB::table('workflow_steps')
-                    ->where('workflow_id', $docType->assigned_workflow_id)
+                    ->where('workflow_id', $resolvedWorkflowId)
                     ->where('role_id_assigned', $targetRoleId)
                     ->first();
 
-                // PHƯƠNG ÁN B (Ghi đè ngoại lệ): Nếu người này KHÔNG có chức vụ nằm trong quy trình mặc định,
-                // Giám đốc vẫn có thể ép quyền cho họ. Lúc này hệ thống sẽ tự động gán họ vào BƯỚC ĐẦU TIÊN
-                // của quy trình đó để họ có quyền tham gia.
+                // Nếu không tìm được bước theo role, dùng bước đầu tiên (force grant)
                 if (!$matchingStep) {
                     $matchingStep = DB::table('workflow_steps')
-                        ->where('workflow_id', $docType->assigned_workflow_id)
+                        ->where('workflow_id', $resolvedWorkflowId)
                         ->orderBy('sort_order', 'asc')
                         ->first();
                 }
 
                 if (!$matchingStep) {
-                    throw new \Exception("Loại tài liệu \"{$docType->type_name}\" hiện chưa được cấu hình bất kỳ bước duyệt nào trong cài đặt quy trình.");
+                    throw new \Exception("Quy trình cho loại tài liệu \"{$docType->type_name}\" chưa có bước duyệt nào.");
                 }
 
-                // Gán quyền
+                // --- BƯỚC C: Lưu quyền ---
                 DB::table('workflow_project_approvers')->updateOrInsert(
                     [
                         'workflow_step_id' => $matchingStep->id,
@@ -991,6 +1069,12 @@ class DocumentWorkflowController extends Controller
             ->unique()
             ->toArray();
 
+        // Determine parent scopes for hierarchical validation
+        $parentId = 0;
+        if ($request->scope_type === 'project' && $scopeId > 0) {
+            $parentId = DB::table('projects')->where('id', $scopeId)->value('category_id') ?? 0;
+        }
+
         // --- BƯỚC 3: KIỂM TRA QUYỀN (STRICT VALIDATION) ---
         $missingPermissions = [];
         foreach ($requiredRoleIds as $rId) {
@@ -998,17 +1082,36 @@ class DocumentWorkflowController extends Controller
             $isAdminRole = ($role && $role->name === 'admin');
 
             foreach ($targetDocTypeIds as $dtId) {
+                // Check hierarchically: Direct Scope -> Parent Category -> Global
                 $hasPerm = $isAdminRole || DB::table('workflow_project_approvers')
                     ->where('role_id', $rId)
                     ->where('document_type_id', $dtId)
-                    ->where('scope_type', $request->scope_type)
-                    ->where('scope_id', $scopeId)
+                    ->where(function($q) use ($request, $scopeId, $parentId) {
+                        // 1. Check direct scope
+                        $q->where(function($q2) use ($request, $scopeId) {
+                            $q2->where('scope_type', $request->scope_type)
+                               ->where('scope_id', $scopeId);
+                        })
+                        // 2. Check parent category (if assigning to project)
+                        ->orWhere(function($q2) use ($parentId) {
+                            if ($parentId > 0) {
+                                $q2->where('scope_type', 'category')
+                                   ->where('scope_id', $parentId);
+                            } else {
+                                $q2->whereRaw('1=0'); // Fail case
+                            }
+                        })
+                        // 3. Check global scope
+                        ->orWhere(function($q2) {
+                            $q2->where('scope_type', 'global');
+                        });
+                    })
                     ->exists();
 
                 if (!$hasPerm) {
-                    $roleName = DB::table('roles')->where('id', $rId)->value('name') ?? "ID: $rId";
+                    $roleName = $role->name ?? "ID: $rId";
                     $docTypeName = DB::table('document_types')->where('id', $dtId)->value('type_name') ?? "ID: $dtId";
-                    $missingPermissions[] = "Chức vụ [$roleName] chưa được cấp quyền duyệt loại [$docTypeName]";
+                    $missingPermissions[] = "Chức vụ [$roleName] chưa được cấp quyền duyệt loại [$docTypeName] (Yêu cầu ít nhất quyền Toàn cục hoặc theo Dự án/Nhóm này)";
                 }
             }
         }
