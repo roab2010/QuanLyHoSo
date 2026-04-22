@@ -15,6 +15,7 @@ export default function WorkflowPermissions() {
 
     // List data
     const [approvers, setApprovers] = useState([]);
+    const [submitting, setSubmitting] = useState(false);
 
     // Modal state
     const [showModal, setShowModal] = useState(false);
@@ -383,7 +384,16 @@ export default function WorkflowPermissions() {
 
                         <div style={{ padding: '14px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10, background: '#fafafa' }}>
                             <button style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600, color: '#64748b', fontSize: 13 }} onClick={() => setShowModal(false)}>Hủy</button>
-                            <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: submitting ? '#cbd5e1' : 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13, boxShadow: submitting ? 'none' : '0 4px 12px rgba(59,130,246,0.3)' }} onClick={handleGrant} disabled={submitting}>
+                            <button 
+                                style={{ 
+                                    padding: '8px 18px', borderRadius: 8, border: 'none', 
+                                    background: submitting ? '#cbd5e1' : 'linear-gradient(135deg,#3b82f6,#2563eb)', 
+                                    color: '#fff', cursor: submitting ? 'not-allowed' : 'pointer', 
+                                    fontWeight: 700, fontSize: 13, boxShadow: submitting ? 'none' : '0 4px 12px rgba(59,130,246,0.3)' 
+                                }} 
+                                onClick={handleGrant} 
+                                disabled={submitting}
+                            >
                                 {submitting ? "Đang xử lý..." : "Lưu Phân Quyền"}
                             </button>
                         </div>
