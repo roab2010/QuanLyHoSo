@@ -68,15 +68,61 @@ class ProjectDocumentController extends Controller
             // Lưu trực tiếp vào public/uploads/documents
             $file->move(public_path('uploads/documents'), $fileName);
 
-            // Tìm quy trình (workflow) liên kết với loại tài liệu này
-            $docType = DB::table('document_types')->where('id', $request->document_type_id)->first();
+            $docTypeId = $request->document_type_id;
+            
+            // Tìm thông tin Dự án để lấy Category
+            $project = DB::table('projects')->where('id', $request->project_id)->first();
+            $categoryId = $project ? $project->category_id : 0;
+
+            // Lấy thông tin nhóm của loại tài liệu này
+            $docTypeInfo = DB::table('document_types')->where('id', $docTypeId)->first();
+            $docGroupName = $docTypeInfo ? $docTypeInfo->group_name : null;
+
+            $resolvedWorkflowId = null;
+
+            // HÀM TÌM KIẾM THEO ƯU TIÊN:
+            // 1. Loại cụ thể (Dự án) -> 2. Nhóm (Dự án)
+            // 3. Loại cụ thể (Danh mục Dự án) -> 4. Nhóm (Danh mục Dự án)
+            // 5. Loại cụ thể (Toàn cục) -> 6. Nhóm (Toàn cục)
+            // 7. Mặc định hệ thống gắn trong document_types
+
+            $searchOrder = [
+                ['type' => 'project', 'id' => $request->project_id],
+                ['type' => 'category', 'id' => $categoryId],
+                ['type' => 'global', 'id' => 0]
+            ];
+
+            foreach ($searchOrder as $scope) {
+                // A. Check Loại tài liệu cụ thể
+                $assign = DB::table('workflow_assignments')
+                    ->where('scope_type', $scope['type'])
+                    ->where('scope_id', $scope['id'])
+                    ->where('document_type_id', $docTypeId)
+                    ->first();
+                if ($assign) { $resolvedWorkflowId = $assign->workflow_id; break; }
+
+                // B. Check Nhóm hồ sơ
+                if ($docGroupName) {
+                    $assign = DB::table('workflow_assignments')
+                        ->where('scope_type', $scope['type'])
+                        ->where('scope_id', $scope['id'])
+                        ->where('document_group_name', $docGroupName)
+                        ->first();
+                    if ($assign) { $resolvedWorkflowId = $assign->workflow_id; break; }
+                }
+            }
+
+            if (!$resolvedWorkflowId && $docTypeInfo) {
+                $resolvedWorkflowId = $docTypeInfo->assigned_workflow_id;
+            }
+
             $firstStepId = null;
             $initialStatus = 'PENDING';
 
-            if ($docType && $docType->assigned_workflow_id) {
+            if ($resolvedWorkflowId) {
                 // Lấy bước đầu tiên (sort_order nhỏ nhất)
                 $firstStep = DB::table('workflow_steps')
-                    ->where('workflow_id', $docType->assigned_workflow_id)
+                    ->where('workflow_id', $resolvedWorkflowId)
                     ->orderBy('sort_order', 'asc')
                     ->first();
                 
