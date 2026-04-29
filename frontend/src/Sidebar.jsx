@@ -284,7 +284,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
             </nav>
 
             <div className="sidebar-footer">
-                <div className="user-profile-section" style={{ cursor: 'pointer' }} onClick={() => {
+                <div className="user-profile-section" style={{ cursor: 'pointer' }} title="Nhấp vào để xem chi tiết" onClick={() => {
                     setProfileData({
                         full_name: admin?.full_name || "",
                         email: admin?.email || "",
@@ -332,7 +332,7 @@ export default function Sidebar({ admin, activeNav, setActiveNav, NAV_ITEMS, onS
                     </div>
                 </div>
                 
-                <button className="logout-button-sidebar" onClick={onLogout} style={{ marginTop: '12px' }}>
+                <button className="logout-button-sidebar" onClick={onLogout}>
                     <LogOut size={16} /> Đăng xuất
                 </button>
             </div>

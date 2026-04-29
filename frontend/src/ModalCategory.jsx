@@ -5,6 +5,8 @@ import {
   getDocumentTypes,
   createTemplateTask,
   createTemplateDoc,
+  updateTemplateTask,
+  updateTemplateDoc,
   deleteTemplateTask,
   deleteTemplateDoc,
 } from "./hoSoService";
@@ -27,6 +29,7 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
     const [selectedDocTypeId, setSelectedDocTypeId] = useState("");
     const [newDocRequired, setNewDocRequired] = useState(true);
     const [addingDoc, setAddingDoc] = useState(false);
+    const [editingDoc, setEditingDoc] = useState(null);
 
     // --- Quy trình mẫu ---
     const [taskTemplates, setTaskTemplates] = useState([]);
@@ -35,6 +38,7 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
     const [newTaskDays, setNewTaskDays] = useState("");
     const [newTaskOrder, setNewTaskOrder] = useState(1);
     const [addingTask, setAddingTask] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
 
     const toast = useToast();
     const isNew = !editingCategory;
@@ -42,6 +46,12 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
     // Temporary IDs cho items mới (chưa có ID từ server)
     const [tempDocList, setTempDocList] = useState([]);
     const [tempTaskList, setTempTaskList] = useState([]);
+
+    useEffect(() => {
+        const currentTasks = editingCategory ? taskTemplates : tempTaskList;
+        const nextOrder = currentTasks.length > 0 ? Math.max(...currentTasks.map(t => Number(t.sort_order) || 0)) + 1 : 1;
+        setNewTaskOrder(nextOrder);
+    }, [taskTemplates, tempTaskList, editingCategory]);
 
     useEffect(() => {
         if (editingCategory) {
@@ -73,7 +83,33 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
         } catch (e) { console.error(e); }
     };
 
-    // Thêm tài liệu mẫu (dùng cả document_name + document_type_id)
+    const handleEditDocClick = (doc) => {
+        setEditingDoc(doc);
+        setNewDocName(doc.document_name);
+        setSelectedDocTypeId(doc.document_type_id || "");
+        setNewDocRequired(!!doc.is_required);
+    };
+
+    const cancelEditDoc = () => {
+        setEditingDoc(null);
+        setNewDocName("");
+        setSelectedDocTypeId("");
+        setNewDocRequired(true);
+    };
+
+    const handleEditTaskClick = (task) => {
+        setEditingTask(task);
+        setNewTaskName(task.task_name);
+        setNewTaskVolume(task.work_volume);
+        setNewTaskDays(task.estimated_completion_date || "");
+        setNewTaskOrder(task.sort_order || 1);
+    };
+
+    const cancelEditTask = () => {
+        setEditingTask(null);
+        resetTaskForm();
+    };
+
     const handleAddDoc = async () => {
         if (!newDocName.trim()) { toast.warning("Vui lòng nhập tên tài liệu!"); return; }
         if (!selectedDocTypeId) { toast.warning("Vui lòng chọn loại tài liệu!"); return; }
@@ -83,18 +119,31 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
             document_type_id: Number(selectedDocTypeId),
             document_name:    newDocName.trim(),
             type_name:        chosenType?.type_name || '',
-            is_required:      newDocRequired,
+            is_required:      newDocRequired ? 1 : 0,
         };
-        if (editingCategory) {
-            try {
-                await createTemplateDoc({ ...payload, category_id: editingCategory.id, is_required: newDocRequired ? 1 : 0 });
-                toast.success("Đã thêm tài liệu mẫu!");
-                loadDocTemplates(editingCategory.id);
-                setNewDocName(""); setSelectedDocTypeId(""); setNewDocRequired(true);
-            } catch (e) { toast.error(e.response?.data?.message || "Lỗi thêm tài liệu mẫu!"); }
+
+        if (editingDoc) {
+            if (editingDoc.id) {
+                try {
+                    await updateTemplateDoc(editingDoc.id, payload);
+                    toast.success("Cập nhật tài liệu mẫu thành công!");
+                    loadDocTemplates(editingCategory.id);
+                } catch (e) { toast.error("Lỗi cập nhật tài liệu mẫu!"); }
+            } else {
+                setTempDocList(prev => prev.map(d => d._tmpId === editingDoc._tmpId ? { ...d, ...payload } : d));
+            }
+            cancelEditDoc();
         } else {
-            setTempDocList(prev => [...prev, { _tmpId: Date.now(), ...payload }]);
-            setNewDocName(""); setSelectedDocTypeId(""); setNewDocRequired(true);
+            if (editingCategory) {
+                try {
+                    await createTemplateDoc({ ...payload, category_id: editingCategory.id });
+                    toast.success("Đã thêm tài liệu mẫu!");
+                    loadDocTemplates(editingCategory.id);
+                } catch (e) { toast.error(e.response?.data?.message || "Lỗi thêm tài liệu mẫu!"); }
+            } else {
+                setTempDocList(prev => [...prev, { _tmpId: Date.now(), ...payload }]);
+            }
+            cancelEditDoc();
         }
         setAddingDoc(false);
     };
@@ -102,28 +151,36 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
     const handleAddTask = async () => {
         if (!newTaskName.trim() || !newTaskVolume) { toast.warning("Vui lòng nhập đầy đủ thông tin!"); return; }
         setAddingTask(true);
-        if (editingCategory) {
-            try {
-                await createTemplateTask({
-                    category_id: editingCategory.id,
-                    task_name: newTaskName,
-                    work_volume: Number(newTaskVolume),
-                    sort_order: Number(newTaskOrder),
-                    estimated_completion_date: newTaskDays ? Number(newTaskDays) : null,
-                });
-                toast.success("Đã thêm quy trình mẫu!");
-                loadTaskTemplates(editingCategory.id);
-                resetTaskForm();
-            } catch (e) { toast.error("Lỗi thêm quy trình mẫu!"); }
+        
+        const payload = {
+            task_name: newTaskName,
+            work_volume: Number(newTaskVolume),
+            sort_order: Number(newTaskOrder),
+            estimated_completion_date: newTaskDays ? Number(newTaskDays) : null,
+        };
+
+        if (editingTask) {
+            if (editingTask.id) {
+                try {
+                    await updateTemplateTask(editingTask.id, payload);
+                    toast.success("Cập nhật quy trình mẫu thành công!");
+                    loadTaskTemplates(editingCategory.id);
+                } catch (e) { toast.error("Lỗi cập nhật quy trình mẫu!"); }
+            } else {
+                setTempTaskList(prev => prev.map(t => t._tmpId === editingTask._tmpId ? { ...t, ...payload } : t));
+            }
+            cancelEditTask();
         } else {
-            setTempTaskList(prev => [...prev, {
-                _tmpId: Date.now(),
-                task_name: newTaskName,
-                work_volume: Number(newTaskVolume),
-                sort_order: Number(newTaskOrder),
-                estimated_completion_date: newTaskDays ? Number(newTaskDays) : null,
-            }]);
-            resetTaskForm();
+            if (editingCategory) {
+                try {
+                    await createTemplateTask({ ...payload, category_id: editingCategory.id });
+                    toast.success("Đã thêm quy trình mẫu!");
+                    loadTaskTemplates(editingCategory.id);
+                } catch (e) { toast.error("Lỗi thêm quy trình mẫu!"); }
+            } else {
+                setTempTaskList(prev => [...prev, { _tmpId: Date.now(), ...payload }]);
+            }
+            cancelEditTask();
         }
         setAddingTask(false);
     };
@@ -151,10 +208,10 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
     };
 
     const resetDocForm = () => {
-        setNewDocName(""); setNewDocType("Khác"); setNewDocRequired(true); setNewDocOrder(1);
+        setNewDocName(""); setSelectedDocTypeId(""); setNewDocRequired(true); setEditingDoc(null);
     };
     const resetTaskForm = () => {
-        setNewTaskName(""); setNewTaskVolume(""); setNewTaskDays(""); setNewTaskOrder(1);
+        setNewTaskName(""); setNewTaskVolume(""); setNewTaskDays(""); setEditingTask(null);
     };
 
     const handleLocalSubmit = async (e) => {
@@ -179,7 +236,7 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" style={{ maxWidth: '680px', width: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal" style={{ maxWidth: '850px', width: '95%' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>{editingCategory ? "✏️ Chỉnh sửa danh mục" : "➕ Thêm danh mục mới"}</h3>
                     <button type="button" className="modal-close" onClick={onClose}>✕</button>
@@ -249,7 +306,9 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                         {activeTab === "docs" && (
                             <div>
                                 <div style={{ background: '#f8faff', border: '1px solid #dbeafe', borderRadius: '10px', padding: '14px 16px', marginBottom: '14px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#2563eb', marginBottom: '10px' }}>➕ Thêm tài liệu mẫu</div>
+                                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#2563eb', marginBottom: '10px' }}>
+                                        {editingDoc ? "✏️ Cập nhật tài liệu mẫu" : "➕ Thêm tài liệu mẫu"}
+                                    </div>
 
                                     {/* Hàng 1: Tên tài liệu (full width) */}
                                     <div style={{ marginBottom: '8px' }}>
@@ -280,13 +339,20 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                                                 <option value="0">Tùy chọn</option>
                                             </select>
                                         </div>
-                                        <button type="button" className="btn-submit" onClick={handleAddDoc} disabled={addingDoc} style={{ whiteSpace: 'nowrap' }}>
-                                            ➕ Thêm
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            {editingDoc && (
+                                                <button type="button" className="btn-cancel" onClick={cancelEditDoc} style={{ padding: '8px 12px', fontSize: '13px' }}>
+                                                    Hủy
+                                                </button>
+                                            )}
+                                            <button type="button" className="btn-submit" onClick={handleAddDoc} disabled={addingDoc} style={{ whiteSpace: 'nowrap' }}>
+                                                {editingDoc ? "💾 Lưu" : "➕ Thêm"}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
                                     {allDocs.length > 0 ? (
                                         <table className="category-table" style={{ fontSize: '13px' }}>
                                             <thead>
@@ -295,12 +361,12 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                                                     <th>Tên tài liệu</th>
                                                     <th style={{ width: '90px', textAlign: 'center' }}>Loại</th>
                                                     <th style={{ width: '85px', textAlign: 'center' }}>Bắt buộc</th>
-                                                    <th style={{ width: '50px', textAlign: 'center' }}>Xóa</th>
+                                                    <th style={{ width: '70px', textAlign: 'center' }}>Thao tác</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {allDocs.map((doc, idx) => (
-                                                    <tr key={doc.id || doc._tmpId}>
+                                                    <tr key={doc.id || doc._tmpId} style={editingDoc && (editingDoc.id === doc.id || editingDoc._tmpId === doc._tmpId) ? { backgroundColor: '#eff6ff' } : {}}>
                                                         <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
                                                         <td style={{ fontWeight: 500 }}>{doc.document_name}</td>
                                                         <td style={{ textAlign: 'center' }}>
@@ -310,7 +376,8 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                                                             {doc.is_required ? 'Bắt buộc' : 'Tùy chọn'}
                                                         </td>
                                                         <td style={{ textAlign: 'center' }}>
-                                                            <button type="button" onClick={() => handleDeleteDoc(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '16px' }}>🗑</button>
+                                                            <button type="button" onClick={() => handleEditDocClick(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '15px', marginRight: '6px' }} title="Sửa">✏️</button>
+                                                            <button type="button" onClick={() => handleDeleteDoc(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '15px' }} title="Xóa">🗑</button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -330,7 +397,9 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                         {activeTab === "tasks" && (
                             <div>
                                 <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '14px 16px', marginBottom: '14px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#16a34a', marginBottom: '10px' }}>➕ Thêm quy trình mẫu</div>
+                                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#16a34a', marginBottom: '10px' }}>
+                                        {editingTask ? "✏️ Cập nhật quy trình mẫu" : "➕ Thêm quy trình mẫu"}
+                                    </div>
                                     <div style={{ marginBottom: '10px' }}>
                                         <input
                                             className="form-input"
@@ -353,13 +422,20 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                                             <label className="form-label" style={{ fontSize: '12px' }}>Thứ tự</label>
                                             <input className="form-input" type="number" min="1" value={newTaskOrder} onChange={e => setNewTaskOrder(e.target.value)} />
                                         </div>
-                                        <button type="button" className="btn-submit" onClick={handleAddTask} disabled={addingTask} style={{ whiteSpace: 'nowrap', background: '#16a34a' }}>
-                                            ➕ Thêm
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            {editingTask && (
+                                                <button type="button" className="btn-cancel" onClick={cancelEditTask} style={{ padding: '8px 12px', fontSize: '13px' }}>
+                                                    Hủy
+                                                </button>
+                                            )}
+                                            <button type="button" className="btn-submit" onClick={handleAddTask} disabled={addingTask} style={{ whiteSpace: 'nowrap', background: '#16a34a' }}>
+                                                {editingTask ? "💾 Lưu" : "➕ Thêm"}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
                                     {allTasks.length > 0 ? (
                                         <>
                                             <table className="category-table" style={{ fontSize: '13px' }}>
@@ -368,19 +444,20 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                                                         <th style={{ width: '40px', textAlign: 'center' }}>STT</th>
                                                         <th>Tên công việc</th>
                                                         <th style={{ width: '90px', textAlign: 'center' }}>Khối lượng</th>
-                                                        <th style={{ width: '100px', textAlign: 'center' }}>Số ngày DKH</th>
-                                                        <th style={{ width: '60px', textAlign: 'center' }}>Xóa</th>
+                                                        <th style={{ width: '100px', textAlign: 'center' }}>Số ngày DKHT</th>
+                                                        <th style={{ width: '70px', textAlign: 'center' }}>Thao tác</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {allTasks.map((task, idx) => (
-                                                        <tr key={task.id || task._tmpId}>
+                                                        <tr key={task.id || task._tmpId} style={editingTask && (editingTask.id === task.id || editingTask._tmpId === task._tmpId) ? { backgroundColor: '#f0fdf4' } : {}}>
                                                             <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
                                                             <td style={{ fontWeight: 500 }}>{task.task_name}</td>
                                                             <td style={{ textAlign: 'center' }}><span style={{ background: '#dbeafe', color: '#2563eb', borderRadius: '12px', padding: '2px 10px', fontWeight: 700, fontSize: '12px' }}>{task.work_volume}%</span></td>
                                                             <td style={{ textAlign: 'center', color: '#64748b', fontSize: '12px' }}>{task.estimated_completion_date > 0 ? `${task.estimated_completion_date} ngày` : '-'}</td>
                                                             <td style={{ textAlign: 'center' }}>
-                                                                <button type="button" onClick={() => handleDeleteTask(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '16px' }}>🗑</button>
+                                                                <button type="button" onClick={() => handleEditTaskClick(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '15px', marginRight: '6px' }} title="Sửa">✏️</button>
+                                                                <button type="button" onClick={() => handleDeleteTask(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '15px' }} title="Xóa">🗑</button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -388,7 +465,7 @@ export default function ModalCategory({ onClose, onSubmit, editingCategory }) {
                                             </table>
                                             <div style={{ padding: '8px 12px', background: '#f0f9ff', fontSize: '12px', color: '#0369a1', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e0f2fe' }}>
                                                 <span>Tổng: {allTasks.length} bước</span>
-                                                <span>📅 Tổng số ngày DKH: <strong>{allTasks.reduce((s, t) => s + (t.estimated_completion_date > 0 ? t.estimated_completion_date : 0), 0)} ngày</strong></span>
+                                                <span>📅 Tổng số ngày DKHT: <strong>{allTasks.reduce((s, t) => s + (t.estimated_completion_date > 0 ? t.estimated_completion_date : 0), 0)} ngày</strong></span>
                                             </div>
                                         </>
                                     ) : (

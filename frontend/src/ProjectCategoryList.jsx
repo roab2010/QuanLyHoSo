@@ -6,18 +6,12 @@ import {
   deleteCategory,
 } from "./hoSoService";
 import ModalCategory from "./ModalCategory";
-import ModalDocumentTemplate from "./ModalDocumentTemplate";
-import ModalTemplateManagement from "./ModalTemplateManagement";
 import { useToast } from "./Toast";
 
 export default function ProjectCategoryList() {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [showDocModal, setShowDocModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [selectedTaskCategory, setSelectedTaskCategory] = useState(null);
   const toast = useToast();
 
   // Đọc admin từ localStorage để kiểm tra quyền
@@ -51,16 +45,6 @@ export default function ProjectCategoryList() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleManageDocTemplate = (cat) => {
-    setSelectedCategory(cat);
-    setShowDocModal(true);
-  };
-
-  const handleManageTaskTemplate = (cat) => {
-    setSelectedTaskCategory(cat);
-    setShowTaskModal(true);
-  };
 
   const handleSave = async (payload, tempDocList = [], tempTaskList = []) => {
     try {
@@ -170,45 +154,6 @@ export default function ProjectCategoryList() {
                 </button>
                 )}
 
-                {canManage && (
-                <button
-                  className="btn-template"
-                  onClick={() => handleManageDocTemplate(cat)}
-                  title="Quản lý Tài liệu mẫu"
-                  style={{
-                    margin: "0 4px",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <img
-                    src="https://cdn-icons-png.flaticon.com/512/2912/2912648.png"
-                    width="20"
-                    alt="Document Template"
-                  />
-                </button>
-                )}
-
-                {canManage && (
-                <button
-                  className="btn-template"
-                  onClick={() => handleManageTaskTemplate(cat)}
-                  title="Quản lý Quy trình mẫu"
-                  style={{
-                    margin: "0 4px",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <img
-                    src="https://cdn-icons-png.flaticon.com/512/3652/3652191.png"
-                    width="20"
-                    alt="Task Template"
-                  />
-                </button>
-                )}
 
                 {canDelete && (
                 <button
@@ -238,21 +183,6 @@ export default function ProjectCategoryList() {
         />
       )}
 
-      {showDocModal && (
-        <ModalDocumentTemplate
-          categoryId={selectedCategory?.id}
-          categoryName={selectedCategory?.name}
-          onClose={() => setShowDocModal(false)}
-        />
-      )}
-
-      {showTaskModal && (
-        <ModalTemplateManagement
-          categoryId={selectedTaskCategory?.id}
-          categoryName={selectedTaskCategory?.name}
-          onClose={() => setShowTaskModal(false)}
-        />
-      )}
     </div>
   );
 }
