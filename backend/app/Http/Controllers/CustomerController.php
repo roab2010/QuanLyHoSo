@@ -23,7 +23,7 @@ class CustomerController extends Controller
     {
         $customer_id = $request->customer_id;
 
-        $data = Project::with('tasks')->where('customer_id', $customer_id)->get();
+        $data = Project::with(['tasks', 'documents.documentType', 'category'])->where('customer_id', $customer_id)->get();
 
         return response()->json($data);
     }
@@ -32,7 +32,7 @@ class CustomerController extends Controller
     public function detail($id)
     {
         // Lấy thông tin dự án cùng với danh sách công việc (tasks)
-        $data = Project::with('tasks')->find($id);
+        $data = Project::with(['tasks', 'documents.documentType', 'category'])->find($id);
 
         if (!$data) {
             return response()->json(['message' => 'Không tìm thấy hồ sơ'], 404);
