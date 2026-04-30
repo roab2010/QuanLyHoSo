@@ -418,7 +418,7 @@ export default function WorkflowManager({ admin }) {
                                                             style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '2px solid #e2e8f0', fontWeight: '700', fontFamily: FONT, fontSize: '14px', background: '#fff' }}
                                                         >
                                                             <option value="">-- Bất kỳ (do phân quyền dự án) --</option>
-                                                            {roles.filter(r => r.name !== 'admin').map(r => (
+                                                            {roles.map(r => (
                                                                 <option key={r.id} value={r.id}>{r.name}</option>
                                                             ))}
                                                         </select>
@@ -533,7 +533,7 @@ export default function WorkflowManager({ admin }) {
                                                 style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '2px solid #e2e8f0', fontWeight: '700', fontFamily: FONT, fontSize: '14px', background: '#fff' }}
                                             >
                                                 <option value="">-- Bất kỳ (do phân quyền dự án) --</option>
-                                                {roles.filter(r => r.name !== 'admin').map(r => (
+                                                {roles.map(r => (
                                                     <option key={r.id} value={r.id}>{r.name}</option>
                                                 ))}
                                             </select>
