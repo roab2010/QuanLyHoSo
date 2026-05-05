@@ -20,6 +20,8 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
             $table->timestamp('completed_date')->nullable();
             $table->timestamp('created_at')->useCurrent();
+            $table->date('actual_finish_date')->nullable();
+            $table->integer('estimated_completion_date');
 
             $table->foreign('project_id')->references('id')->on('projects')->onDelete('cascade');
         });

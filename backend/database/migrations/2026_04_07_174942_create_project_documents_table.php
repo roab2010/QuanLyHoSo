@@ -15,13 +15,23 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('project_id');
             $table->string('document_name', 255);
+            $table->unsignedBigInteger('document_type_id');
             $table->text('file_url')->nullable();
             $table->timestamp('uploaded_at')->useCurrent();
             $table->enum('status', ['PENDING', 'PROCESSING', 'REVISION', 'COMPLETED'])->default('PENDING');
-            $table->string('category_name', 100)->nullable();
             $table->text('note')->nullable();
 
             $table->foreign('project_id')->references('id')->on('projects')->onDelete('cascade');
+
+            $table->foreign('document_type_id')
+                ->references('id')->on('document_types')
+                ->onDelete('restrict');
+            $table->unsignedBigInteger('current_step_id')->nullable();
+
+            $table->foreign('current_step_id')
+                ->references('id')->on('workflow_steps')
+                ->onDelete('set null')
+                ->onUpdate('restrict');
         });
     }
 

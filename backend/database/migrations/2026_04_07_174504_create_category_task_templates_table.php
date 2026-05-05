@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('task_name', 255);
             $table->decimal('work_volume', 15, 2)->default(0);
             $table->integer('sort_order')->default(0);
+            $table->integer('duration_days')->default(0);
+            $table->integer('estimated_completion_date')->default(0);
 
             // Xóa danh mục thì xóa luôn task
             $table->foreign('category_id')->references('id')->on('project_categories')->onDelete('cascade');

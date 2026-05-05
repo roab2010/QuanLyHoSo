@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('category_name', 100)->nullable(); // VD: Kỹ thuật, Pháp lý
             $table->boolean('is_required')->default(true);
             $table->integer('sort_order')->default(0);
+            $table->tinyInteger('status')->default(1);
             $table->timestamps();
 
             $table->foreign('category_id')->references('id')->on('project_categories')->onDelete('cascade');

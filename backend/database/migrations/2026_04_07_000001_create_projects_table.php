@@ -19,12 +19,18 @@ return new class extends Migration
             $table->unsignedBigInteger('customer_id');
             $table->unsignedBigInteger('supervisor_id');
             $table->text('address');
+
+            $table->decimal('estimated_budget', 15, 2)->nullable();
+            $table->decimal('contract_value', 15, 2)->nullable();
             $table->date('start_date')->nullable();
             $table->enum('status', ['DRAFT', 'PENDING', 'PROCESSING', 'REVISION', 'COMPLETED', 'ON_HOLD'])->default('DRAFT');
             $table->enum('priority', ['LOW', 'MEDIUM', 'HIGH'])->default('MEDIUM');
+
             $table->timestamp('created_at')->useCurrent();
             $table->decimal('max_warehouse_capacity', 15, 2)->default(1000.00);
             $table->timestamp('status_updated_at')->nullable()->useCurrentOnUpdate();
+            $table->date('expected_end_date')->nullable();
+
 
             // Ràng buộc
             $table->foreign('category_id')->references('id')->on('project_categories')->onDelete('restrict');
