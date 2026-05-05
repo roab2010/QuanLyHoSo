@@ -953,20 +953,17 @@ export default function ChiTietHoSo() {
                             <div className="dashboard-left">
                                 <section className="info-section">
                                     <div className="section-header">
-                                        <h3>Thông tin dự án</h3>
+                                        <h3>Thông tin dự án: {project.name}</h3>
                                         {canEditProject && (
                                             <button className="btn-edit" onClick={() => navigate(`/admin/ho-so/${id}/edit`)}>✎ Sửa thông tin</button>
                                         )}
                                     </div>
-                                    <div className="info-grid big-grid">
-                                        <div className="info-item">
-                                            <label>TÊN DỰ ÁN</label>
-                                            <p>{project.name}</p>
-                                        </div>
-                                        <div className="info-item">
-                                            <label>KỸ SƯ TRƯỞNG</label>
-                                            <p>👤 {supervisorName}</p>
-                                        </div>
+                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        <div className="info-grid big-grid" style={{ flex: 1, minWidth: '300px' }}>
+                                            <div className="info-item">
+                                                <label>KỸ SƯ TRƯỞNG</label>
+                                                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e293b' }}>👤 {supervisorName}</p>
+                                            </div>
                                         <div className="info-item">
                                             <label>DANH MỤC DỰ ÁN</label>
                                             <p>📂 {project.category?.name || "—"}</p>
@@ -998,6 +995,36 @@ export default function ChiTietHoSo() {
                                             <p style={{ color: '#16a34a', fontWeight: '700' }}>
                                                 {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(project.contract_value || 0)}
                                             </p>
+                                        </div>
+                                        </div>
+                                        
+                                        <div className="progress-widget" style={{ width: '300px', flexShrink: 0, margin: 0 }}>
+                                            <h4>Tiến độ tổng</h4>
+                                            <p className="progress-desc">
+                                                Dự án đang trong giai đoạn thi công phần thô theo đúng kế
+                                                hoạch đề ra.
+                                            </p>
+                                            <div className="progress-circle">
+                                                <svg viewBox="0 0 120 120">
+                                                    <circle cx="60" cy="60" r="52" className="progress-bg" />
+                                                    <circle
+                                                        cx="60"
+                                                        cy="60"
+                                                        r="52"
+                                                        className="progress-fill"
+                                                        style={{
+                                                            strokeDasharray: `${(project.progress / 100) * 327} 327`,
+                                                        }}
+                                                    />
+                                                </svg>
+                                                <span className="progress-number">{project.progress}%</span>
+                                            </div>
+                                            <button
+                                                className="btn-progress-detail"
+                                                onClick={() => setActiveTab("tien-do")}
+                                            >
+                                                Xem báo cáo chi tiết
+                                            </button>
                                         </div>
                                     </div>
                                 </section>
@@ -1126,37 +1153,6 @@ export default function ChiTietHoSo() {
                                 </section>
                             </div>
 
-                            {/* Progress widget */}
-                            <div className="detail-right">
-                                <div className="progress-widget">
-                                    <h4>Tiến độ tổng</h4>
-                                    <p className="progress-desc">
-                                        Dự án đang trong giai đoạn thi công phần thô theo đúng kế
-                                        hoạch đề ra.
-                                    </p>
-                                    <div className="progress-circle">
-                                        <svg viewBox="0 0 120 120">
-                                            <circle cx="60" cy="60" r="52" className="progress-bg" />
-                                            <circle
-                                                cx="60"
-                                                cy="60"
-                                                r="52"
-                                                className="progress-fill"
-                                                style={{
-                                                    strokeDasharray: `${(project.progress / 100) * 327} 327`,
-                                                }}
-                                            />
-                                        </svg>
-                                        <span className="progress-number">{project.progress}%</span>
-                                    </div>
-                                    <button
-                                        className="btn-progress-detail"
-                                        onClick={() => setActiveTab("tien-do")}
-                                    >
-                                        Xem báo cáo chi tiết
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     )}
 

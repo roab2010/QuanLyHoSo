@@ -303,6 +303,20 @@ export default function QuanLyNhanVien({ admin }) {
         setEditRoleData({ ...editRoleData, global_document_type_ids: newTypes });
     };
 
+    const toggleGroupGlobalDocTypes = (groupDocs) => {
+        if (editRoleData.name === 'admin' && !editRoleData.isNew) return;
+        const groupDocIds = groupDocs.map(dt => dt.id);
+        const current = [...(editRoleData.global_document_type_ids || [])];
+        const allSelected = groupDocIds.every(id => current.includes(id));
+        let newTypes;
+        if (allSelected) {
+            newTypes = current.filter(id => !groupDocIds.includes(id));
+        } else {
+            newTypes = [...new Set([...current, ...groupDocIds])];
+        }
+        setEditRoleData({ ...editRoleData, global_document_type_ids: newTypes });
+    };
+
     const hasChanges = () => {
         if (!selectedRole || !editRoleData) return false;
         if (editRoleData.isNew) return true;
@@ -614,8 +628,15 @@ export default function QuanLyNhanVien({ admin }) {
                                                     const groupDocs = documentTypes.filter(dt => (dt.group_name || 'Khác') === group);
                                                     return (
                                                         <div key={group}>
-                                                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#475569', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                📁 {group}
+                                                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#475569', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    📁 {group}
+                                                                </div>
+                                                                <Switch 
+                                                                    checked={editRoleData.name === 'admin' || groupDocs.every(dt => editRoleData.global_document_type_ids && editRoleData.global_document_type_ids.includes(dt.id))}
+                                                                    onChange={() => toggleGroupGlobalDocTypes(groupDocs)}
+                                                                    disabled={editRoleData.name === 'admin' && !editRoleData.isNew}
+                                                                />
                                                             </div>
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                                 {groupDocs.map(dt => (

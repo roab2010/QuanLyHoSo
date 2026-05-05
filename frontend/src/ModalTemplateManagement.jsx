@@ -20,6 +20,13 @@ export default function ModalTemplateManagement({
   const [editingTaskId, setEditingTaskId] = useState(null);
   const toast = useToast();
 
+  useEffect(() => {
+    if (!editingTaskId) {
+      const nextOrder = tasks.length > 0 ? Math.max(...tasks.map(t => Number(t.sort_order) || 0)) + 1 : 1;
+      setNewTaskPriority(nextOrder);
+    }
+  }, [tasks, editingTaskId]);
+
   const loadTemplates = async () => {
     try {
       if (categoryId) {
@@ -69,7 +76,6 @@ export default function ModalTemplateManagement({
   const resetForm = () => {
     setNewTaskName("");
     setNewTaskVolume("");
-    setNewTaskPriority("");
     setNewTaskEstimatedDate("");
     setEditingTaskId(null);
   };
@@ -186,7 +192,7 @@ export default function ModalTemplateManagement({
               <thead>
                 <tr>
                   <th style={{ width: "80px" }}>Thứ tự</th>
-                  <th style={{ width: "150px" }}>Số ngày DKH</th>
+                  <th style={{ width: "150px" }}>Số ngày DKHT</th>
                   <th>Tên công việc quy trình mẫu</th>
                   <th style={{ width: "120px" }}>Khối lượng</th>
                   <th style={{ width: "150px" }}>Thao tác</th>
@@ -230,7 +236,7 @@ export default function ModalTemplateManagement({
             {tasks.length > 0 && (
               <div style={{ padding: "16px", background: "#f0f4f8", borderRadius: "8px", marginTop: "12px", display: "flex", justifyContent: "flex-end", fontWeight: "700", fontSize: "15px" }}>
                 <span style={{ marginRight: "20px" }}>
-                  📅 Tổng số ngày DKH: <span style={{ color: "#2563eb" }}>{tasks.reduce((sum, task) => sum + (task.estimated_completion_date && task.estimated_completion_date > 0 ? task.estimated_completion_date : 0), 0)} ngày</span>
+                  📅 Tổng số ngày DKHT: <span style={{ color: "#2563eb" }}>{tasks.reduce((sum, task) => sum + (task.estimated_completion_date && task.estimated_completion_date > 0 ? task.estimated_completion_date : 0), 0)} ngày</span>
                 </span>
               </div>
             )}

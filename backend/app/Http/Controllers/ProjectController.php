@@ -139,6 +139,7 @@ class ProjectController extends Controller
                             'work_volume'   => $template->work_volume,
                             'status'        => 'TODO',
                             'sort_order'    => $template->sort_order,
+                            'estimated_finish_date' => now()->addDay()->toDateString(),
                         ]);
                     }
                 }
@@ -159,7 +160,8 @@ class ProjectController extends Controller
                             'status'           => 'PENDING',
                             'note'             => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
                             'uploaded_at'      => now(),
-                            'file_url'         => null
+                            'file_url'         => null,
+                            'estimated_finish_date' => now()->addDay()->toDateString(),
                         ];
                     }
                     DB::table('project_documents')->insert($docsToInsert);
@@ -282,6 +284,7 @@ class ProjectController extends Controller
                             'work_volume'   => $template->work_volume,
                             'status'        => 'TODO',
                             'sort_order'    => $template->sort_order,
+                            'estimated_finish_date' => now()->addDay()->toDateString(),
                             'created_at'    => now(),
                         ];
                     }
@@ -314,7 +317,8 @@ class ProjectController extends Controller
                             'status'           => 'PENDING',
                             'note'             => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
                             'uploaded_at'      => now(),
-                            'file_url'         => null
+                            'file_url'         => null,
+                            'estimated_finish_date' => now()->addDay()->toDateString(),
                         ];
                     }
                     DB::table('project_documents')->insert($docsToInsert);
@@ -438,6 +442,7 @@ class ProjectController extends Controller
                         'status'        => 'TODO',
                         'sort_order'    => $template->sort_order,
                         'estimated_completion_date' => $cumulativeDays > 0 ? $cumulativeDays : null,
+                        'estimated_finish_date' => now()->addDays($cumulativeDays > 0 ? $cumulativeDays : 1)->toDateString(),
                         'created_at'    => now(),
                     ];
                 }
@@ -464,7 +469,8 @@ class ProjectController extends Controller
                         'status'           => 'PENDING',
                         'note'             => $docTemplate->is_required ? 'Tài liệu bắt buộc' : 'Tài liệu tùy chọn',
                         'uploaded_at'      => now(),
-                        'file_url'         => null
+                        'file_url'         => null,
+                        'estimated_finish_date' => now()->addDay()->toDateString(),
                     ];
                 }
                 DB::table('project_documents')->insert($docsToInsert);

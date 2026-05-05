@@ -32,8 +32,7 @@ export default function WorkflowPermissions() {
     useEffect(() => { fetchMetadata(); }, []);
 
     useEffect(() => {
-        if (selectedScopeId) fetchApprovers();
-        else fetchApproversAll();
+        fetchApprovers(scopeType, selectedScopeId);
     }, [scopeType, selectedScopeId]);
 
     // Tự động chọn Loại tài liệu khi chọn Người/Chức vụ
@@ -81,18 +80,17 @@ export default function WorkflowPermissions() {
         }
     };
 
-    const fetchApproversAll = async () => {
+    const fetchApprovers = async (type, scopeId) => {
         try {
-            const res = await api.get(`/workflow/approvers?scope_type=${scopeType}`);
+            const url = scopeId
+                ? `/workflow/approvers?scope_type=${type}&scope_id=${scopeId}`
+                : `/workflow/approvers?scope_type=${type}`;
+            const res = await api.get(url);
             setApprovers(res.data.data || []);
-        } catch (e) { toast.error("Không thể tải danh sách quyền"); }
-    };
-
-    const fetchApprovers = async () => {
-        try {
-            const res = await api.get(`/workflow/approvers?scope_type=${scopeType}&scope_id=${selectedScopeId}`);
-            setApprovers(res.data.data || []);
-        } catch (e) { toast.error("Không thể tải danh sách quyền"); }
+        } catch (e) {
+            console.error("Lỗi tải danh sách quyền:", e);
+            toast.error("Không thể tải danh sách quyền");
+        }
     };
 
     const handleGrant = async () => {
@@ -115,7 +113,11 @@ export default function WorkflowPermissions() {
             setShowModal(false);
             setFormDocTypeIds([]);
             setFormAssigneeId("");
-            if (selectedScopeId) fetchApprovers(); else fetchApproversAll();
+            // Tự động chuyển filter sang scope vừa cấp quyền để thấy kết quả ngay
+            setScopeType(formScopeType);
+            setSelectedScopeId(formScopeId);
+            // Gọi thẳng với params mới (không cần đợi state update)
+            fetchApprovers(formScopeType, formScopeId);
         } catch (e) {
             toast.error(e.response?.data?.error || "Lỗi cấp quyền");
         }
@@ -128,7 +130,7 @@ export default function WorkflowPermissions() {
         try {
             await api.delete(`/workflow/approvers/${id}`);
             toast.success("Đã gỡ quyền!");
-            if (selectedScopeId) fetchApprovers(); else fetchApproversAll();
+            fetchApprovers(scopeType, selectedScopeId);
         } catch (e) { toast.error("Lỗi khi gỡ quyền"); }
     };
 

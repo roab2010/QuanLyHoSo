@@ -284,7 +284,9 @@ export default function ProjectDocuments() {
                         <th>Tên tài liệu</th>
                         <th>Thuộc dự án</th>
                         <th>Loại tài liệu</th>
-                        <th style={{textAlign: 'center'}}>Trạng thái</th>
+                        <th>Dự kiến</th>
+                        <th>Hoàn thành</th>
+                        <th style={{textAlign: 'center', width: '140px', whiteSpace: 'nowrap'}}>Trạng thái</th>
                         <th style={{ textAlign: 'center' }}>Hành động</th>
                     </tr>
                 </thead>
@@ -307,7 +309,21 @@ export default function ProjectDocuments() {
                                 <td>
                                     <span style={{ color: '#64748b' }}>{doc.document_type?.type_name || 'Chưa phân loại'}</span>
                                 </td>
-                                <td style={{textAlign: 'center'}}>
+                                <td>
+                                    {doc.estimated_finish_date ? (
+                                        <span style={{ color: '#0f172a', fontWeight: '500', fontSize: '13px' }}>
+                                            {new Date(doc.estimated_finish_date).toLocaleDateString('vi-VN')}
+                                        </span>
+                                    ) : <span style={{ color: '#cbd5e1' }}>-</span>}
+                                </td>
+                                <td>
+                                    {doc.actual_finish_date ? (
+                                        <span style={{ color: '#16a34a', fontWeight: '600', fontSize: '13px' }}>
+                                            {new Date(doc.actual_finish_date).toLocaleDateString('vi-VN')}
+                                        </span>
+                                    ) : <span style={{ color: '#cbd5e1' }}>-</span>}
+                                </td>
+                                <td style={{textAlign: 'center', whiteSpace: 'nowrap'}}>
                                     <span className={`status-badge ${
                                         doc.status === 'COMPLETED' ? "active" : 
                                         (doc.status === 'PENDING' && !doc.file_url) ? "" : "inactive"

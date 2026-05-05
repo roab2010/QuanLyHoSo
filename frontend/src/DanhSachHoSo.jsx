@@ -62,8 +62,8 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
             <table className="doc-table">
                 <thead>
                     <tr>
-                        <th style={{ textAlign: 'left' }}>TÊN HỒ SƠ</th>
-                        <th style={{ textAlign: 'left' }}>DANH MỤC</th>
+                        <th style={{ textAlign: 'left', width: '40%', maxWidth: '400px' }}>TÊN HỒ SƠ</th>
+                        <th style={{ textAlign: 'left', width: '25%', maxWidth: '250px' }}>DANH MỤC</th>
                         <th style={{ textAlign: 'left' }}>NGÀY TẠO</th>
                         <th style={{ textAlign: 'left' }}>DỰ KIẾN</th>
                         <th style={{ textAlign: 'center' }}>TRẠNG THÁI</th>
@@ -79,11 +79,11 @@ export default function DanhSachHoSo({ cards, xoaHoSo, loading, error }) {
                             style={{ cursor: 'pointer' }}
                             className="hoverable-row"
                         >
-                            <td>
-                                <strong>{item.title}</strong>
+                            <td style={{ maxWidth: '400px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                <strong style={{ display: 'block', marginBottom: '4px' }}>{item.title}</strong>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Mã: {item.ma_ho_so}</div>
                             </td>
-                            <td>{item.category_name}</td>
+                            <td style={{ maxWidth: '250px', whiteSpace: 'normal', wordBreak: 'break-word' }}>{item.category_name}</td>
                             <td>
                                 {item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : '—'}
                             </td>

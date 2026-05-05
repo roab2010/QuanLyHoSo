@@ -57,6 +57,17 @@ export default function ModalAddProject({ onClose, onSubmit }) {
         onSubmit(formData);
     };
 
+    const formatCurrency = (value) => {
+        if (!value && value !== 0) return "";
+        const numericValue = value.toString().replace(/\D/g, "");
+        return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
+
+    const handleCurrencyChange = (e, field) => {
+        const rawValue = e.target.value.replace(/,/g, "");
+        setFormData({ ...formData, [field]: rawValue });
+    };
+
     const modernStyles = {
         overlay: {
             position: 'fixed',
@@ -279,20 +290,20 @@ export default function ModalAddProject({ onClose, onSubmit }) {
                             <label style={modernStyles.label}>Chi phí dự kiến (VNĐ)</label>
                             <input
                                 style={modernStyles.input}
-                                type="number" step="1000"
+                                type="text"
                                 placeholder="Nhập chi phí..."
-                                value={formData.estimated_budget}
-                                onChange={e => setFormData({ ...formData, estimated_budget: e.target.value })}
+                                value={formatCurrency(formData.estimated_budget)}
+                                onChange={e => handleCurrencyChange(e, 'estimated_budget')}
                             />
                         </div>
                         <div style={modernStyles.formGroup}>
                             <label style={modernStyles.label}>Giá trị hợp đồng (VNĐ)</label>
                             <input
                                 style={modernStyles.input}
-                                type="number" step="1000"
+                                type="text"
                                 placeholder="Nhập giá trị..."
-                                value={formData.contract_value}
-                                onChange={e => setFormData({ ...formData, contract_value: e.target.value })}
+                                value={formatCurrency(formData.contract_value)}
+                                onChange={e => handleCurrencyChange(e, 'contract_value')}
                             />
                         </div>
 
