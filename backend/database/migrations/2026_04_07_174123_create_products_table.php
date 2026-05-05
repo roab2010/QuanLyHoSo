@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('sku', 50)->unique();
             $table->string('name', 200);
+            $table->unsignedInteger('warehouse_id')->nullable();
             $table->string('unit', 20)->nullable();
             $table->enum('type', ['CONSUMABLE', 'RETURNABLE']);
             $table->string('category_name', 100)->nullable();
@@ -22,6 +23,18 @@ return new class extends Migration
             $table->boolean('status')->default(true);
             $table->decimal('min_stock_level', 15, 2)->default(0);
             $table->decimal('current_stock', 15, 2)->default(0);
+            $table->decimal('space_coefficient', 10, 2);
+            $table->unsignedBigInteger('supplier_id')->nullable();
+            $table->foreign('warehouse_id', 'fk_products_warehouse')
+                ->references('id')
+                ->on('warehouses')
+                ->onDelete('set null')
+                ->onUpdate('cascade');
+            $table->foreign('supplier_id')
+                ->references('id')
+                ->on('suppliers')
+                ->onDelete('set null')
+                ->onUpdate('restrict');
         });
     }
 
