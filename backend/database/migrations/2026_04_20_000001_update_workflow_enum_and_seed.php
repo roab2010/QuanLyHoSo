@@ -27,12 +27,13 @@ return new class extends Migration
         foreach ($roles as $key => $name) {
             $id = DB::table('roles')->where('name', $name)->value('id');
             if (!$id) {
-                $id = DB::table('roles')->insertGetId([
+                DB::table('roles')->insert([
                     'name' => $name,
                     'level' => ($key == 'admin' ? 1 : ($key == 'pho_gd' ? 2 : 3)),
                     'status' => 1,
                     'created_at' => now()
                 ]);
+                $id = DB::table('roles')->where('name', $name)->value('id');
             }
             $roleIds[$key] = $id;
         }
