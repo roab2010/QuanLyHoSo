@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('category_task_templates', 'estimated_completion_date')) {
+            return;
+        }
+
         Schema::table('category_task_templates', function (Blueprint $table) {
             $table->date('estimated_completion_date')->nullable()->after('sort_order');
         });

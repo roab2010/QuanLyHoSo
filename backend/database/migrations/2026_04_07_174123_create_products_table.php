@@ -30,11 +30,9 @@ return new class extends Migration
                 ->on('warehouses')
                 ->onDelete('set null')
                 ->onUpdate('cascade');
-            $table->foreign('supplier_id')
-                ->references('id')
-                ->on('suppliers')
-                ->onDelete('set null')
-                ->onUpdate('restrict');
+            // FK supplier_id được thêm ở migration riêng (2026_04_07_174124)
+            // vì suppliers và products cùng timestamp 174123, products chạy trước alphabetically
+
         });
     }
 

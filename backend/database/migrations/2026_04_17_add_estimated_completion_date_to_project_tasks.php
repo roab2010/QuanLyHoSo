@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('project_tasks', 'estimated_completion_date')) {
+            return;
+        }
+
         Schema::table('project_tasks', function (Blueprint $table) {
             $table->date('estimated_completion_date')->nullable()->after('sort_order');
         });
