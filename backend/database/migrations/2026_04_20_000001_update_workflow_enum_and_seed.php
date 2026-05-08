@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 return new class extends Migration
 {
@@ -105,9 +106,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::table('document_types')->truncate();
-        DB::table('workflow_steps')->truncate();
-        DB::table('workflows')->truncate();
+        // Khi dùng truncate nên cẩn thận, có thể dùng delete() nếu có khóa ngoại
+        DB::table('document_types')->delete();
+        DB::table('workflow_steps')->delete();
+        DB::table('workflows')->delete();
         DB::statement("ALTER TABLE document_workflow_logs MODIFY COLUMN action ENUM('SUBMIT','APPROVE','REJECT','REVISE') NOT NULL");
     }
 };
