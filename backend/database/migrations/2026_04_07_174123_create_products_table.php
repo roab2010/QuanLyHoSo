@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('sku', 50)->unique();
             $table->string('name', 200);
-            $table->unsignedInteger('warehouse_id')->nullable();
+            $table->unsignedBigInteger('warehouse_id')->nullable();
             $table->string('unit', 20)->nullable();
             $table->enum('type', ['CONSUMABLE', 'RETURNABLE']);
             $table->string('category_name', 100)->nullable();
